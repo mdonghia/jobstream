@@ -1,22 +1,48 @@
+import { Suspense } from "react"
 import { requireAuth } from "@/lib/auth-utils"
-import { CalendarPlus } from "lucide-react"
+import { BookingPage } from "@/components/bookings/booking-page"
 
-export default async function BookingsPage() {
+export default async function BookingsRoute() {
   await requireAuth()
 
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-[#0A2540]">Bookings</h1>
+  // Try to load initial data from server actions (when available)
+  let initialBookings: any[] = []
+  let initialTeamMembers: any[] = []
 
-      <div className="flex flex-col items-center justify-center mt-24">
-        <CalendarPlus className="size-16 text-[#8898AA]" />
-        <h2 className="mt-4 text-lg font-semibold text-[#0A2540]">
-          No booking requests
-        </h2>
-        <p className="mt-2 text-[#425466] text-center max-w-md">
-          Set up your online booking widget to receive requests.
-        </p>
-      </div>
-    </div>
+  try {
+    const mod = await import("@/actions/bookings").catch(() => null)
+    if (mod?.getBookings) {
+      const result = await mod.getBookings({})
+      if (result && !("error" in result)) {
+        initialBookings = (result.bookings ?? []).map((b: any) => ({
+          ...b,
+          serviceName: b.service?.name ?? null,
+          createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
+          preferredDate: b.preferredDate instanceof Date ? b.preferredDate.toISOString() : b.preferredDate,
+        }))
+      }
+    }
+    // Team members come from the settings/team actions
+    const settingsMod = await import("@/actions/settings").catch(() => null)
+    if (settingsMod?.getTeamMembers) {
+      const result = await settingsMod.getTeamMembers()
+      if (result && !("error" in result) && result.members) {
+        initialTeamMembers = result.members.map((m: any) => ({
+          id: m.id,
+          name: `${m.firstName} ${m.lastName}`,
+        }))
+      }
+    }
+  } catch {
+    // Server actions not yet available -- render with empty data
+  }
+
+  return (
+    <Suspense>
+      <BookingPage
+        initialBookings={initialBookings}
+        initialTeamMembers={initialTeamMembers}
+      />
+    </Suspense>
   )
 }

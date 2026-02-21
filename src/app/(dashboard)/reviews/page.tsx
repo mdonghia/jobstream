@@ -1,22 +1,52 @@
+import { Suspense } from "react"
 import { requireAuth } from "@/lib/auth-utils"
-import { Star } from "lucide-react"
+import { ReviewsPage } from "@/components/reviews/reviews-page"
 
-export default async function ReviewsPage() {
+export default async function ReviewsRoute() {
   await requireAuth()
 
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-[#0A2540]">Reviews</h1>
+  // Try to load initial data from server actions (when available)
+  let initialReviews: any[] = []
+  let initialSummary = undefined
 
-      <div className="flex flex-col items-center justify-center mt-24">
-        <Star className="size-16 text-[#8898AA]" />
-        <h2 className="mt-4 text-lg font-semibold text-[#0A2540]">
-          No reviews yet
-        </h2>
-        <p className="mt-2 text-[#425466] text-center max-w-md">
-          Send review requests to your customers after completing jobs.
-        </p>
-      </div>
-    </div>
+  try {
+    const mod = await import("@/actions/reviews").catch(() => null)
+    if (mod?.getReviews) {
+      const result = await mod.getReviews({})
+      if (result && !("error" in result)) {
+        initialReviews = (result.reviews ?? []).map((r: any) => ({
+          ...r,
+          customerName: r.customer
+            ? `${r.customer.firstName} ${r.customer.lastName}`
+            : null,
+          reviewDate:
+            r.reviewDate instanceof Date
+              ? r.reviewDate.toISOString()
+              : r.reviewDate,
+          respondedAt:
+            r.respondedAt instanceof Date
+              ? r.respondedAt.toISOString()
+              : r.respondedAt,
+          createdAt:
+            r.createdAt instanceof Date
+              ? r.createdAt.toISOString()
+              : r.createdAt,
+        }))
+        if (result.summary) {
+          initialSummary = result.summary
+        }
+      }
+    }
+  } catch {
+    // Server actions not yet available -- render with empty data
+  }
+
+  return (
+    <Suspense>
+      <ReviewsPage
+        initialReviews={initialReviews}
+        initialSummary={initialSummary}
+      />
+    </Suspense>
   )
 }

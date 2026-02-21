@@ -1,22 +1,46 @@
+import { Suspense } from "react"
 import { requireAuth } from "@/lib/auth-utils"
-import { CreditCard } from "lucide-react"
+import { PaymentsPage } from "@/components/payments/payments-page"
 
-export default async function PaymentsPage() {
+export default async function PaymentsRoute() {
   await requireAuth()
 
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-[#0A2540]">Payments</h1>
+  // Try to load initial data from server actions (when available)
+  let initialPayments: any[] = []
+  let initialSummary = undefined
 
-      <div className="flex flex-col items-center justify-center mt-24">
-        <CreditCard className="size-16 text-[#8898AA]" />
-        <h2 className="mt-4 text-lg font-semibold text-[#0A2540]">
-          No payments yet
-        </h2>
-        <p className="mt-2 text-[#425466] text-center max-w-md">
-          Payments will appear here once you start collecting from invoices.
-        </p>
-      </div>
-    </div>
+  try {
+    const mod = await import("@/actions/payments").catch(() => null)
+    if (mod?.getPayments) {
+      const result = await mod.getPayments({})
+      if (result && !("error" in result)) {
+        initialPayments = (result.payments ?? []).map((p: any) => ({
+          ...p,
+          amount: typeof p.amount === "object" ? Number(p.amount) : p.amount,
+          processedAt:
+            p.processedAt instanceof Date
+              ? p.processedAt.toISOString()
+              : p.processedAt,
+          createdAt:
+            p.createdAt instanceof Date
+              ? p.createdAt.toISOString()
+              : p.createdAt,
+        }))
+        if (result.summary) {
+          initialSummary = result.summary
+        }
+      }
+    }
+  } catch {
+    // Server actions not yet available -- render with empty data
+  }
+
+  return (
+    <Suspense>
+      <PaymentsPage
+        initialPayments={initialPayments}
+        initialSummary={initialSummary}
+      />
+    </Suspense>
   )
 }
