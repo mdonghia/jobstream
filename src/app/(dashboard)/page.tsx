@@ -1,31 +1,64 @@
 import { requireAuth } from "@/lib/auth-utils"
-import { LayoutDashboard } from "lucide-react"
+import {
+  getDashboardStats,
+  getRevenueChart,
+  getJobsByStatusChart,
+  getUpcomingJobs,
+  getRecentActivity,
+} from "@/actions/dashboard"
+import { DashboardPage as DashboardPageClient } from "@/components/dashboard/dashboard-page"
 
 export default async function DashboardPage() {
   const user = await requireAuth()
 
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-[#0A2540]">
-          Welcome back, {user.firstName}!
-        </h1>
-        <p className="text-[#425466] mt-1">
-          Here&apos;s an overview of your business.
-        </p>
-      </div>
+  const [statsResult, revenueResult, statusResult, upcomingResult, activityResult] =
+    await Promise.all([
+      getDashboardStats(),
+      getRevenueChart(),
+      getJobsByStatusChart(),
+      getUpcomingJobs(),
+      getRecentActivity(),
+    ])
 
-      {/* Placeholder for dashboard cards and charts */}
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <LayoutDashboard className="w-16 h-16 text-[#8898AA] mb-4" />
-        <h2 className="text-lg font-semibold text-[#0A2540] mb-2">
-          Dashboard coming soon
-        </h2>
-        <p className="text-sm text-[#425466] max-w-md">
-          Revenue charts, job summaries, and activity feeds will appear here
-          once you start using JobStream.
-        </p>
-      </div>
-    </div>
+  // Provide fallback values if any server action returned an error
+  const stats =
+    "error" in statsResult
+      ? {
+          revenueThisMonth: 0,
+          revenueLastMonth: 0,
+          revenueChange: 0,
+          jobsCompletedThisMonth: 0,
+          jobsCompletedLastMonth: 0,
+          jobsChange: 0,
+          outstandingInvoices: { count: 0, total: 0 },
+          quoteConversionRate: 0,
+        }
+      : statsResult
+
+  const revenueChart = "error" in revenueResult ? [] : revenueResult
+  const jobsByStatus = "error" in statusResult ? [] : statusResult
+  const upcomingJobs = "error" in upcomingResult ? [] : upcomingResult
+  const recentActivity = "error" in activityResult ? [] : activityResult
+
+  // Serialize for client component (handles Date -> string, Decimal -> number)
+  const serializedData = JSON.parse(
+    JSON.stringify({
+      stats,
+      revenueChart,
+      jobsByStatus,
+      upcomingJobs,
+      recentActivity,
+    })
+  )
+
+  return (
+    <DashboardPageClient
+      stats={serializedData.stats}
+      revenueChart={serializedData.revenueChart}
+      jobsByStatus={serializedData.jobsByStatus}
+      upcomingJobs={serializedData.upcomingJobs}
+      recentActivity={serializedData.recentActivity}
+      userName={user.firstName}
+    />
   )
 }
