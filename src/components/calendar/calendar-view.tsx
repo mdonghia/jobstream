@@ -14,6 +14,8 @@ import {
   subMonths,
   addDays,
   subDays,
+  addMinutes,
+  parseISO,
 } from "date-fns"
 import {
   ChevronLeft,
@@ -33,7 +35,7 @@ import {
 } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
-import { getCalendarJobs } from "@/actions/jobs"
+import { getCalendarJobs, rescheduleJob } from "@/actions/jobs"
 import { toast } from "sonner"
 
 import { MonthView } from "./month-view"
@@ -50,6 +52,12 @@ type ViewMode = "month" | "week" | "day" | "list"
 interface CalendarViewProps {
   initialJobs: CalendarJob[]
   teamMembers: TeamMember[]
+  /** Callback to notify parent when local jobs state changes (for conflict detection) */
+  onJobsChange?: (jobs: CalendarJob[]) => void
+  /** Callback to register a refetch function with the parent */
+  onRefetchReady?: (refetch: () => Promise<void>) => void
+  /** Callback to notify parent when active members change */
+  onActiveMembersChange?: (members: TeamMember[]) => void
 }
 
 // ── View config ────────────────────────────────────────────────────────────────
@@ -63,7 +71,13 @@ const VIEW_OPTIONS: { value: ViewMode; label: string; icon: React.ElementType }[
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function CalendarView({ initialJobs, teamMembers }: CalendarViewProps) {
+export function CalendarView({
+  initialJobs,
+  teamMembers,
+  onJobsChange,
+  onRefetchReady,
+  onActiveMembersChange,
+}: CalendarViewProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -74,6 +88,19 @@ export function CalendarView({ initialJobs, teamMembers }: CalendarViewProps) {
   const [filterOpen, setFilterOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  // Active team members
+  const activeMembers = teamMembers.filter((m) => m.isActive)
+
+  // ── Notify parent of state changes ─────────────────────────────────────────
+
+  useEffect(() => {
+    onJobsChange?.(jobs)
+  }, [jobs, onJobsChange])
+
+  useEffect(() => {
+    onActiveMembersChange?.(activeMembers)
+  }, [activeMembers, onActiveMembersChange])
+
   // ── Date range calculation ─────────────────────────────────────────────────
 
   const getDateRange = useCallback(
@@ -82,7 +109,6 @@ export function CalendarView({ initialJobs, teamMembers }: CalendarViewProps) {
         case "month": {
           const ms = startOfMonth(d)
           const me = endOfMonth(d)
-          // Extend to full weeks for the month grid
           return {
             start: startOfWeek(ms, { weekStartsOn: 0 }),
             end: endOfWeek(me, { weekStartsOn: 0 }),
@@ -96,7 +122,6 @@ export function CalendarView({ initialJobs, teamMembers }: CalendarViewProps) {
         case "day":
           return { start: d, end: d }
         case "list": {
-          // Show current month range for list view
           return { start: startOfMonth(d), end: endOfMonth(d) }
         }
       }
@@ -131,6 +156,15 @@ export function CalendarView({ initialJobs, teamMembers }: CalendarViewProps) {
     },
     [getDateRange]
   )
+
+  // Expose refetch to parent via callback
+  const refetch = useCallback(async () => {
+    await fetchJobs(currentDate, view, selectedMemberIds)
+  }, [fetchJobs, currentDate, view, selectedMemberIds])
+
+  useEffect(() => {
+    onRefetchReady?.(refetch)
+  }, [refetch, onRefetchReady])
 
   // Refetch when date, view, or filters change
   useEffect(() => {
@@ -220,16 +254,63 @@ export function CalendarView({ initialJobs, teamMembers }: CalendarViewProps) {
   }
 
   function handleSlotClick(date: Date, time?: string) {
-    // Navigate to create a new job at that time
     const params = new URLSearchParams()
     params.set("date", date.toISOString())
     if (time) params.set("time", time)
     router.push(`/jobs/new?${params.toString()}`)
   }
 
-  // ── Active team members ────────────────────────────────────────────────────
+  // ── Resize handler ─────────────────────────────────────────────────────────
 
-  const activeMembers = teamMembers.filter((m) => m.isActive)
+  async function handleResize(jobId: string, newDurationMinutes: number) {
+    const job = jobs.find((j) => j.id === jobId)
+    if (!job) return
+
+    const previousJobs = [...jobs]
+    const start = parseISO(job.scheduledStart)
+    const newEnd = addMinutes(start, newDurationMinutes)
+
+    // Optimistic update
+    setJobs((prev) =>
+      prev.map((j) =>
+        j.id === jobId
+          ? { ...j, scheduledEnd: newEnd.toISOString() }
+          : j
+      )
+    )
+
+    try {
+      const result = await rescheduleJob(jobId, job.scheduledStart, newEnd.toISOString())
+      if ("error" in result) {
+        toast.error(result.error as string)
+        setJobs(previousJobs)
+        return
+      }
+
+      toast.success("Duration updated. Undo?", {
+        duration: 5000,
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const undoResult = await rescheduleJob(
+              jobId,
+              job.scheduledStart,
+              job.scheduledEnd || addMinutes(start, 60).toISOString()
+            )
+            if ("error" in undoResult) {
+              toast.error("Failed to undo")
+            } else {
+              setJobs(previousJobs)
+              toast.info("Duration change undone")
+            }
+          },
+        },
+      })
+    } catch {
+      toast.error("Failed to update duration")
+      setJobs(previousJobs)
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -370,6 +451,7 @@ export function CalendarView({ initialJobs, teamMembers }: CalendarViewProps) {
             currentDate={currentDate}
             onJobClick={handleJobClick}
             onSlotClick={handleSlotClick}
+            onResize={handleResize}
           />
         )}
         {view === "day" && (
@@ -379,6 +461,7 @@ export function CalendarView({ initialJobs, teamMembers }: CalendarViewProps) {
             onJobClick={handleJobClick}
             onSlotClick={handleSlotClick}
             teamMembers={activeMembers}
+            onResize={handleResize}
           />
         )}
         {view === "list" && (

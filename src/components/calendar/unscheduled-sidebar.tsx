@@ -2,15 +2,17 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronRight, ChevronLeft, AlertCircle } from "lucide-react"
+import { ChevronRight, ChevronLeft, AlertCircle, GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { DraggableJob } from "./dnd-wrappers"
+import type { DragData } from "./dnd-wrappers"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface UnscheduledJob {
+export interface UnscheduledJob {
   id: string
   title: string
   jobNumber: string
@@ -78,33 +80,54 @@ export function UnscheduledSidebar({ jobs }: UnscheduledSidebarProps) {
               <div className="py-8 text-center">
                 <AlertCircle className="w-8 h-8 text-[#E3E8EE] mx-auto mb-2" />
                 <p className="text-xs text-[#8898AA]">No unscheduled jobs</p>
+                <p className="text-[10px] text-[#8898AA] mt-1">Drag jobs here to unschedule them</p>
               </div>
             ) : (
               jobs.map((job) => {
                 const priority = getPriorityConfig(job.priority)
 
+                const dragData: DragData = {
+                  type: "unscheduled",
+                  job: {
+                    id: job.id,
+                    title: job.title,
+                    jobNumber: job.jobNumber,
+                    priority: job.priority,
+                    status: job.status,
+                    customer: job.customer,
+                  },
+                }
+
                 return (
-                  <button
+                  <DraggableJob
                     key={job.id}
-                    onClick={() => router.push(`/jobs/${job.id}`)}
-                    className="w-full text-left rounded-lg border border-[#E3E8EE] p-3 hover:border-[#635BFF]/40 hover:shadow-sm transition-all group cursor-pointer"
+                    id={`unscheduled-${job.id}`}
+                    data={dragData}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium text-[#0A2540] group-hover:text-[#635BFF] truncate leading-tight">
-                        {job.title}
+                    <div
+                      onClick={() => router.push(`/jobs/${job.id}`)}
+                      className="w-full text-left rounded-lg border border-[#E3E8EE] p-3 hover:border-[#635BFF]/40 hover:shadow-sm transition-all group cursor-grab active:cursor-grabbing"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-1.5 min-w-0">
+                          <GripVertical className="w-3.5 h-3.5 text-[#8898AA] mt-0.5 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity" />
+                          <p className="text-sm font-medium text-[#0A2540] group-hover:text-[#635BFF] truncate leading-tight">
+                            {job.title}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={cn("text-[10px] px-1.5 py-0 shrink-0", priority.className)}
+                        >
+                          {priority.label}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-[#425466] mt-1 truncate pl-5">
+                        {job.customer.firstName} {job.customer.lastName}
                       </p>
-                      <Badge
-                        variant="outline"
-                        className={cn("text-[10px] px-1.5 py-0 shrink-0", priority.className)}
-                      >
-                        {priority.label}
-                      </Badge>
+                      <p className="text-[10px] text-[#8898AA] mt-0.5 pl-5">{job.jobNumber}</p>
                     </div>
-                    <p className="text-xs text-[#425466] mt-1 truncate">
-                      {job.customer.firstName} {job.customer.lastName}
-                    </p>
-                    <p className="text-[10px] text-[#8898AA] mt-0.5">{job.jobNumber}</p>
-                  </button>
+                  </DraggableJob>
                 )
               })
             )}

@@ -14,14 +14,16 @@ import {
   setMinutes,
 } from "date-fns"
 import { cn } from "@/lib/utils"
+import { DraggableJob, DroppableSlot, ResizeHandle } from "./dnd-wrappers"
+import type { DragData, DropData } from "./dnd-wrappers"
 import type { CalendarJob } from "./month-view"
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
-const START_HOUR = 6
-const END_HOUR = 20
-const TOTAL_HOURS = END_HOUR - START_HOUR // 14
-const HOUR_HEIGHT = 60 // px per hour
+export const WEEK_START_HOUR = 6
+export const WEEK_END_HOUR = 20
+export const WEEK_TOTAL_HOURS = WEEK_END_HOUR - WEEK_START_HOUR // 14
+export const WEEK_HOUR_HEIGHT = 60 // px per hour
 const SLOT_INCREMENT = 15 // minutes
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -31,6 +33,7 @@ interface WeekViewProps {
   currentDate: Date
   onJobClick: (jobId: string) => void
   onSlotClick: (date: Date, time: string) => void
+  onResize?: (jobId: string, newDurationMinutes: number) => void
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -45,7 +48,7 @@ function getJobColor(job: CalendarJob): string {
 function getJobPosition(job: CalendarJob) {
   const start = parseISO(job.scheduledStart)
   const startMinutes = start.getHours() * 60 + start.getMinutes()
-  const topMinutes = Math.max(startMinutes - START_HOUR * 60, 0)
+  const topMinutes = Math.max(startMinutes - WEEK_START_HOUR * 60, 0)
 
   let durationMinutes = 60 // default 1 hour
   if (job.scheduledEnd) {
@@ -55,10 +58,10 @@ function getJobPosition(job: CalendarJob) {
   // Clamp minimum height
   durationMinutes = Math.max(durationMinutes, 30)
 
-  const top = (topMinutes / 60) * HOUR_HEIGHT
-  const height = (durationMinutes / 60) * HOUR_HEIGHT
+  const top = (topMinutes / 60) * WEEK_HOUR_HEIGHT
+  const height = (durationMinutes / 60) * WEEK_HOUR_HEIGHT
 
-  return { top, height }
+  return { top, height, durationMinutes }
 }
 
 function roundToSlot(minutes: number): number {
@@ -67,7 +70,7 @@ function roundToSlot(minutes: number): number {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function WeekView({ jobs, currentDate, onJobClick, onSlotClick }: WeekViewProps) {
+export function WeekView({ jobs, currentDate, onJobClick, onSlotClick, onResize }: WeekViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [currentTimeTop, setCurrentTimeTop] = useState<number | null>(null)
 
@@ -78,7 +81,7 @@ export function WeekView({ jobs, currentDate, onJobClick, onSlotClick }: WeekVie
   }, [currentDate])
 
   const hours = useMemo(() => {
-    return Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i)
+    return Array.from({ length: WEEK_TOTAL_HOURS }, (_, i) => WEEK_START_HOUR + i)
   }, [])
 
   // Jobs grouped by day
@@ -105,9 +108,9 @@ export function WeekView({ jobs, currentDate, onJobClick, onSlotClick }: WeekVie
     function updateTime() {
       const now = new Date()
       const nowMinutes = now.getHours() * 60 + now.getMinutes()
-      const offset = nowMinutes - START_HOUR * 60
-      if (offset >= 0 && offset <= TOTAL_HOURS * 60) {
-        setCurrentTimeTop((offset / 60) * HOUR_HEIGHT)
+      const offset = nowMinutes - WEEK_START_HOUR * 60
+      if (offset >= 0 && offset <= WEEK_TOTAL_HOURS * 60) {
+        setCurrentTimeTop((offset / 60) * WEEK_HOUR_HEIGHT)
       } else {
         setCurrentTimeTop(null)
       }
@@ -120,7 +123,7 @@ export function WeekView({ jobs, currentDate, onJobClick, onSlotClick }: WeekVie
   // Scroll to 8 AM on mount
   useEffect(() => {
     if (scrollRef.current) {
-      const offset8am = (8 - START_HOUR) * HOUR_HEIGHT
+      const offset8am = (8 - WEEK_START_HOUR) * WEEK_HOUR_HEIGHT
       scrollRef.current.scrollTop = offset8am - 20
     }
   }, [])
@@ -128,7 +131,7 @@ export function WeekView({ jobs, currentDate, onJobClick, onSlotClick }: WeekVie
   function handleSlotClick(day: Date, hour: number, e: React.MouseEvent<HTMLDivElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
     const yOffset = e.clientY - rect.top
-    const minuteOffset = roundToSlot(Math.floor((yOffset / HOUR_HEIGHT) * 60))
+    const minuteOffset = roundToSlot(Math.floor((yOffset / WEEK_HOUR_HEIGHT) * 60))
     const totalMinutes = hour * 60 + minuteOffset
     const h = Math.floor(totalMinutes / 60)
     const m = totalMinutes % 60
@@ -178,7 +181,7 @@ export function WeekView({ jobs, currentDate, onJobClick, onSlotClick }: WeekVie
               <div
                 key={hour}
                 className="relative border-b border-[#E3E8EE]"
-                style={{ height: HOUR_HEIGHT }}
+                style={{ height: WEEK_HOUR_HEIGHT }}
               >
                 <span className="absolute -top-2.5 right-2 text-[10px] text-[#8898AA] font-medium">
                   {format(setMinutes(setHours(new Date(), hour), 0), "h a")}
@@ -201,15 +204,31 @@ export function WeekView({ jobs, currentDate, onJobClick, onSlotClick }: WeekVie
                   today && "bg-[#635BFF]/[0.02]"
                 )}
               >
-                {/* Hour grid lines */}
-                {hours.map((hour) => (
-                  <div
-                    key={hour}
-                    className="border-b border-[#E3E8EE] cursor-pointer hover:bg-[#F6F8FA]/60 transition-colors"
-                    style={{ height: HOUR_HEIGHT }}
-                    onClick={(e) => handleSlotClick(day, hour, e)}
-                  />
-                ))}
+                {/* Hour grid lines — each is a droppable slot */}
+                {hours.map((hour) => {
+                  const slotId = `week-${dayKey}-${hour}`
+                  const timeStr = `${hour.toString().padStart(2, "0")}:00`
+                  const dropData: DropData = {
+                    type: "time-slot",
+                    date: dayKey,
+                    time: timeStr,
+                    hour,
+                  }
+
+                  return (
+                    <DroppableSlot
+                      key={hour}
+                      id={slotId}
+                      data={dropData}
+                    >
+                      <div
+                        className="border-b border-[#E3E8EE] cursor-pointer hover:bg-[#F6F8FA]/60 transition-colors"
+                        style={{ height: WEEK_HOUR_HEIGHT }}
+                        onClick={(e) => handleSlotClick(day, hour, e)}
+                      />
+                    </DroppableSlot>
+                  )
+                })}
 
                 {/* Current time indicator */}
                 {today && currentTimeTop !== null && (
@@ -226,39 +245,63 @@ export function WeekView({ jobs, currentDate, onJobClick, onSlotClick }: WeekVie
 
                 {/* Job blocks */}
                 {dayJobs.map((job) => {
-                  const { top, height } = getJobPosition(job)
+                  const { top, height, durationMinutes } = getJobPosition(job)
                   const color = getJobColor(job)
+                  const dragData: DragData = {
+                    type: "job",
+                    job,
+                    sourceDate: dayKey,
+                    sourceMemberId: job.assignments.length > 0 ? job.assignments[0].user.id : undefined,
+                  }
 
                   return (
-                    <button
+                    <DraggableJob
                       key={job.id}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onJobClick(job.id)
-                      }}
-                      className="absolute left-0.5 right-0.5 z-10 rounded-md px-1.5 py-1 text-left overflow-hidden transition-shadow hover:shadow-md cursor-pointer group"
+                      id={job.id}
+                      data={dragData}
+                      className="absolute left-0.5 right-0.5 z-10 rounded-md text-left overflow-hidden transition-shadow hover:shadow-md group"
                       style={{
                         top,
                         height: Math.max(height, 24),
                         backgroundColor: `${color}18`,
                         borderLeft: `3px solid ${color}`,
+                        position: "absolute",
                       }}
                     >
-                      <p className="text-[11px] font-semibold text-[#0A2540] truncate leading-tight">
-                        {job.customer.firstName} {job.customer.lastName}
-                      </p>
-                      {height >= 40 && (
-                        <p className="text-[10px] text-[#425466] truncate leading-tight mt-0.5">
-                          {format(parseISO(job.scheduledStart), "h:mm a")}
-                          {job.scheduledEnd && ` - ${format(parseISO(job.scheduledEnd), "h:mm a")}`}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onJobClick(job.id)
+                        }}
+                        className="w-full h-full px-1.5 py-1 text-left cursor-pointer"
+                      >
+                        <p className="text-[11px] font-semibold text-[#0A2540] truncate leading-tight">
+                          {job.customer.firstName} {job.customer.lastName}
                         </p>
+                        {height >= 40 && (
+                          <p className="text-[10px] text-[#425466] truncate leading-tight mt-0.5">
+                            {format(parseISO(job.scheduledStart), "h:mm a")}
+                            {job.scheduledEnd && ` - ${format(parseISO(job.scheduledEnd), "h:mm a")}`}
+                          </p>
+                        )}
+                        {height >= 58 && (
+                          <p className="text-[10px] text-[#8898AA] truncate leading-tight mt-0.5">
+                            {job.title}
+                          </p>
+                        )}
+                      </button>
+                      {/* Resize handle */}
+                      {onResize && (
+                        <ResizeHandle
+                          jobId={job.id}
+                          initialHeight={Math.max(height, 24)}
+                          hourHeight={WEEK_HOUR_HEIGHT}
+                          minDuration={30}
+                          snapIncrement={15}
+                          onResizeEnd={onResize}
+                        />
                       )}
-                      {height >= 58 && (
-                        <p className="text-[10px] text-[#8898AA] truncate leading-tight mt-0.5">
-                          {job.title}
-                        </p>
-                      )}
-                    </button>
+                    </DraggableJob>
                   )
                 })}
               </div>

@@ -1,8 +1,7 @@
 import { requireAuth } from "@/lib/auth-utils"
 import { getCalendarJobs, getUnscheduledJobs } from "@/actions/jobs"
 import { getTeamMembers } from "@/actions/settings"
-import { CalendarView } from "@/components/calendar/calendar-view"
-import { UnscheduledSidebar } from "@/components/calendar/unscheduled-sidebar"
+import { ScheduleLayout } from "@/components/calendar/schedule-layout"
 import { startOfWeek, endOfWeek } from "date-fns"
 
 export default async function SchedulePage() {
@@ -40,22 +39,10 @@ export default async function SchedulePage() {
       : JSON.parse(JSON.stringify(teamResult.members))
 
   return (
-    <div className="flex h-[calc(100vh-64px)]">
-      {/* Main calendar area */}
-      <div className="flex-1 min-w-0 p-6 overflow-hidden flex flex-col">
-        <div className="mb-4">
-          <h1 className="text-2xl font-semibold text-[#0A2540]">Schedule</h1>
-          <p className="text-sm text-[#8898AA] mt-0.5">
-            Manage your team&apos;s schedule and job assignments.
-          </p>
-        </div>
-        <div className="flex-1 min-h-0">
-          <CalendarView initialJobs={initialJobs} teamMembers={teamMembers} />
-        </div>
-      </div>
-
-      {/* Unscheduled sidebar */}
-      <UnscheduledSidebar jobs={unscheduledJobs} />
-    </div>
+    <ScheduleLayout
+      initialJobs={initialJobs}
+      teamMembers={teamMembers}
+      unscheduledJobs={unscheduledJobs}
+    />
   )
 }

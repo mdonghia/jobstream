@@ -19,6 +19,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { DraggableJob, DroppableSlot } from "./dnd-wrappers"
+import type { DragData, DropData } from "./dnd-wrappers"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -118,116 +120,142 @@ export function MonthView({ jobs, currentDate, onJobClick, onSlotClick }: MonthV
             const isCurrentMonth = isSameMonth(day, currentDate)
             const today = isToday(day)
 
+            const dropData: DropData = {
+              type: "day-slot",
+              date: dayKey,
+              time: "09:00",
+            }
+
             return (
-              <div
+              <DroppableSlot
                 key={dayKey}
-                className={cn(
-                  "relative border-r border-[#E3E8EE] last:border-r-0 p-1 cursor-pointer transition-colors hover:bg-[#F6F8FA]/60",
-                  !isCurrentMonth && "bg-[#F6F8FA]/40",
-                  today && "ring-2 ring-inset ring-[#635BFF]"
-                )}
-                onClick={() => onSlotClick(day)}
+                id={`month-${dayKey}`}
+                data={dropData}
               >
-                {/* Day number */}
-                <div className="flex justify-end px-1">
-                  <span
-                    className={cn(
-                      "text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full",
-                      today
-                        ? "bg-[#635BFF] text-white"
-                        : isCurrentMonth
-                        ? "text-[#0A2540]"
-                        : "text-[#8898AA]"
-                    )}
-                  >
-                    {format(day, "d")}
-                  </span>
-                </div>
-
-                {/* Job blocks */}
-                <div className="mt-0.5 space-y-0.5">
-                  {dayJobs.slice(0, MAX_VISIBLE).map((job) => (
-                    <button
-                      key={job.id}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onJobClick(job.id)
-                      }}
-                      className="w-full flex items-center gap-1 px-1.5 py-0.5 rounded text-left group hover:bg-[#E3E8EE] transition-colors"
-                    >
-                      <span
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: getJobColor(job) }}
-                      />
-                      <span className="text-[11px] text-[#0A2540] truncate leading-tight font-medium">
-                        {format(parseISO(job.scheduledStart), "h:mm")}{" "}
-                        {job.title}
-                      </span>
-                    </button>
-                  ))}
-
-                  {/* +X more */}
-                  {dayJobs.length > MAX_VISIBLE && (
-                    <Popover
-                      open={morePopoverDay === dayKey}
-                      onOpenChange={(open) =>
-                        setMorePopoverDay(open ? dayKey : null)
-                      }
-                    >
-                      <PopoverTrigger asChild>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setMorePopoverDay(
-                              morePopoverDay === dayKey ? null : dayKey
-                            )
-                          }}
-                          className="w-full text-left px-1.5 py-0.5 text-[11px] font-medium text-[#635BFF] hover:text-[#5851ea] transition-colors"
-                        >
-                          +{dayJobs.length - MAX_VISIBLE} more
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        className="w-64 p-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <p className="text-xs font-semibold text-[#0A2540] mb-2">
-                          {format(day, "EEEE, MMMM d")}
-                        </p>
-                        <div className="space-y-1 max-h-48 overflow-y-auto">
-                          {dayJobs.map((job) => (
-                            <button
-                              key={job.id}
-                              onClick={() => {
-                                setMorePopoverDay(null)
-                                onJobClick(job.id)
-                              }}
-                              className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[#F6F8FA] text-left transition-colors"
-                            >
-                              <span
-                                className="w-2 h-2 rounded-full shrink-0"
-                                style={{
-                                  backgroundColor: getJobColor(job),
-                                }}
-                              />
-                              <div className="min-w-0">
-                                <p className="text-xs font-medium text-[#0A2540] truncate">
-                                  {job.title}
-                                </p>
-                                <p className="text-[10px] text-[#8898AA]">
-                                  {format(parseISO(job.scheduledStart), "h:mm a")}
-                                  {" - "}
-                                  {job.customer.firstName} {job.customer.lastName}
-                                </p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                <div
+                  className={cn(
+                    "relative border-r border-[#E3E8EE] last:border-r-0 p-1 cursor-pointer transition-colors hover:bg-[#F6F8FA]/60",
+                    !isCurrentMonth && "bg-[#F6F8FA]/40",
+                    today && "ring-2 ring-inset ring-[#635BFF]"
                   )}
+                  style={{ minHeight: 120 }}
+                  onClick={() => onSlotClick(day)}
+                >
+                  {/* Day number */}
+                  <div className="flex justify-end px-1">
+                    <span
+                      className={cn(
+                        "text-xs font-medium inline-flex items-center justify-center w-6 h-6 rounded-full",
+                        today
+                          ? "bg-[#635BFF] text-white"
+                          : isCurrentMonth
+                          ? "text-[#0A2540]"
+                          : "text-[#8898AA]"
+                      )}
+                    >
+                      {format(day, "d")}
+                    </span>
+                  </div>
+
+                  {/* Job blocks */}
+                  <div className="mt-0.5 space-y-0.5">
+                    {dayJobs.slice(0, MAX_VISIBLE).map((job) => {
+                      const dragData: DragData = {
+                        type: "job",
+                        job,
+                        sourceDate: dayKey,
+                        sourceMemberId: job.assignments.length > 0 ? job.assignments[0].user.id : undefined,
+                      }
+
+                      return (
+                        <DraggableJob
+                          key={job.id}
+                          id={`month-${job.id}`}
+                          data={dragData}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onJobClick(job.id)
+                            }}
+                            className="w-full flex items-center gap-1 px-1.5 py-0.5 rounded text-left group hover:bg-[#E3E8EE] transition-colors"
+                          >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: getJobColor(job) }}
+                            />
+                            <span className="text-[11px] text-[#0A2540] truncate leading-tight font-medium">
+                              {format(parseISO(job.scheduledStart), "h:mm")}{" "}
+                              {job.title}
+                            </span>
+                          </button>
+                        </DraggableJob>
+                      )
+                    })}
+
+                    {/* +X more */}
+                    {dayJobs.length > MAX_VISIBLE && (
+                      <Popover
+                        open={morePopoverDay === dayKey}
+                        onOpenChange={(open) =>
+                          setMorePopoverDay(open ? dayKey : null)
+                        }
+                      >
+                        <PopoverTrigger asChild>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setMorePopoverDay(
+                                morePopoverDay === dayKey ? null : dayKey
+                              )
+                            }}
+                            className="w-full text-left px-1.5 py-0.5 text-[11px] font-medium text-[#635BFF] hover:text-[#5851ea] transition-colors"
+                          >
+                            +{dayJobs.length - MAX_VISIBLE} more
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-64 p-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <p className="text-xs font-semibold text-[#0A2540] mb-2">
+                            {format(day, "EEEE, MMMM d")}
+                          </p>
+                          <div className="space-y-1 max-h-48 overflow-y-auto">
+                            {dayJobs.map((job) => (
+                              <button
+                                key={job.id}
+                                onClick={() => {
+                                  setMorePopoverDay(null)
+                                  onJobClick(job.id)
+                                }}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[#F6F8FA] text-left transition-colors"
+                              >
+                                <span
+                                  className="w-2 h-2 rounded-full shrink-0"
+                                  style={{
+                                    backgroundColor: getJobColor(job),
+                                  }}
+                                />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium text-[#0A2540] truncate">
+                                    {job.title}
+                                  </p>
+                                  <p className="text-[10px] text-[#8898AA]">
+                                    {format(parseISO(job.scheduledStart), "h:mm a")}
+                                    {" - "}
+                                    {job.customer.firstName} {job.customer.lastName}
+                                  </p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </DroppableSlot>
             )
           })}
         </div>
