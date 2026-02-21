@@ -1,0 +1,805 @@
+// ============================================================================
+// JobStream - Multi-Tenant Field Service Management Platform
+// Prisma Schema (PostgreSQL)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================================
+// Enums
+// ============================================================================
+
+enum Role {
+  OWNER
+  ADMIN
+  TECHNICIAN
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  APPROVED
+  DECLINED
+  CONVERTED
+  EXPIRED
+}
+
+enum JobStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  VOID
+}
+
+enum PaymentMethod {
+  CARD
+  ACH
+  CASH
+  CHECK
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  DECLINED
+}
+
+enum CommType {
+  SMS
+  EMAIL
+  BOTH
+}
+
+enum CommDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CommStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  BOUNCED
+}
+
+enum AutomationTrigger {
+  JOB_SCHEDULED
+  JOB_COMPLETED
+  INVOICE_SENT
+  INVOICE_OVERDUE
+  QUOTE_SENT
+  BOOKING_RECEIVED
+  BOOKING_CONFIRMED
+}
+
+enum ScheduledStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// ============================================================================
+// Models
+// ============================================================================
+
+// 1. Organization
+model Organization {
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  email           String
+  phone           String?
+  address         String?
+  city            String?
+  state           String?
+  zip             String?
+  logo            String?
+  timezone        String   @default("America/New_York")
+  businessHours   Json?
+  taxRate         Decimal  @default(0)
+  currency        String   @default("USD")
+  invoicePrefix   String   @default("INV")
+  quotePrefix     String   @default("QTE")
+  jobPrefix       String   @default("JOB")
+  invoiceDueDays  Int      @default(30)
+  quoteValidDays  Int      @default(30)
+  stripeAccountId String?
+  stripeOnboarded Boolean  @default(false)
+  nextInvoiceNum  Int      @default(1001)
+  nextQuoteNum    Int      @default(1001)
+  nextJobNum      Int      @default(1001)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  users             User[]
+  customers         Customer[]
+  services          Service[]
+  quotes            Quote[]
+  jobs              Job[]
+  invoices          Invoice[]
+  payments          Payment[]
+  timeEntries       TimeEntry[]
+  bookings          Booking[]
+  reviews           Review[]
+  communicationLogs CommunicationLog[]
+  automationRules   AutomationRule[]
+  scheduledMessages ScheduledMessage[]
+  activityLogs      ActivityLog[]
+  notifications     Notification[]
+  portalSessions    PortalSession[]
+}
+
+// 2. User
+model User {
+  id             String    @id @default(cuid())
+  organizationId String
+  email          String    @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  phone          String?
+  avatar         String?
+  role           Role      @default(TECHNICIAN)
+  color          String    @default("#635BFF")
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jobAssignments       JobAssignment[]
+  jobNotes             JobNote[]
+  timeEntries          TimeEntry[]
+  activityLogs         ActivityLog[]
+  notifications        Notification[]
+  jobAttachments       JobAttachment[]
+  checklistCompletions JobChecklistItem[]   @relation("CompletedBy")
+  passwordResetTokens  PasswordResetToken[]
+  customerNotes        CustomerNote[]
+
+  @@index([organizationId])
+}
+
+// 3. Customer
+model Customer {
+  id             String   @id @default(cuid())
+  organizationId String
+  firstName      String
+  lastName       String
+  email          String?
+  phone          String?
+  company        String?
+  source         String?
+  tags           String[]
+  notes          String?
+  isArchived     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  properties        Property[]
+  quotes            Quote[]
+  jobs              Job[]
+  invoices          Invoice[]
+  customerNotes     CustomerNote[]
+  bookings          Booking[]
+  reviews           Review[]
+  communicationLogs CommunicationLog[]
+  portalSessions    PortalSession[]
+  scheduledMessages ScheduledMessage[]
+
+  @@index([organizationId])
+}
+
+// 4. Property
+model Property {
+  id           String   @id @default(cuid())
+  customerId   String
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  state        String
+  zip          String
+  lat          Float?
+  lng          Float?
+  notes        String?
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  quotes   Quote[]
+  jobs     Job[]
+
+  @@index([customerId])
+}
+
+// 5. Service
+model Service {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  category       String?
+  defaultPrice   Decimal
+  unit           String   @default("flat")
+  taxable        Boolean  @default(true)
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  quoteLineItems   QuoteLineItem[]
+  jobLineItems     JobLineItem[]
+  invoiceLineItems InvoiceLineItem[]
+  bookings         Booking[]
+
+  @@index([organizationId])
+}
+
+// 6. Quote
+model Quote {
+  id               String      @id @default(cuid())
+  organizationId   String
+  customerId       String
+  propertyId       String?
+  quoteNumber      String
+  status           QuoteStatus @default(DRAFT)
+  subtotal         Decimal
+  taxAmount        Decimal
+  total            Decimal
+  validUntil       DateTime
+  customerMessage  String?
+  internalNote     String?
+  sentAt           DateTime?
+  approvedAt       DateTime?
+  declinedAt       DateTime?
+  declineReason    String?
+  convertedToJobId String?
+  accessToken      String      @default(cuid())
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  // Relations
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  property          Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  lineItems         QuoteLineItem[]
+  jobs              Job[]
+  scheduledMessages ScheduledMessage[] @relation("QuoteMessages")
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([organizationId, status])
+  @@index([organizationId, customerId])
+  @@index([accessToken])
+}
+
+// 7. QuoteLineItem
+model QuoteLineItem {
+  id          String  @id @default(cuid())
+  quoteId     String
+  serviceId   String?
+  name        String
+  description String?
+  quantity    Decimal @default(1)
+  unitPrice   Decimal
+  total       Decimal
+  taxable     Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  // Relations
+  quote   Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([quoteId])
+}
+
+// 8. Job
+model Job {
+  id                String    @id @default(cuid())
+  organizationId    String
+  customerId        String
+  propertyId        String?
+  quoteId           String?
+  jobNumber         String
+  title             String
+  description       String?
+  status            JobStatus @default(SCHEDULED)
+  priority          Priority  @default(MEDIUM)
+  scheduledStart    DateTime
+  scheduledEnd      DateTime
+  actualStart       DateTime?
+  actualEnd         DateTime?
+  isRecurring       Boolean   @default(false)
+  recurrenceRule    String?
+  recurrenceEndDate DateTime?
+  parentJobId       String?
+  completionNotes   String?
+  cancelReason      String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  property          Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  quote             Quote?             @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  parentJob         Job?               @relation("RecurringJobs", fields: [parentJobId], references: [id], onDelete: SetNull)
+  childJobs         Job[]              @relation("RecurringJobs")
+  assignments       JobAssignment[]
+  notes             JobNote[]
+  attachments       JobAttachment[]
+  checklistItems    JobChecklistItem[]
+  lineItems         JobLineItem[]
+  invoices          Invoice[]
+  timeEntries       TimeEntry[]
+  reviews           Review[]
+  scheduledMessages ScheduledMessage[] @relation("JobMessages")
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([organizationId, status])
+  @@index([organizationId, customerId])
+  @@index([organizationId, scheduledStart])
+}
+
+// 9. JobAssignment
+model JobAssignment {
+  id             String   @id @default(cuid())
+  jobId          String
+  userId         String
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  // Relations
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([organizationId])
+  @@index([organizationId, userId])
+}
+
+// 10. JobNote
+model JobNote {
+  id        String   @id @default(cuid())
+  jobId     String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  // Relations
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+// 11. JobAttachment
+model JobAttachment {
+  id        String   @id @default(cuid())
+  jobId     String
+  userId    String
+  fileName  String
+  fileUrl   String
+  fileType  String
+  fileSize  Int
+  createdAt DateTime @default(now())
+
+  // Relations
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+}
+
+// 12. JobChecklistItem
+model JobChecklistItem {
+  id                String    @id @default(cuid())
+  jobId             String
+  label             String
+  isCompleted       Boolean   @default(false)
+  completedAt       DateTime?
+  completedByUserId String?
+  sortOrder         Int       @default(0)
+
+  // Relations
+  job         Job   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  completedBy User? @relation("CompletedBy", fields: [completedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+}
+
+// 13. JobLineItem
+model JobLineItem {
+  id          String  @id @default(cuid())
+  jobId       String
+  serviceId   String?
+  name        String
+  description String?
+  quantity    Decimal @default(1)
+  unitPrice   Decimal
+  total       Decimal
+  taxable     Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  // Relations
+  job     Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+}
+
+// 14. Invoice
+model Invoice {
+  id              String        @id @default(cuid())
+  organizationId  String
+  customerId      String
+  jobId           String?
+  invoiceNumber   String
+  status          InvoiceStatus @default(DRAFT)
+  subtotal        Decimal
+  discountType    String?
+  discountValue   Decimal?
+  discountAmount  Decimal       @default(0)
+  taxAmount       Decimal
+  total           Decimal
+  amountPaid      Decimal       @default(0)
+  amountDue       Decimal
+  dueDate         DateTime
+  customerNote    String?
+  internalNote    String?
+  sentAt          DateTime?
+  viewedAt        DateTime?
+  paidAt          DateTime?
+  stripeInvoiceId String?
+  accessToken     String        @default(cuid())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  job               Job?               @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  lineItems         InvoiceLineItem[]
+  payments          Payment[]
+  scheduledMessages ScheduledMessage[] @relation("InvoiceMessages")
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([organizationId, status])
+  @@index([organizationId, customerId])
+  @@index([organizationId, dueDate])
+  @@index([accessToken])
+}
+
+// 15. InvoiceLineItem
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  serviceId   String?
+  name        String
+  description String?
+  quantity    Decimal @default(1)
+  unitPrice   Decimal
+  total       Decimal
+  taxable     Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  // Relations
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+}
+
+// 16. Payment
+model Payment {
+  id              String        @id @default(cuid())
+  organizationId  String
+  invoiceId       String
+  amount          Decimal
+  method          PaymentMethod
+  status          PaymentStatus @default(PENDING)
+  stripePaymentId String?
+  reference       String?
+  notes           String?
+  processedAt     DateTime?
+  createdAt       DateTime      @default(now())
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([invoiceId])
+  @@index([organizationId, createdAt])
+}
+
+// 17. TimeEntry
+model TimeEntry {
+  id              String    @id @default(cuid())
+  organizationId  String
+  userId          String
+  jobId           String?
+  clockIn         DateTime
+  clockOut        DateTime?
+  durationMinutes Int?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job          Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([jobId])
+  @@index([organizationId, userId])
+}
+
+// 18. Booking
+model Booking {
+  id             String        @id @default(cuid())
+  organizationId String
+  serviceId      String?
+  customerId     String?
+  customerName   String
+  customerEmail  String
+  customerPhone  String?
+  address        String?
+  preferredDate  DateTime?
+  preferredTime  String?
+  message        String?
+  status         BookingStatus @default(PENDING)
+  confirmedJobId String?
+  declineReason  String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  service      Service?     @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+}
+
+// 19. Review
+model Review {
+  id              String    @id @default(cuid())
+  organizationId  String
+  customerId      String?
+  jobId           String?
+  platform        String
+  rating          Int
+  reviewerName    String
+  content         String?
+  reviewDate      DateTime
+  responseContent String?
+  respondedAt     DateTime?
+  requestSentAt   DateTime?
+  reviewUrl       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  job          Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+}
+
+// 20. CommunicationLog
+model CommunicationLog {
+  id                String        @id @default(cuid())
+  organizationId    String
+  customerId        String?
+  type              CommType
+  direction         CommDirection
+  recipientAddress  String
+  subject           String?
+  content           String
+  status            CommStatus
+  failureReason     String?
+  triggeredBy       String
+  automationRuleId  String?
+  twilioMessageSid  String?
+  sendgridMessageId String?
+  createdAt         DateTime      @default(now())
+
+  // Relations
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  automationRule AutomationRule? @relation(fields: [automationRuleId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
+}
+
+// 21. AutomationRule
+model AutomationRule {
+  id              String            @id @default(cuid())
+  organizationId  String
+  name            String
+  trigger         AutomationTrigger
+  channel         CommType
+  templateSubject String?
+  templateContent String
+  delayMinutes    Int               @default(0)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  communicationLogs CommunicationLog[]
+  scheduledMessages ScheduledMessage[]
+
+  @@index([organizationId])
+}
+
+// 22. PasswordResetToken
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+// 23. ScheduledMessage
+model ScheduledMessage {
+  id               String          @id @default(cuid())
+  organizationId   String
+  automationRuleId String
+  customerId       String
+  channel          CommType
+  recipientAddress String
+  subject          String?
+  content          String
+  sendAt           DateTime
+  status           ScheduledStatus @default(PENDING)
+  failureReason    String?
+  relatedJobId     String?
+  relatedInvoiceId String?
+  relatedQuoteId   String?
+  createdAt        DateTime        @default(now())
+
+  // Relations
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  automationRule AutomationRule @relation(fields: [automationRuleId], references: [id], onDelete: Cascade)
+  customer       Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  relatedJob     Job?           @relation("JobMessages", fields: [relatedJobId], references: [id], onDelete: SetNull)
+  relatedInvoice Invoice?       @relation("InvoiceMessages", fields: [relatedInvoiceId], references: [id], onDelete: SetNull)
+  relatedQuote   Quote?         @relation("QuoteMessages", fields: [relatedQuoteId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([status, sendAt])
+}
+
+// 24. ActivityLog
+model ActivityLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  entityType     String
+  entityId       String
+  action         String
+  description    String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
+}
+
+// 25. CustomerNote
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  userId     String
+  content    String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+}
+
+// 26. Notification
+model Notification {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  title          String
+  message        String
+  linkUrl        String?
+  isRead         Boolean   @default(false)
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([organizationId, userId])
+  @@index([userId, isRead])
+}
+
+// 27. PortalSession
+model PortalSession {
+  id               String    @id @default(cuid())
+  organizationId   String
+  customerId       String
+  verificationCode String
+  codeExpiresAt    DateTime
+  sessionToken     String?   @unique
+  sessionExpiresAt DateTime?
+  isVerified       Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([customerId])
+  @@index([sessionToken])
+}
