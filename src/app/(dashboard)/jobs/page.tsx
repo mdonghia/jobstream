@@ -1,25 +1,47 @@
+import { Suspense } from "react"
 import { requireAuth } from "@/lib/auth-utils"
-import { Briefcase } from "lucide-react"
+import { getJobs } from "@/actions/jobs"
+import { getTeamMembers } from "@/actions/settings"
+import { JobList } from "@/components/jobs/job-list"
 
 export default async function JobsPage() {
   await requireAuth()
 
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-[#0A2540]">Jobs</h1>
+  const [jobsResult, teamResult] = await Promise.all([
+    getJobs({ page: 1, perPage: 25 }),
+    getTeamMembers(),
+  ])
 
-      <div className="flex flex-col items-center justify-center mt-24">
-        <Briefcase className="size-16 text-[#8898AA]" />
-        <h2 className="mt-4 text-lg font-semibold text-[#0A2540]">
-          No jobs yet
-        </h2>
-        <p className="mt-2 text-[#425466] text-center max-w-md">
-          Create your first job to start tracking work.
-        </p>
-        <button className="mt-6 px-4 py-2 bg-[#635BFF] text-white rounded-lg hover:bg-[#635BFF]/90 transition-colors">
-          New Job
-        </button>
-      </div>
-    </div>
+  const jobs = "error" in jobsResult ? [] : jobsResult.jobs
+  const total = "error" in jobsResult ? 0 : jobsResult.total
+  const page = "error" in jobsResult ? 1 : jobsResult.page
+  const totalPages = "error" in jobsResult ? 0 : jobsResult.totalPages
+  const statusCounts = "error" in jobsResult ? {} : (jobsResult.statusCounts || {})
+
+  const teamMembers =
+    teamResult && "members" in teamResult
+      ? (teamResult.members ?? []).map((m) => ({
+          id: m.id,
+          firstName: m.firstName,
+          lastName: m.lastName,
+          avatar: m.avatar,
+          color: m.color,
+        }))
+      : []
+
+  // Serialize Prisma Dates/Decimals for client component
+  const serialize = (obj: any) => JSON.parse(JSON.stringify(obj))
+
+  return (
+    <Suspense>
+      <JobList
+        initialJobs={serialize(jobs)}
+        initialTotal={total}
+        initialPage={page}
+        initialTotalPages={totalPages}
+        initialStatusCounts={serialize(statusCounts)}
+        teamMembers={serialize(teamMembers)}
+      />
+    </Suspense>
   )
 }
