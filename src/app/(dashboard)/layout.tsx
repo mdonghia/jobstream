@@ -1,16 +1,26 @@
-import { requireAuth } from "@/lib/auth-utils"
+import { requireAuth, getOrganization } from "@/lib/auth-utils"
+import { DashboardShell } from "@/components/layout/dashboard-shell"
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  await requireAuth()
+  const user = await requireAuth()
+  const org = await getOrganization(user.organizationId)
 
   return (
-    <div className="min-h-screen bg-[#F6F8FA]">
-      {/* Sidebar and topbar will be added in Phase 2 */}
-      <main>{children}</main>
-    </div>
+    <DashboardShell
+      user={{
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+      }}
+      orgName={org?.name || "JobStream"}
+    >
+      {children}
+    </DashboardShell>
   )
 }
