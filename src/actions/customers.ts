@@ -711,7 +711,7 @@ export async function getAllTags() {
 
     const tags = Array.from(tagSet).sort()
 
-    return { tags }
+    return tags
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) {
       throw error
