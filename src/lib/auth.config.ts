@@ -19,14 +19,15 @@ export const authConfig = {
       const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route))
       const isApiAuth = pathname.startsWith("/api/auth")
       const isPortal = pathname.startsWith("/portal")
+      const isBooking = pathname.startsWith("/book")
       const isEmbed = pathname.startsWith("/embed")
       const isHelp = pathname.startsWith("/help")
       const isPublicApi = pathname.startsWith("/api/public")
-      const isWebhook = pathname.startsWith("/api/webhooks")
+      const isWebhook = pathname.startsWith("/api/webhooks") || pathname.startsWith("/api/stripe/webhook")
       const isCron = pathname.startsWith("/api/cron")
 
       // Allow all public routes
-      if (isApiAuth || isPortal || isEmbed || isHelp || isPublicApi || isWebhook || isCron) {
+      if (isApiAuth || isPortal || isBooking || isEmbed || isHelp || isPublicApi || isWebhook || isCron) {
         return true
       }
 
