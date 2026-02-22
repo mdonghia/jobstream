@@ -51,6 +51,7 @@ interface CustomerFormProps {
   onSave: (customer: CustomerFormData, properties: PropertyFormData[]) => Promise<void>
   initialData?: CustomerFormData & { properties?: PropertyFormData[] }
   title?: string
+  allTags?: string[]
 }
 
 const emptyProperty: PropertyFormData = {
@@ -69,6 +70,7 @@ export function CustomerForm({
   onSave,
   initialData,
   title = "Add Customer",
+  allTags = [],
 }: CustomerFormProps) {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -310,28 +312,54 @@ export function CustomerForm({
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase text-[#8898AA]">Tags</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        addTag()
-                      }
-                    }}
-                    placeholder="Type and press Enter"
-                    className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addTag}
-                    className="h-10 border-[#E3E8EE]"
-                  >
-                    Add
-                  </Button>
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <Input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          addTag()
+                        }
+                      }}
+                      placeholder="Type to search or add tags"
+                      className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addTag}
+                      className="h-10 border-[#E3E8EE]"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                  {tagInput.trim() && (() => {
+                    const suggestions = allTags.filter(
+                      (t) =>
+                        t.toLowerCase().includes(tagInput.trim().toLowerCase()) &&
+                        !customer.tags.includes(t)
+                    )
+                    return suggestions.length > 0 ? (
+                      <div className="absolute z-10 mt-1 w-full max-h-32 overflow-y-auto rounded-md border border-[#E3E8EE] bg-white shadow-md">
+                        {suggestions.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            className="w-full px-3 py-1.5 text-left text-sm text-[#425466] hover:bg-[#F6F8FA]"
+                            onClick={() => {
+                              setCustomer({ ...customer, tags: [...customer.tags, tag] })
+                              setTagInput("")
+                            }}
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null
+                  })()}
                 </div>
                 {customer.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">

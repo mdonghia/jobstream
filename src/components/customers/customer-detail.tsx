@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -47,6 +47,7 @@ import {
   addCustomerNote,
   addProperty,
   deleteProperty,
+  getAllTags,
 } from "@/actions/customers"
 import { CustomerForm } from "@/components/customers/customer-form"
 
@@ -116,6 +117,13 @@ export function CustomerDetail({
   const [noteInput, setNoteInput] = useState("")
   const [noteSaving, setNoteSaving] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [allTags, setAllTags] = useState<string[]>([])
+
+  useEffect(() => {
+    getAllTags().then((tags) => {
+      if (Array.isArray(tags)) setAllTags(tags)
+    })
+  }, [])
 
   async function handleArchive() {
     const result = customer.isArchived
@@ -773,6 +781,7 @@ export function CustomerDetail({
         onOpenChange={setEditOpen}
         onSave={handleSave}
         title="Edit Customer"
+        allTags={allTags}
         initialData={{
           firstName: customer.firstName,
           lastName: customer.lastName,

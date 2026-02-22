@@ -207,6 +207,8 @@ export function CustomerList({
     setEditingCustomer(null)
     setEditingProperties(undefined)
     fetchCustomers()
+    const tags = await getAllTags()
+    if (Array.isArray(tags)) setAllTags(tags)
   }
 
   async function handleArchive(id: string, isArchived: boolean) {
@@ -505,6 +507,7 @@ export function CustomerList({
         open={formOpen}
         onOpenChange={setFormOpen}
         onSave={handleCreateCustomer}
+        allTags={allTags}
       />
 
       {/* Edit Customer Form */}
@@ -519,6 +522,7 @@ export function CustomerList({
           }}
           onSave={handleUpdateCustomer}
           title="Edit Customer"
+          allTags={allTags}
           initialData={{
             firstName: editingCustomer.firstName,
             lastName: editingCustomer.lastName,
