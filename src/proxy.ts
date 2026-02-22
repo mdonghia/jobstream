@@ -1,13 +1,16 @@
 import NextAuth from "next-auth"
 import { authConfig } from "@/lib/auth.config"
+import type { NextRequest } from "next/server"
 
 const { auth } = NextAuth(authConfig)
 
 /**
- * Middleware uses auth.config.ts (no Prisma imports) so it runs on Edge Runtime.
+ * Proxy uses auth.config.ts (no Prisma imports) for route protection.
  * The `authorized` callback in authConfig handles all route protection logic.
  */
-export default auth
+export async function proxy(request: NextRequest) {
+  return auth(request as any)
+}
 
 export const config = {
   matcher: [
