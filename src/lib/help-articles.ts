@@ -18,7 +18,7 @@ export const helpArticles: HelpArticle[] = [
     category: "getting-started",
     title: "Welcome to JobStream",
     excerpt: "A complete overview of what JobStream does and how to navigate the platform.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 4,
     keywords: ["overview", "introduction", "navigation", "getting started", "tour"],
     content: `## What Is JobStream?
@@ -46,18 +46,18 @@ When you log in, you land on the main Dashboard. The left sidebar provides acces
 1. **Dashboard** -- Your home base with summary cards showing revenue, jobs completed, outstanding invoices, and quote conversion.
 2. **Customers** -- Your complete customer database.
 3. **Quotes** -- All quotes organized by status.
-4. **Schedule** -- The calendar view where you manage appointments and assignments.
-5. **Jobs** -- Active and completed jobs.
+4. **Jobs** -- Active and completed jobs.
+5. **Schedule** -- The calendar view where you manage appointments and assignments.
 6. **Invoices** -- All invoices and their payment statuses.
 7. **Payments** -- Payment history and financial overview.
 8. **Time Tracking** -- Track time spent on jobs by team members.
-9. **Bookings** -- Online booking requests from customers.
+9. **Communications** -- Message logs and automation settings.
 10. **Reviews** -- Review requests and responses.
 11. **Reports** -- Business performance analytics.
-12. **Communications** -- Message logs and automation settings.
-13. **Settings** -- Account configuration, team management, and integrations.
+12. **Bookings** -- Online booking requests from customers.
+13. **Help** -- Access the Help Center articles.
 
-Your personal profile is accessed from the top bar by clicking your name or avatar in the top-right corner, not from the sidebar.
+The top bar includes a notification bell icon (with an unread count badge) and a user avatar dropdown with **Profile** and **Sign Out** options. Your personal profile and sign-out are accessed from this top bar dropdown, not from the sidebar.
 
 ## Next Steps
 
@@ -68,7 +68,7 @@ We recommend starting with these setup tasks in order: configure your business i
     category: "getting-started",
     title: "Setting Up Your Business Profile",
     excerpt: "Configure your business name, address, and other essential information.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["business profile", "settings", "setup", "company info"],
     content: `## Why Your Business Profile Matters
@@ -86,22 +86,25 @@ Your business profile information appears on quotes, invoices, and customer-faci
 Fill in the following fields to complete your profile:
 
 - **Business Name** -- The legal or trade name of your company. This appears on all documents sent to customers.
-- **Phone Number** -- Your main business phone number. Customers will see this on invoices and quotes.
-- **Email Address** -- The primary email for your business. Replies to automated messages will go here.
-- **Address** -- Your business mailing address. This appears in the header of quotes and invoices.
+- **Business Email** -- The primary email for your business. Replies to automated messages will go here.
+- **Phone** -- Your main business phone number. Customers will see this on invoices and quotes.
+- **Street Address** -- Your business street address. This appears in the header of quotes and invoices.
+- **City** -- Your business city.
+- **State** -- Your business state.
+- **ZIP Code** -- Your business postal code.
 
 ## Optional but Recommended
 
 - **Website** -- Your business website URL.
 - **Default Tax Rate** -- Set your standard tax rate so it auto-applies to new line items on quotes and invoices.
-- **Business Hours** -- Define your standard operating hours for each day of the week. Each day has a Switch toggle to enable or disable it, along with a Start Time and End Time. These hours are displayed on your online booking widget and client portal.
+- **Business Hours** -- Define your standard operating hours for each day of the week. The Business Hours table has columns for Day, an Open/Closed toggle, Start Time, and End Time for each day. These hours are displayed on your online booking widget and client portal.
 
 ## Document Prefixes
 
 In General settings, you can also configure three document prefixes:
 
 - **Invoice Prefix** -- Customize the prefix for invoice numbers (e.g., "INV-").
-- **Quote Prefix** -- Customize the prefix for quote numbers (e.g., "QT-").
+- **Quote Prefix** -- Customize the prefix for quote numbers (e.g., "QTE").
 - **Job Prefix** -- Customize the prefix for job numbers (e.g., "JOB-").
 
 ## Invoice and Quote Defaults
@@ -123,7 +126,7 @@ After filling in your information, click the **Save Changes** button at the bott
     category: "getting-started",
     title: "Inviting Your Team Members",
     excerpt: "Learn how to add team members to your JobStream account and assign roles.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["team", "invite", "members", "roles", "permissions", "staff"],
     content: `## Adding Team Members
@@ -136,8 +139,8 @@ JobStream is built for teams. Whether you have two technicians or twenty, adding
 2. Click the **Team** tab.
 3. Click the **Invite Team Member** button in the top right.
 4. Fill in their **first name**, **last name**, and **email address**.
-5. Select a **role** from the dropdown (see roles below).
-6. Click **Send Invite**.
+5. Select a **role** from the dropdown: Admin or Technician (Owner is not an option at invite time -- it is assigned to the account creator).
+6. Click **Send Invitation**.
 
 The team member will receive an email with a link to create their password and access the account.
 
@@ -279,7 +282,7 @@ If you need to disconnect your Stripe account, go to **Settings > Payments** and
     category: "managing-customers",
     title: "Adding Customers",
     excerpt: "Learn how to manually create new customer records in JobStream.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["add customer", "create customer", "new customer", "contact"],
     content: `## Creating a New Customer
@@ -302,17 +305,19 @@ Adding customers is one of the first things you will do in JobStream. Every quot
 - **Phone** -- The customer's phone number. Mobile phone is preferred since it enables SMS notifications.
 - **Company** -- If this is a commercial or business customer, enter their company name here. It will appear on quotes and invoices alongside the contact name.
 - **Notes** -- Add any internal notes about the customer such as gate codes, pet information, or scheduling preferences. These notes are visible only to your team.
-- **Source** -- A dropdown to indicate how you found this customer. Options include: referral, google, website, social, and other.
-- **Tags** -- Apply tags like "VIP," "Residential," or "Commercial" to organize and filter your customer list. You can add multiple tags using a comma-separated input.
+- **Source** -- A dropdown to indicate how you found this customer. Options include: referral, google, website, walk-in, and other.
+- **Tags** -- Apply tags like "VIP," "Residential," or "Commercial" to organize and filter your customer list. To add a tag, type it in the input field and press Enter (or click the Add button). You can add multiple tags this way.
 
 ## Properties
 
 You can add service addresses (properties) for the customer with the following fields:
-- **Street** -- The street address of the service location.
+- **Street Address** -- The street address of the service location.
+- **Address Line 2** -- An optional second address line (e.g., suite or unit number).
 - **City** -- The city.
 - **State** -- The state or province.
 - **ZIP** -- The postal or ZIP code.
-- **Label** -- An optional label to identify the property (e.g., "Main House," "Office").
+- **Notes** -- Optional notes about the property.
+- **isPrimary** -- The first property you add is automatically set as the primary service address. This is managed automatically and cannot be changed manually.
 
 ## Saving
 
@@ -331,7 +336,7 @@ Once saved, the customer appears in your customer list and is available for sele
     category: "managing-customers",
     title: "Understanding the Customer Detail Page",
     excerpt: "A tour of the customer profile page and all its tabs.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["customer profile", "customer detail", "tabs", "overview", "history"],
     content: `## Customer Detail Overview
@@ -340,16 +345,20 @@ The customer detail page is the central hub for everything related to a specific
 
 ## Profile Header
 
-At the top of the page, you will see the customer's name, company (if applicable), and primary contact information. Quick action buttons let you create a new quote, job, or invoice directly from this page.
+At the top of the page, you will see the customer's name, company (if applicable), and primary contact information. Quick action buttons let you **Create Quote** and **Create Job** directly from this page.
 
 ## Overview Tab
 
 The Overview tab gives you a snapshot of the customer's relationship with your business:
 
 - **Contact Information** -- Phone, email, and addresses.
-- **Account Balance** -- Any outstanding invoice amounts.
+- **Lifetime Revenue** -- The total revenue generated from this customer.
+- **Total Jobs** -- The number of jobs for this customer.
+- **Total Quotes** -- The number of quotes for this customer.
+- **Open Invoices** -- The count and dollar amount of unpaid invoices.
 - **Tags** -- Labels you have applied for organization.
 - **Internal Notes** -- Private notes visible only to your team.
+- **Properties** -- A card showing the customer's service addresses (properties). Properties are displayed here on the Overview tab, not on a separate tab.
 
 ## Quotes Tab
 
@@ -361,15 +370,19 @@ View all jobs for this customer with their current status. You can quickly see w
 
 ## Invoices Tab
 
-All invoices sent to this customer are listed here with their payment status. You can see at a glance which invoices are paid, outstanding, or overdue. The running total of unpaid invoices appears at the top.
+All invoices sent to this customer are listed here with their payment status. You can see at a glance which invoices are paid, outstanding, or overdue.
 
-## Properties Tab
+## Payments Tab
 
-If the customer has multiple service locations, each property is listed with its address. You can add new properties, edit existing ones, or set a default service address.
+View all payments associated with this customer, including online and manually recorded payments.
+
+## Notes Tab
+
+View and manage internal notes for this customer. Notes are private and visible only to your team.
 
 ## Communications Tab
 
-A chronological log of all messages sent to or received from this customer, including automated notifications, manual emails, and SMS messages.
+This tab is a placeholder that says "Communication history will appear here." Full communication history integration is planned for a future update.
 
 ### Tips
 
@@ -377,63 +390,11 @@ A chronological log of all messages sent to or received from this customer, incl
 - Check the Jobs tab before creating a new quote to see if similar work has been done before.`,
   },
   {
-    slug: "importing-customers-csv",
-    category: "managing-customers",
-    title: "Importing Customers from CSV",
-    excerpt: "Bulk import your existing customer database using a CSV file.",
-    lastUpdated: "2026-02-01",
-    readingTime: 3,
-    keywords: ["import", "csv", "bulk", "upload", "migrate", "spreadsheet"],
-    content: `## When to Use CSV Import
-
-If you are switching from another system or have customers in a spreadsheet, the CSV import feature lets you bring them all into JobStream at once instead of entering them one by one.
-
-## Preparing Your CSV File
-
-Before importing, format your spreadsheet with the following column headers:
-
-- **first_name** (required)
-- **last_name** (required)
-- **email** (recommended)
-- **phone** (recommended)
-- **company_name** (optional)
-- **street_address** (optional)
-- **city** (optional)
-- **state** (optional)
-- **zip_code** (optional)
-- **notes** (optional)
-
-Save the file as a CSV (Comma Separated Values) format. Most spreadsheet applications like Excel, Google Sheets, and Numbers support exporting to CSV.
-
-## Import Steps
-
-1. Navigate to **Customers** in the left sidebar.
-2. Click the **Import** button (upload icon) in the top right area.
-3. Click **Choose File** and select your CSV file.
-4. JobStream will show a preview of the data and attempt to map your columns automatically.
-5. Review the column mapping. If any columns were not matched, use the dropdown to assign the correct field.
-6. Click **Import** to begin processing.
-
-## After Import
-
-JobStream will display a summary showing how many customers were successfully imported and if any rows had errors. Common issues include:
-
-- **Missing required fields** -- Rows without a first or last name are skipped.
-- **Duplicate emails** -- If an email address already exists in your system, that row may be skipped or flagged for review.
-- **Formatting issues** -- Phone numbers with unusual characters may need manual correction.
-
-## Best Practices
-
-- Always do a test import with a small file (5-10 rows) first to verify mapping works correctly.
-- Clean up your spreadsheet before importing: remove empty rows, standardize phone number formats, and check for duplicates.
-- After importing, spot-check several customer records to ensure data came through accurately.`,
-  },
-  {
     slug: "archiving-deleting-customers",
     category: "managing-customers",
     title: "Archiving vs. Deleting Customers",
     excerpt: "Understand when to archive a customer and when to delete them entirely.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["archive", "delete", "remove", "inactive", "cleanup"],
     content: `## Archiving vs. Deleting
@@ -452,14 +413,14 @@ Archiving hides a customer from your main customer list without deleting any dat
 
 1. Open the customer's detail page.
 2. Click the **More Actions** menu (three dots) in the top right.
-3. Select **Archive Customer**.
-4. Confirm the action.
+3. Select **Archive**.
+4. The customer is archived immediately -- no confirmation dialog is shown.
 
 Archived customers do not appear in your default customer list or in dropdown searches when creating new documents. However, their past quotes, jobs, and invoices remain intact and accessible through filters.
 
 ### Restoring an Archived Customer
 
-To bring back an archived customer, filter your customer list to show archived records, open the customer, and select **Restore Customer** from the More Actions menu.
+To bring back an archived customer, filter your customer list to show archived records, open the customer, and select **Unarchive** from the More Actions menu.
 
 ## Deleting a Customer
 
@@ -472,7 +433,7 @@ Deleting permanently removes the customer record. Use deletion only when:
 
 1. Open the customer's detail page.
 2. Click the **More Actions** menu.
-3. Select **Delete Customer**.
+3. Select **Delete**.
 4. Confirm the permanent deletion.
 
 **Important:** You cannot delete a customer who has associated quotes, jobs, or invoices. You must delete or reassign those documents first, or simply archive the customer instead.
@@ -486,27 +447,33 @@ In most cases, archiving is the better choice. It keeps your records intact for 
     category: "managing-customers",
     title: "Managing Customer Properties",
     excerpt: "Handle customers with multiple service addresses and properties.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["properties", "addresses", "service address", "multiple locations"],
     content: `## What Are Properties?
 
 A property in JobStream represents a physical service location. While many customers have a single address, some customers -- especially property managers or commercial clients -- may have multiple locations where you perform work.
 
+## Where Properties Appear
+
+Properties are displayed on the **Overview** tab of the customer detail page in a Properties card. There is no separate Properties tab.
+
 ## Adding a Property
 
-1. Open the customer's detail page.
-2. Click the **Properties** tab.
-3. Click **Add Property**.
-4. Enter the property address and an optional label (for example, "Main Office," "Rental Unit A," or "Lake House").
-5. Click **Save**.
+Properties can only be added during customer creation or by editing the customer through the side sheet form:
 
-## Setting a Default Property
+1. Click **Add Customer** or **Edit** on an existing customer.
+2. In the side sheet form, scroll to the Properties section.
+3. Add a property with the following fields:
+   - **Street Address** -- The street address of the service location.
+   - **Address Line 2** -- Optional second address line.
+   - **City** -- The city.
+   - **State** -- The state or province.
+   - **ZIP** -- The postal or ZIP code.
+   - **Notes** -- Optional notes about the property.
+4. Click **Save** to save the customer and their properties.
 
-If a customer has multiple properties, you can designate one as the default. The default property auto-populates when you create new quotes or jobs for that customer. To set a default:
-
-1. On the Properties tab, find the property you want as default.
-2. Click the **Set as Default** option.
+The first property added automatically becomes the primary (isPrimary) property.
 
 ## Using Properties on Jobs
 
@@ -518,13 +485,13 @@ When creating a job or quote for a customer with multiple properties, you will s
 
 ## Editing and Removing Properties
 
-Click any property to edit its address or label. To remove a property, click the delete icon. Note that you cannot delete a property that is currently linked to active jobs -- complete or reassign those jobs first.
+To edit a property's details, use the **Edit Customer** form (side sheet). Properties are not directly clickable for editing on the customer detail page. On the detail page, the only available action is a trash/delete icon to remove a property. Deleting a property removes it immediately and unconditionally.
 
 ### Tips
 
-- Use descriptive labels so your team can easily identify which property a job is for.
 - Keep addresses accurate and complete for reliable mapping and route planning.
-- Review properties periodically to remove locations no longer serviced.`,
+- Review properties periodically to remove locations no longer serviced.
+- To edit a property, open the Edit Customer form rather than trying to click on it from the detail page.`,
   },
   // ============================================
   // QUOTES & ESTIMATES
@@ -534,7 +501,7 @@ Click any property to edit its address or label. To remove a property, click the
     category: "quotes-estimates",
     title: "Creating a Quote",
     excerpt: "Step-by-step walkthrough of building a professional quote in JobStream.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 4,
     keywords: ["create quote", "estimate", "quote builder", "line items", "pricing"],
     content: `## Overview
@@ -553,37 +520,26 @@ Start by choosing who the quote is for. The customer field is a combobox (cmdk-b
 
 ## Adding Line Items
 
-Line items are the individual services or products on your quote:
+Line items are the individual services or products on your quote. Click **Add Line Item** to add a new row. Each row has a **Service** dropdown -- select a service from the dropdown to auto-fill the item name, price, and tax setting. Choose **Custom Item** from the dropdown to enter your own description and price.
 
-1. Click **Add Line Item**.
-2. Either select a service from your catalog or type a custom description.
-3. Set the **quantity** and **unit price**.
-4. If the item is taxable, check the tax box.
-5. Repeat for each item you want to include.
-
-The subtotal, tax, and total are calculated automatically as you add items.
+For each line item, set the **quantity** and **unit price**. Taxability is determined automatically when you select a service from the catalog based on the service's tax setting. The subtotal, tax, and total are calculated automatically as you add items.
 
 ## Setting Quote Details
 
-- **Quote Number** -- Auto-generated but editable if you have a custom numbering system.
-- **Quote Date** -- Defaults to today but can be adjusted.
-- **Expiration Date** -- Set when the quote expires. After this date, the customer can no longer approve it through the portal. The default is 30 days.
-- **Notes / Terms** -- Add any additional terms, disclaimers, or notes. These appear at the bottom of the quote document.
-
-## Optional: Customer Message
-
-You can add a personal message that appears at the top of the quote when the customer views it. This is a great place for a brief project summary or a thank-you note.
+- **Valid for (days)** -- A number input that sets how many days the quote remains valid. After this period, the customer can no longer approve it through the portal. The default is 30 days.
+- **Customer Message** -- A personal message that appears at the bottom of the quote when the customer views it in the portal. This is a great place for a brief project summary or a thank-you note.
+- **Internal Note** -- A private note visible only to your team. This does not appear on the customer-facing quote.
 
 ## Saving Your Quote
 
 You have two separate buttons at the bottom of the quote form:
 
-- **Send Quote** (primary button) -- Saves the quote and immediately sends it to the customer via email.
+- **Send Quote** (primary button) -- Saves the quote, creates it, and redirects you to the quote detail page where a send modal opens for you to confirm delivery. The quote is not sent until you confirm in the modal.
 - **Save as Draft** (secondary button) -- Saves the quote without sending it. Use this when you are still working on the details.
 
 ## Editing Quotes
 
-You can edit any quote in Draft or Sent status. Once a quote is approved or declined by the customer, it becomes locked. If you need to make changes after approval, create a new version of the quote.
+Only quotes in **Draft** status can be edited. Once a quote has been sent, approved, or declined by the customer, it becomes locked. If you need to make changes after sending, you will need to create a new quote.
 
 ### Tips
 
@@ -596,16 +552,16 @@ You can edit any quote in Draft or Sent status. Once a quote is approved or decl
     category: "quotes-estimates",
     title: "Sending Quotes to Customers",
     excerpt: "Learn the different ways to deliver quotes and track their status.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["send quote", "email", "delivery", "tracking"],
     content: `## Delivery Methods
 
-JobStream delivers quotes to your customers via email.
+JobStream delivers quotes to your customers via email and/or SMS. The send modal includes checkboxes for both **Email** and **SMS** delivery, allowing you to choose one or both channels.
 
 ### Email Delivery
 
-When you click **Send Quote**, JobStream sends a professional email to the customer with:
+When you send a quote via email, JobStream sends a professional email to the customer with:
 
 - A summary of the quote including the total amount.
 - A **View Quote** button that opens the full quote in the client portal.
@@ -625,7 +581,7 @@ After sending, JobStream tracks the quote through these statuses:
 If a customer says they did not receive the quote or you want to send a reminder:
 
 1. Open the quote.
-2. Click **Resend** from the actions menu.
+2. Click the **Resend** button in the action bar.
 3. The customer receives a fresh email with the same quote link.
 
 ## Following Up
@@ -643,7 +599,7 @@ The Quotes list page lets you filter by status. Use the "Sent" filter to see quo
     category: "quotes-estimates",
     title: "Customer Approval and Decline Process",
     excerpt: "What happens when a customer approves or declines a quote.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["approve", "decline", "accept", "reject", "response"],
     content: `## How Customers Respond to Quotes
@@ -653,21 +609,20 @@ When a customer opens a quote in the client portal, they see the full details of
 ## When a Customer Approves
 
 1. The customer clicks **Approve** on the quote.
-2. They may be asked to provide a digital signature (if you have this setting enabled).
-3. The quote status changes to **Approved** in JobStream.
-4. You receive a notification (email and in-app) that the quote was approved.
-5. The quote is now ready to be converted into a job.
+2. The quote status changes to **Approved** in the database.
+3. The quote is now ready to be converted into a job.
+
+Note: No email or in-app notification is sent when a quote is approved. The status update happens in the database only. Check your quotes list periodically for status changes.
 
 ### What You Should Do Next
 
-After approval, open the quote and click **Convert to Job** to create a job with all the details pre-filled. Schedule the job and assign it to a team member to get the work started.
+After approval, open the quote and click **Convert to Job** to create a job with all the details pre-filled.
 
 ## When a Customer Declines
 
 1. The customer clicks **Decline** on the quote.
 2. They can optionally provide a reason for declining.
-3. The quote status changes to **Declined** in JobStream.
-4. You receive a notification about the decline.
+3. The quote status changes to **Declined** in the database.
 
 ### What You Should Do Next
 
@@ -679,18 +634,14 @@ Review the decline reason if provided. Common reasons include pricing concerns, 
 
 ## Customer Experience
 
-The approval and decline experience is designed to be simple and mobile-friendly. Customers do not need to create an account to respond to a quote -- they simply click the link in the email and select their response.
-
-## Notifications
-
-You can customize which team members receive approval and decline notifications in **Settings > Communications**. By default, the person who created the quote is notified.`,
+The approval and decline experience is designed to be simple and mobile-friendly. Customers do not need to create an account to respond to a quote -- they simply click the link in the email and select their response.`,
   },
   {
     slug: "converting-quote-to-job",
     category: "quotes-estimates",
     title: "Converting a Quote to a Job",
     excerpt: "Turn an approved quote into a scheduled job with one click.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["convert", "quote to job", "approved", "create job"],
     content: `## One-Click Conversion
@@ -699,33 +650,27 @@ One of the most time-saving features in JobStream is the ability to convert an a
 
 ## How to Convert
 
-1. Open the approved quote (from the Quotes list or from a notification).
+1. Open the approved quote (from the Quotes list).
 2. Click the **Convert to Job** button at the top of the quote.
-3. A new job form opens with the following fields pre-populated:
-   - Customer name and service address
-   - Line items and descriptions from the quote
-   - Quoted total amount
-4. Add any additional job details:
-   - **Scheduled Date and Time** -- When the work will be performed.
-   - **Assigned Team Member** -- Who will do the work.
-   - **Job Notes** -- Any internal instructions for the crew.
-5. Click **Create Job** to finalize.
+3. The job is created directly in the database with all details from the quote (customer, line items, amounts) and you are redirected to the new job's detail page.
+
+This is a one-click operation -- no intermediate form opens. The job is created immediately with the quote's customer and line items. The job defaults to starting "now" with a 2-hour duration window.
+
+## Requirements
+
+Only quotes with **Approved** status can be converted to jobs. The Convert to Job button does not appear for quotes in any other status (Draft, Sent, Declined, or Expired).
 
 ## What Happens to the Quote
 
 After conversion, the original quote is marked with a "Converted" badge and linked to the new job. You can navigate between the quote and job easily from either record.
 
-## Partial Conversions
+## After Conversion
 
-If you only want to convert some line items from a quote (for example, splitting work into phases), you can remove line items from the job form before saving. The quote still shows as converted.
-
-## Converting Without Approval
-
-While the typical workflow is to convert after customer approval, you can convert a quote at any status. This is useful when a customer approves verbally over the phone and you want to get the job scheduled immediately.
+Since the job is created with default scheduling, you may want to edit the job afterward to set the correct date, time, team member assignment, and any additional details like notes or checklists.
 
 ### Tips
 
-- Always schedule the job during conversion rather than creating an unscheduled job -- this keeps your calendar accurate.
+- Edit the job after conversion to set the correct schedule and team member assignment.
 - Review the line items after conversion to add any internal details that were not on the customer-facing quote.
 - Use the link between the quote and job to quickly reference original pricing if questions arise.`,
   },
@@ -734,16 +679,16 @@ While the typical workflow is to convert after customer approval, you can conver
     category: "quotes-estimates",
     title: "Quote Expiration and Validity",
     excerpt: "How quote expiration works and what to do about expired quotes.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["expiration", "expired", "validity", "extend"],
     content: `## How Expiration Works
 
-Every quote in JobStream has an expiration date. After this date passes, the quote status automatically changes to **Expired** and the customer can no longer approve it through the client portal.
+Every quote in JobStream has a validity period. When the expiration date passes, the client portal checks this client-side and blocks the customer from approving the quote. However, the database status does not automatically change to "Expired" -- it remains as SENT. There is no background cron job or automated process that updates the status. The portal simply prevents approval actions on expired quotes.
 
-## Setting the Expiration Date
+## Setting the Validity Period
 
-When creating a quote, the expiration date defaults to 30 days from the creation date. You can change this on a per-quote basis by editing the **Valid Until** field. Some businesses prefer shorter windows (7-14 days) to encourage faster decisions.
+When creating a quote, the **Valid for (days)** field defaults to 30 days. You can change this on a per-quote basis. Some businesses prefer shorter windows (7-14 days) to encourage faster decisions.
 
 ## Changing the Default Expiration Period
 
@@ -756,7 +701,7 @@ To change the default validity period for all new quotes:
 
 ## What Happens When a Quote Expires
 
-- The quote status changes to **Expired** in your quotes list.
+- The quote's database status remains as SENT, but the portal prevents the customer from approving it.
 - The customer sees a message that the quote is no longer valid if they try to access it in the portal.
 - The quote's line items and pricing are preserved for your records.
 
@@ -782,7 +727,7 @@ On the Quotes list page, you can filter by "Expired" status to review all expire
     category: "scheduling-calendar",
     title: "Calendar Views",
     excerpt: "Switch between month, week, day, and list views to see your schedule.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["calendar", "views", "month", "week", "day", "list", "schedule"],
     content: `## Overview
@@ -795,17 +740,17 @@ Click **Schedule** in the left sidebar to open the calendar view.
 
 ## Month View
 
-The month view provides a high-level overview of your entire month. Each day cell shows the number of jobs scheduled and a preview of the first few entries. This view is best for:
+The month view provides a high-level overview of your entire month. Each day cell shows previews of the first 3 scheduled jobs, and if there are more, a "+X more" link appears. This view is best for:
 
 - Planning capacity weeks in advance.
 - Spotting busy and light days at a glance.
 - Identifying openings for new bookings.
 
-Click any day to drill into the day view for full details.
+Clicking any day navigates to the job creation form at \`/jobs/new?date=...\` with that date pre-filled, allowing you to quickly create a new job for that day.
 
 ## Week View
 
-The week view shows seven days with time slots from your business hours. Jobs appear as blocks sized proportionally to their duration. This is the most commonly used view because it balances detail with context. Use it for:
+The week view shows seven days with time slots from 6 AM to 8 PM (hardcoded). Jobs appear as blocks sized proportionally to their duration. This is the most commonly used view because it balances detail with context. Use it for:
 
 - Planning the upcoming work week.
 - Seeing how team members' schedules overlap.
@@ -813,7 +758,7 @@ The week view shows seven days with time slots from your business hours. Jobs ap
 
 ## Day View
 
-The day view shows a single day with detailed time slots. Each job block displays the customer name, service type, assigned team member, and job status. This view is ideal for:
+The day view shows a single day with detailed time slots. Each job block displays the customer name, time range, job title, and assigned team member. This view is ideal for:
 
 - Managing today's active work.
 - Dispatching and making real-time adjustments.
@@ -864,7 +809,7 @@ The calendar toolbar prominently displays an **Add Job** button. Clicking it nav
 
 ## After Creation
 
-The new job immediately appears on the calendar in the correct time slot. It is color-coded by status (blue for scheduled) and displays the customer name and job title.
+The new job immediately appears on the calendar in the correct time slot. It is color-coded by the assigned team member's color and displays the customer name and job title.
 
 ### Tips
 
@@ -877,7 +822,7 @@ The new job immediately appears on the calendar in the correct time slot. It is 
     category: "scheduling-calendar",
     title: "Filtering by Team Member",
     excerpt: "View individual schedules and use color coding to tell team members apart.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["filter", "team member", "color", "schedule", "individual"],
     content: `## Why Filter?
@@ -895,12 +840,7 @@ When your team grows beyond two or three people, the calendar can get crowded. F
 
 Each team member is assigned a unique color that appears on their job blocks in the calendar. This makes it easy to visually distinguish who is assigned to which job without reading every label.
 
-Colors are assigned automatically but can be customized:
-
-1. Go to **Settings > Team**.
-2. Click on a team member.
-3. Select their calendar color from the color picker.
-4. Click **Save**.
+Colors are set at invite time when a team member is first added. Team member colors cannot be customized after the initial invitation.
 
 ## Practical Uses
 
@@ -919,7 +859,7 @@ Colors are assigned automatically but can be customized:
     category: "scheduling-calendar",
     title: "Managing Unscheduled Jobs",
     excerpt: "Use the unscheduled jobs sidebar to keep track of work that needs scheduling.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["unscheduled", "sidebar", "backlog", "pending", "schedule"],
     content: `## What Are Unscheduled Jobs?
@@ -937,10 +877,10 @@ Unscheduled jobs are jobs that have been created but do not yet have a date and 
 
 On the **Schedule** page, look for the unscheduled jobs panel. It shows a list of all unscheduled jobs with:
 
-- Customer name
 - Job title
-- Created date
-- Priority (if set)
+- Priority badge (if set)
+- Customer name
+- Job number
 
 ## Scheduling an Unscheduled Job
 
@@ -959,7 +899,6 @@ Review your unscheduled jobs regularly to prevent the list from growing stale. I
 ### Tips
 
 - Check the unscheduled sidebar at the start of each day to see if anything can be fit into open slots.
-- Sort or prioritize unscheduled jobs so the most urgent work gets scheduled first.
 - Use the drag-and-drop method for speed when scheduling multiple jobs at once.`,
   },
   {
@@ -967,7 +906,7 @@ Review your unscheduled jobs regularly to prevent the list from growing stale. I
     category: "scheduling-calendar",
     title: "Drag-and-Drop Scheduling",
     excerpt: "Reschedule, reassign, and resize jobs by dragging them on the calendar.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["drag and drop", "reschedule", "move", "resize", "reassign"],
     content: `## Drag-and-Drop Overview
@@ -983,7 +922,7 @@ To move a job to a different time or day:
 3. Drag it to the desired new time slot.
 4. Release to drop it in place.
 
-The job's scheduled date and time update immediately. The assigned team member and all other details remain unchanged.
+A confirmation dialog appears asking you to confirm the new date and time. Click **Confirm** to apply the change. The assigned team member and all other details remain unchanged.
 
 ## Reassigning a Job
 
@@ -1006,7 +945,6 @@ If you accidentally move or resize a job, use the undo notification that briefly
 ## Limitations
 
 - Drag-and-drop works best in Week and Day views. The Month view supports moving jobs between days but not precise time slots.
-- Jobs with a "Completed" or "Cancelled" status cannot be dragged.
 - Very short jobs (under 15 minutes) may be difficult to grab -- zoom into the Day view for precision.
 
 ### Tips
@@ -1023,7 +961,7 @@ If you accidentally move or resize a job, use the undo notification that briefly
     category: "job-management",
     title: "Creating a Job",
     excerpt: "Full walkthrough of the job creation form and all available options.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 4,
     keywords: ["create job", "new job", "job form", "line items"],
     content: `## Overview
@@ -1045,17 +983,12 @@ Select the customer this job is for. Start typing their name to search. If the c
 A brief description of the work, such as "Quarterly HVAC Maintenance" or "Kitchen Faucet Replacement." This title appears on the calendar and in lists.
 
 ### Line Items
-Add the services and materials for this job:
-
-1. Click **Add Line Item**.
-2. Search your service catalog or enter a custom description.
-3. Set the quantity and price.
-4. Add as many line items as needed.
+Add the services and materials for this job. Services from your catalog appear as clickable buttons (up to 8 displayed, e.g., "+ HVAC Repair"). Click a service button to add it as a line item. You can also click the **+ Custom Item** button to add a custom line item with your own description and price. Set the quantity and price for each line item.
 
 ### Schedule
 - **Start Date** (required) -- When the job should be performed. This field is required.
 - **Start Time** -- The appointment start time.
-- **End Time / Duration** -- Either set an end time or a duration.
+- **Duration** -- A dropdown to set the job duration. The end time is calculated automatically from the start time plus the selected duration.
 
 ### Priority
 Set the job priority level: **Low**, **Medium**, **High**, or **Urgent**. Priority helps your team understand which jobs need immediate attention.
@@ -1084,7 +1017,7 @@ Click **Create Job** to save. The job appears in your Jobs list and on the calen
     category: "job-management",
     title: "Understanding the Job Lifecycle",
     excerpt: "Learn how jobs move through different statuses from creation to completion.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["status", "lifecycle", "workflow", "transitions", "stages"],
     content: `## Job Statuses
@@ -1107,15 +1040,18 @@ The job has been cancelled and will not be performed. Cancelled jobs are removed
 
 ## Changing a Job's Status
 
-You can change a job's status in several ways:
+Status changes happen through dedicated action buttons on the job detail page. The status badge itself is display-only and cannot be clicked to change status. The available action buttons are:
 
-- **From the job detail page** -- Click the status badge and select the new status.
-- **From the calendar** -- Right-click a job and choose the new status.
-- **From the jobs list** -- Use the quick actions menu on any job row.
+- **Start Job** -- Moves the job from Scheduled to In Progress.
+- **Complete Job** -- Opens the completion modal to mark the job as completed.
+- **Cancel Job** -- Cancels the job.
+- **Reopen** -- Reopens a cancelled or completed job.
 
-## Automated Transitions
+Additional status actions may be available in the dropdown menu on the job detail page.
 
-When all checklist items are completed, you may see a prompt to mark the job as complete.
+## Completion Modal
+
+When you click **Complete Job**, a modal appears. If any checklist items are incomplete, the modal warns you about them. There is no automatic prompt when all checklist items are completed -- the completion modal only warns about incomplete items when you initiate the completion yourself.
 
 ### Tips
 
@@ -1140,10 +1076,7 @@ If the job has a checklist, technicians see it on the job detail page under the 
 
 ### Adding Checklist Items
 
-Checklist items can be added in two ways:
-
-1. **During job creation** -- When building a new job, add checklist items in the Checklist section of the job form. Type a label and click the **+** button or press Enter to add each item.
-2. **On the job detail page** -- While working on a job, you can add new items directly from the Checklist tab if additional tasks are discovered on-site.
+Checklist items can only be added during job creation or via the Edit form (\`/jobs/{id}/edit\`). When building a new job or editing an existing one, add checklist items in the Checklist section of the job form by typing a label and clicking the **+** button or pressing Enter to add each item. The Checklist tab on the job detail page only displays and toggles existing items -- you cannot add new items from there.
 
 ### Toggling Completion
 
@@ -1151,12 +1084,9 @@ Click any checklist item to toggle it between completed and not completed. Compl
 
 ## Job Notes
 
-Notes serve two purposes:
+All notes on jobs are internal-only and visible only to your team. There are no customer-facing notes on jobs.
 
-- **Internal Notes** -- Visible only to your team. Technicians can add notes about what they found on-site, work performed, or issues encountered.
-- **Customer-Facing Notes** -- These appear on the invoice or completion summary sent to the customer.
-
-To add a note, open the job detail page, go to the Notes tab, type your note, and click **Add Note**. Notes are timestamped and attributed to the team member who wrote them.
+To add a note, open the job detail page, go to the Notes tab, type your note, and click **Save Note**. Notes are timestamped and attributed to the team member who wrote them.
 
 ## File Attachments
 
@@ -1175,13 +1105,13 @@ The Attachments tab provides a drag-and-drop upload zone for attaching files to 
 Uploaded files appear in a grid below the upload zone. Each attachment shows:
 
 - File name
-- File size
+- Uploader name (who uploaded the file)
 - Upload date
-- A link to download or view the file
+- A link to download the file
 
 ## Time Tracking
 
-The Time tab on the job detail page integrates with JobStream's time tracking feature. See the Time Tracking section of the Help Center for details on starting, stopping, and managing timers.
+The Time tab on the job detail page displays the actual start and end timestamps from job status changes (when the job was started and completed). It is a display-only view and does not integrate with the time tracking timer. To use timers, navigate to the Time Tracking page from the sidebar.
 
 ### Tips
 
@@ -1195,7 +1125,7 @@ The Time tab on the job detail page integrates with JobStream's time tracking fe
     category: "job-management",
     title: "Completing a Job",
     excerpt: "How to mark a job complete and the options for creating an invoice.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["complete", "finish", "close", "invoice", "completion"],
     content: `## Marking a Job Complete
@@ -1215,7 +1145,7 @@ The completion modal is simple and focused:
 ### Completion Notes
 A text area where you can write a summary of the work completed. Note any follow-up work recommended for future visits. These notes are saved to the job record.
 
-Click **Complete** to finalize the job.
+Click **Complete Job** to finalize the job.
 
 ## Create Invoice Prompt
 
@@ -1256,15 +1186,17 @@ Recurring jobs automatically generate new job entries on a set schedule. This is
 
 ### Frequency Options
 - **Daily** -- Every day or every X days.
-- **Weekly** -- Select which days of the week (e.g., every Monday and Wednesday).
-- **Biweekly** -- Every two weeks on the selected day.
-- **Monthly** -- On a specific date or day of the month (e.g., the first Tuesday).
+- **Weekly** -- Every week.
+- **Biweekly** -- Every two weeks.
+- **Monthly** -- Every month.
+
+Select a frequency to set how often the job repeats.
 
 ### End Date Options
 - **Never** -- The recurrence continues indefinitely until you manually stop it.
 - **On a date** -- Specify a specific date when the recurrence should stop.
 
-4. Click **Save** to create the recurring series.
+4. Click **Create Job** (for new jobs) or **Save Changes** (for editing existing jobs) to save the recurring series.
 
 ## Generating Recurring Instances
 
@@ -1272,19 +1204,15 @@ After setting up a recurring job, click the **Generate Schedule** button on the 
 
 ## How Recurring Jobs Appear
 
-Each generated instance appears on the calendar as its own job that can be independently edited, reassigned, or rescheduled. The series is linked, so you can also make changes to all future occurrences at once.
+Each generated instance appears on the calendar as its own independent job that can be individually edited, reassigned, or rescheduled.
 
-## Editing a Recurring Series
+## Editing Recurring Job Instances
 
-When you open a recurring job and make changes, you will be asked:
+Each generated instance is edited independently. There is no option to edit "this and all future" or "all jobs in the series." To make changes, open the individual job instance and edit it like any other job.
 
-- **This job only** -- Change applies to just this one occurrence.
-- **This and all future jobs** -- Change applies to this and every future occurrence in the series.
-- **All jobs in the series** -- Change applies to every occurrence, past and future.
+## Cancelling Recurring Jobs
 
-## Cancelling a Recurring Series
-
-To stop a recurring series, open any occurrence and select **Cancel Series** from the actions menu. You can choose to cancel only future occurrences or the entire series.
+There is no "Cancel Series" option. To stop recurring jobs, cancel each individual job instance separately.
 
 ### Tips
 
@@ -1343,8 +1271,10 @@ For billing that is not tied to a specific job (such as a consultation fee or de
 
 - **Draft** -- Created but not yet sent to the customer.
 - **Sent** -- Delivered to the customer via email.
-- **Paid** -- Payment has been received (online or recorded manually).
-- **Overdue** -- The due date has passed without payment.
+- **Viewed** -- The customer has opened the invoice in the portal.
+- **Partially Paid** -- A partial payment has been received but a balance remains.
+- **Paid** -- Payment has been received in full (online or recorded manually).
+- **Overdue** -- The due date has passed without full payment.
 - **Void** -- The invoice has been cancelled and will not be collected.
 
 ### Tips
@@ -1399,7 +1329,7 @@ If a customer reports they did not receive the invoice:
     category: "invoicing-payments",
     title: "Recording Manual Payments",
     excerpt: "How to record cash, check, or other offline payments in JobStream.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["record payment", "manual", "cash", "check"],
     content: `## When to Record Manually
@@ -1430,14 +1360,9 @@ The payment also appears in the Payments section, and your revenue reports updat
 
 If a customer makes a partial payment, record the amount received. The invoice shows the remaining balance. You can record additional payments later until the invoice is fully paid.
 
-## Editing or Deleting a Payment
+## Payment History
 
-If you made an error recording a payment:
-
-1. Open the invoice.
-2. Find the payment in the payment history section.
-3. Click **Edit** to correct the amount, method, or date.
-4. Or click **Delete** to remove the payment entirely.
+The payment history table on invoices is display-only. Once a payment is recorded, it cannot be edited or deleted.
 
 ### Tips
 
@@ -1486,21 +1411,6 @@ Through Stripe, customers can pay using:
 - Debit cards.
 - Additional methods may be available depending on your Stripe configuration.
 
-## Partial Payments
-
-By default, customers pay the full invoice amount. If you want to allow partial payments, you can enable this in **Settings > Payments**. When enabled, customers can enter a custom amount to pay.
-
-## Refunds
-
-If you need to refund an online payment:
-
-1. Open the paid invoice.
-2. Click **Refund** from the payment actions.
-3. Enter the refund amount (full or partial).
-4. Confirm the refund.
-
-The refund is processed through Stripe and the invoice status updates accordingly. Refunds typically appear on the customer's statement within 5-10 business days.
-
 ### Tips
 
 - Keep Stripe connected and active so every invoice has a Pay Online option.
@@ -1515,9 +1425,9 @@ The refund is processed through Stripe and the invoice status updates accordingl
     lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["overdue", "late", "reminders", "follow up", "void", "past due"],
-    content: `## How Overdue Detection Works
+    content: `## How Overdue Status Works
 
-JobStream automatically changes an invoice's status to **Overdue** when the due date passes without full payment. This happens at the start of each day via an automated check.
+Invoices can be marked as **Overdue** when the due date passes without full payment. Note that there is no automated cron job or background process that automatically changes invoice statuses to Overdue. Invoice status management is handled manually or through application logic when invoices are viewed.
 
 ## Identifying Overdue Invoices
 
@@ -1641,7 +1551,7 @@ The client portal consists of three main areas, each with its own URL pattern:
 ### Invoice Portal
 URL pattern: \`/portal/{org-slug}/invoices/{token}\`
 
-Customers can view invoice details including line items, subtotals, tax, and total amount due. If you have Stripe connected and online payments enabled, a **Pay Now** button appears that takes the customer through Stripe Checkout. Customers can also download a professional PDF of the invoice.
+Customers can view invoice details including line items, subtotals, tax, and total amount due. If you have Stripe connected and there is an outstanding balance, a **Pay Now** button appears that takes the customer through Stripe Checkout. Customers can also download a professional PDF of the invoice.
 
 ### Quote Portal
 URL pattern: \`/portal/{org-slug}/quotes/{token}\`
@@ -1698,7 +1608,7 @@ Each invoice has a portal page at \`/portal/{your-slug}/invoices/{token}\`. When
 - Subtotal, tax, discount, and grand total.
 - Payment history (if any payments have been made).
 - A **Download PDF** button to save a professional copy.
-- A **Pay Now** button (if Stripe is connected and online payments are enabled) that redirects to Stripe Checkout.
+- A **Pay Now** button (if Stripe is connected and there is an outstanding balance) that redirects to Stripe Checkout.
 
 ## Quote Portal Pages
 
@@ -1748,7 +1658,7 @@ Here is exactly what your customer experiences when paying an invoice through th
 1. **Receive Email** -- The customer gets an email from your business with the invoice summary and a "View & Pay" button.
 2. **Open Invoice** -- Clicking the button opens the full invoice in the client portal at a URL like \`/portal/{your-slug}/invoices/{token}\`. They see all line items, tax, discount (if any), and the total amount due.
 3. **Download PDF (Optional)** -- A **Download PDF** button lets the customer save a professional PDF copy of the invoice for their records.
-4. **Click Pay Now** -- If you have Stripe connected and online payments enabled, the customer clicks the **Pay Now** button on the invoice.
+4. **Click Pay Now** -- If Stripe is connected and there is an outstanding balance, the customer clicks the **Pay Now** button on the invoice.
 5. **Stripe Checkout** -- The customer is redirected to Stripe Checkout, a secure, hosted payment page. They enter their credit card or debit card information there.
 6. **Payment Processed** -- After successful payment, a webhook from Stripe automatically updates the invoice status in JobStream.
 
@@ -1776,7 +1686,7 @@ When the customer completes payment via Stripe Checkout, the following happens a
 
 If a customer reports they cannot pay:
 
-- **No Pay Now button** -- Verify that Stripe is connected in Settings > Payments and that online payments are enabled.
+- **No Pay Now button** -- Verify that Stripe is connected in Settings > Payments and that there is an outstanding balance on the invoice.
 - **Card declined** -- Ask them to verify their card details or try a different card on the Stripe Checkout page.
 - **Page not loading** -- Confirm their internet connection and suggest a different browser.
 - **Link expired** -- Resend the invoice from JobStream to generate a fresh email with the portal link.
@@ -1805,30 +1715,29 @@ Understanding what your customers see when they receive a quote helps you commun
 2. **Open Quote** -- They click the "View Quote" button to see the full details in the client portal at a URL like \`/portal/{your-slug}/quotes/{token}\`.
 3. **Review Details** -- The portal displays:
    - Your business name, logo, and contact information.
-   - Quote number and status badge (Awaiting Response, Approved, Declined, Expired).
+   - Quote number and status badge (Awaiting Response, Approved, Declined, Expired). The Expired badge is gray.
    - All line items with descriptions, quantities, unit prices, and line totals.
    - Subtotal, tax, and total amount.
-   - Your customer message (if included).
    - The expiration date ("Valid Until") for the quote.
 4. **Download PDF** -- A **Download PDF** button lets the customer save a professional PDF copy of the quote.
 5. **Take Action** -- Two prominent buttons appear: **Approve** and **Decline**.
+
+Note: Your customer message (if included) appears below the line items and totals section.
 
 ## Approving a Quote
 
 When the customer clicks **Approve**:
 
 - A confirmation message appears thanking them for their approval.
-- The quote status updates to "Approved" immediately on the page.
-- You receive a notification in JobStream.
+- The quote status updates to "Approved" immediately on the page and in the database.
 
 ## Declining a Quote
 
 When the customer clicks **Decline**:
 
 - A text area appears where they can explain why they are declining (optional but encouraged).
-- They click **Submit Decline** to confirm.
+- They click **Confirm Decline** to confirm.
 - A confirmation message appears.
-- You receive a notification with the decline reason (if provided).
 - The quote status updates to "Declined."
 
 ## No Account Required
@@ -1875,8 +1784,9 @@ The public booking form at \`/book/{your-slug}\` walks the customer through a si
 1. **Select Service** -- A dropdown lists the services you have enabled for online booking. Each service shows its name and default price.
 2. **Pick Date** -- A date input lets them choose their preferred date.
 3. **Pick Time Slot** -- Available time slots are generated based on your business hours for that day of the week. If the selected day is outside your business hours (e.g., a day you are closed), no time slots appear.
-4. **Enter Contact Information** -- The customer enters their first name, last name, email, and phone number.
-5. **Add Notes (Optional)** -- A text area for any additional details about the work needed.
+4. **Enter Contact Information** -- The customer enters their name (a single "Your Name" field), email, and optionally their phone number. Phone is not required.
+5. **Service Address** -- The customer can enter their service address.
+6. **Add Notes (Optional)** -- A text area for any additional details about the work needed.
 6. **Submit** -- The customer clicks **Request Booking** to submit.
 
 After submission, a success confirmation appears letting the customer know their request has been received.
@@ -1886,8 +1796,7 @@ After submission, a success confirmation appears letting the customer know their
 When a customer submits a booking:
 
 1. The request appears in your **Bookings** section with a "Pending" status.
-2. You receive a notification (via the notification bell in the top bar).
-3. The customer's name, email, phone, selected service, requested date, and time are all captured.
+2. The customer's name, email, phone (if provided), service address, selected service, requested date, and time are all captured.
 
 ## Managing Booking Requests
 
@@ -1978,21 +1887,21 @@ All booking requests arrive in your **Bookings** section as pending requests. Yo
     category: "online-booking",
     title: "Embedding the Booking Widget on Your Website",
     excerpt: "Step-by-step instructions for adding the widget to WordPress, Squarespace, Wix, and HTML sites.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["embed", "website", "wordpress", "squarespace", "wix", "html"],
     content: `## Getting Your Embed Code
 
-1. Go to **Settings > Online Booking** in JobStream.
-2. Click **Get Embed Code**.
-3. Copy the provided HTML snippet.
+1. Go to **Settings > Booking Widget** in JobStream.
+2. The embed code is displayed on the settings page. Use the small copy button next to it to copy the code to your clipboard.
 
-The snippet looks similar to this:
+The embed code is an iframe snippet that looks similar to this:
 
 \`\`\`html
-<div id="jobstream-booking"></div>
-<script src="https://app.jobstream.com/booking/widget.js" data-id="YOUR_ID"></script>
+<iframe src="{bookingUrl}" width="100%" height="700" frameborder="0" style="border:none;"></iframe>
 \`\`\`
+
+Replace \`{bookingUrl}\` with your actual booking URL (e.g., \`https://yoursite.com/book/your-slug\`).
 
 ## WordPress
 
@@ -2045,12 +1954,12 @@ The widget is designed to adapt to your website's width. It has a neutral, profe
     category: "online-booking",
     title: "Managing Booking Requests",
     excerpt: "Review, confirm, decline, or contact customers about their booking requests.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["booking requests", "confirm", "decline", "manage", "review"],
     content: `## Receiving Booking Requests
 
-When a customer submits a booking through your widget, you are notified immediately via in-app notification and email. The request appears in your **Bookings** section.
+When a customer submits a booking through your booking form, the request appears in your **Bookings** section. Note that no in-app notification is created when a booking is submitted.
 
 ## Reviewing a Request
 
@@ -2059,27 +1968,17 @@ Each booking request shows:
 - Customer name and contact information.
 - Selected service.
 - Requested date and time.
-- Any notes or answers to custom questions the customer provided.
+- Any notes the customer provided in the message field.
 
 ## Taking Action
 
 You have two options for each booking request:
 
 ### Confirm
-Click **Confirm & Create Job** to accept the booking. This:
-- Creates a job on your calendar for the requested date and time.
-- Sends a confirmation email to the customer with the appointment details.
-- Assigns the job to the default team member (or one you select).
+Click **Confirm & Create Job** to accept the booking. A confirmation dialog appears with a team member dropdown (defaults to "Unassigned") so you can optionally assign the job. This creates a job on your calendar for the requested date and time.
 
 ### Decline
-Click **Decline** if you cannot fulfill the request. You can:
-- Add a reason for declining.
-- Suggest alternative dates or times.
-- The customer receives an email explaining the decline with any message you include.
-
-## Auto-Confirmed Bookings
-
-If you enabled auto-confirmation in your booking settings, requests skip the review step and immediately create confirmed jobs on your calendar. You still receive a notification for each new booking.
+Click **Decline** if you cannot fulfill the request. A decline dialog appears with a reason textarea where you can explain why the booking cannot be fulfilled.
 
 ### Tips
 
@@ -2094,7 +1993,7 @@ If you enabled auto-confirmation in your booking settings, requests skip the rev
     category: "communications",
     title: "Automated Messages Overview",
     excerpt: "Understand the automated messages JobStream can send on your behalf.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["automation", "automated", "messages", "notifications", "sms", "email"],
     content: `## What Are Automated Messages?
@@ -2114,9 +2013,6 @@ Similar to quote notifications, customers receive an email with the invoice summ
 
 ### Job Completed Summary
 After a job is marked complete, the customer can receive a summary of the work performed, including any notes or photos.
-
-### Payment Confirmation
-When a payment is received (online or manual), the customer gets a receipt confirmation.
 
 ### Payment Reminder
 For overdue invoices, automated reminders nudge customers to pay. These can be sent at intervals you define.
@@ -2167,7 +2063,7 @@ These are master switches. If SMS is disabled globally, no automation rules can 
 
 ## Automation Rules Table
 
-Below the toggles, a table lists all your automation rules. Each row shows the rule name, trigger event, channel (Email, SMS, or Both), delay, and an active/inactive badge.
+Below the toggles, a table lists all your automation rules. Each row shows the rule name, trigger event, channel (Email, SMS, or Both), delay, and an active/inactive Switch toggle.
 
 ## Creating a New Automation Rule
 
@@ -2185,8 +2081,8 @@ Select the event that fires this automation. Available triggers include:
 - **Invoice Sent** -- Fires when an invoice is sent.
 - **Invoice Overdue** -- Fires when an invoice becomes overdue.
 - **Quote Sent** -- Fires when a quote is sent.
-- **Quote Approved** -- Fires when a customer approves a quote.
 - **Booking Received** -- Fires when a new booking request comes in.
+- **Booking Confirmed** -- Fires when a booking request is confirmed.
 
 ### Channel
 Choose the delivery channel: **Email**, **SMS**, or **Both**.
@@ -2209,7 +2105,7 @@ Set the delay in minutes between when the trigger fires and when the message is 
 
 ## Activating and Deactivating Rules
 
-Each rule has an active/inactive status shown as a badge. When editing a rule, you can toggle the **Active** switch to enable or disable it without deleting it. Inactive rules remain in your list but do not fire.
+Each rule has an active/inactive status shown as a **Switch toggle**. When editing a rule, you can toggle the **Active** switch to enable or disable it without deleting it. Inactive rules remain in your list but do not fire.
 
 ### Tips
 
@@ -2222,7 +2118,7 @@ Each rule has an active/inactive status shown as a badge. When editing a rule, y
     category: "communications",
     title: "Appointment Reminders",
     excerpt: "Automatically remind customers about their upcoming appointments via SMS or email.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["appointment", "reminder", "notification", "sms", "email"],
     content: `## What Are Appointment Reminders?
@@ -2242,18 +2138,11 @@ Appointment reminders are automated messages sent to your customers before a sch
 3. Toggle it to **Enabled**.
 4. Set your preferred timing (e.g., 24 hours before, 2 hours before).
 5. Choose the delivery channel: Email, SMS, or Both.
-6. Customize the message template with merge fields like customer name, appointment time, and team member name.
+6. Write your message template. Available merge fields are: {{customerName}}, {{jobNumber}}, {{invoiceNumber}}, {{quoteNumber}}, and {{businessName}}.
 
 ## What the Customer Receives
 
-The reminder message typically includes:
-
-- The appointment date and time.
-- A description of the service.
-- The assigned team member's name.
-- Your business contact information.
-
-You can customize the exact wording in the template editor.
+The customer receives the freeform template content you have written, with the merge fields replaced by actual values. The message content is entirely determined by your template -- there are no automatically structured appointment details added beyond what you include in the template.
 
 ## Best Practices
 
@@ -2272,7 +2161,7 @@ You can customize the exact wording in the template editor.
     category: "communications",
     title: "Communication History Log",
     excerpt: "View a complete log of all messages sent to and received from customers.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["history", "log", "messages", "communications", "sent", "received"],
     content: `## Accessing the Communications Log
@@ -2285,10 +2174,10 @@ The communications log displays a chronological list of all messages sent and re
 
 - **Date and time** of the message.
 - **Direction** -- whether it was sent (outbound) or received (inbound).
-- **Recipient or sender** -- the customer name and contact.
+- **Customer** -- the customer name.
 - **Channel** -- Email or SMS.
-- **Type** -- The message category (quote notification, invoice, reminder, manual message, etc.).
-- **Status** -- Delivered, opened, bounced, or failed.
+- **Type** -- The channel type (SMS or EMAIL).
+- **Status** -- Queued, Sent, Delivered, Failed, or Bounced.
 - **Preview** -- A brief preview of the message content.
 
 ## Filtering the Log
@@ -2297,7 +2186,7 @@ Use the filter controls to narrow down your view:
 
 - **Type** -- Filter by message type: SMS or Email.
 - **Direction** -- Filter by direction: Sent or Received.
-- **Status** -- Filter by delivery status: Delivered, Sent, Queued, Failed, or Bounced.
+- **Status** -- Filter by delivery status: Queued, Sent, Delivered, Failed, or Bounced.
 
 ## Customer-Level History
 
@@ -2321,39 +2210,29 @@ If a message shows a "Failed" or "Bounced" status:
     slug: "two-way-sms",
     category: "communications",
     title: "Two-Way SMS Messaging",
-    excerpt: "Receive customer replies to your text messages and manage conversations.",
-    lastUpdated: "2026-02-01",
+    excerpt: "Receive customer replies to your text messages and view them in the log.",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
-    keywords: ["two-way", "sms", "replies", "inbound", "text messages", "conversation"],
+    keywords: ["two-way", "sms", "replies", "inbound", "text messages"],
     content: `## What Is Two-Way SMS?
 
-Two-way SMS means that when your customer receives a text message from JobStream and replies to it, their response comes back into JobStream rather than disappearing into a carrier void. This enables real conversations via text.
+Two-way SMS means that when your customer receives a text message from JobStream and replies to it, their response comes back into JobStream rather than disappearing into a carrier void.
 
 ## How It Works
 
 1. JobStream sends an SMS to a customer (automated or manual).
 2. The customer replies by texting back to the same number.
-3. The reply appears in the JobStream Communications section.
-4. You receive a notification that a customer responded.
+3. The reply appears in the JobStream Communications section as an inbound message.
 
 ## Viewing Inbound Messages
 
-Inbound messages appear in the Communications log with an "Inbound" indicator. They show:
+Inbound messages appear in the Communications log with an "Inbound" indicator in a flat chronological table. They show:
 
 - The customer's name (matched by phone number).
 - The message content.
 - The timestamp.
-- The context (which outbound message they replied to, if identifiable).
 
-## Responding to Customer Messages
-
-You can reply to inbound messages directly from JobStream:
-
-1. Click on the inbound message in the Communications log.
-2. Type your response in the reply field.
-3. Click **Send**.
-
-The customer receives your reply as a text message from the same number.
+Note: The communications page is read-only. There is no reply functionality, conversation threading, or context linking between inbound and outbound messages. The UI displays all messages in a flat chronological list.
 
 ## Common Customer Responses
 
@@ -2364,14 +2243,10 @@ Customers often reply to automated messages with questions or confirmations:
 - **Questions** -- "How long will the job take?"
 - **Gate codes or access info** -- "The code is 1234."
 
-## Managing the Conversation
-
-The Communications section shows conversations threaded by customer, so you can see the full back-and-forth context.
-
 ### Tips
 
 - Check for inbound SMS messages multiple times per day so customers get timely responses.
-- Keep your replies concise and professional since customers see your business number.
+- Since you cannot reply directly from the communications page, contact the customer through other means (phone call, external SMS) when they send an inbound message.
 - Use inbound SMS as a signal to call the customer if the conversation becomes complex.`,
   },
   // ============================================
@@ -2442,50 +2317,40 @@ Click **Save Changes** at the bottom of the page to apply your review URL and au
     category: "reviews",
     title: "Automated Review Requests",
     excerpt: "Automatically ask customers for reviews after job completion.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["automated", "review request", "post-job", "automation"],
     content: `## How Automated Review Requests Work
 
-JobStream can automatically send a review request to customers after you complete a job. This consistent outreach leads to a steady stream of new reviews without any manual effort from your team.
+JobStream can automatically send a review request to customers via email after you complete a job. This consistent outreach leads to a steady stream of new reviews without any manual effort from your team.
 
 ## Setting Up the Automation
 
-1. Go to **Settings > Communications**.
-2. Find the **Review Request** automation rule.
-3. Toggle it to **Enabled**.
-4. Configure the settings:
+1. Go to **Settings > Reviews** tab.
+2. Toggle **Auto-Request Reviews** to enabled.
+3. Set the **Request Delay (Hours)** -- a single numeric input field where you enter the number of hours to wait after job completion before sending the review request.
+4. Click **Save Changes**.
 
 ### Timing
-Choose when the review request is sent after job completion:
-- **1 hour after** -- While the experience is fresh. Best for short service calls.
-- **1 day after** -- Gives the customer time to evaluate the work. Best for larger projects.
-- **Custom** -- Set any interval that works for your business.
+
+Enter the number of hours to wait. Common values:
+- **1** -- While the experience is fresh. Best for short service calls.
+- **24** -- Gives the customer time to evaluate the work. Recommended default.
+- **48** -- For projects where results take time to assess.
 
 ### Channel
-- **Email** -- Includes your branding, a personal message, and a prominent button linking to your review page.
-- **SMS** -- A short, direct text message with a review link. Higher open rates than email.
-- **Both** -- Send via both channels. The email provides detail while the SMS ensures visibility.
+
+Review requests are sent via **email only**. SMS delivery is not available for review requests.
 
 ### Template
-Customize the message content. A good review request is:
-- Personal -- Use the customer's name and reference the completed job.
-- Brief -- Get to the point quickly.
-- Grateful -- Thank them for their business before asking for the review.
-- Simple -- One clear call to action (the review link).
 
-## Filtering Who Receives Requests
-
-You can optionally set conditions for when review requests are sent:
-- **Minimum job value** -- Only request reviews for jobs above a certain amount.
-- **Customer tags** -- Exclude certain customer segments.
-- **Job completion status** -- Only send if the job was marked complete (not cancelled).
+The review request message template is hardcoded and not customizable. It includes a link to your review platform URLs configured in the Settings > Reviews tab.
 
 ### Tips
 
 - The best time to ask for a review is within 24 hours of job completion.
-- SMS review requests typically get higher response rates than email alone.
-- Monitor your review rate (reviews received vs. requests sent) and adjust timing or messaging if it is low.`,
+- Make sure your review platform URLs (Google, Yelp, Facebook) are configured in Settings > Reviews so customers have a direct link.
+- Monitor your review volume in the Reviews section to gauge the effectiveness of your auto-request settings.`,
   },
   {
     slug: "managing-reviews",
@@ -2581,10 +2446,10 @@ Your quote conversion rate, showing the percentage of quotes that have been appr
 Below the summary cards, the dashboard includes two visual analytics panels side by side:
 
 ### Revenue Chart
-A line chart showing revenue over time for the current month, with data points for each day. Hover over any point to see the exact revenue for that date.
+A line chart labeled "Revenue (Last 12 Months)" showing monthly data points for the past 12 months. Hover over any point to see the exact revenue for that month.
 
 ### Job Status Breakdown
-A donut chart showing the distribution of job statuses (Scheduled, In Progress, Completed, Cancelled) with a total count in the center. A color-coded legend identifies each status.
+A donut chart showing the distribution of job statuses (Scheduled, In Progress, Completed, Cancelled). A color-coded legend identifies each status.
 
 ## Today's Schedule
 
@@ -2595,7 +2460,7 @@ The **Today's Schedule** widget shows all jobs scheduled for the current day. Ea
 - Scheduled time
 - Assigned team member
 
-Click any job to navigate directly to the job detail page. If no jobs are scheduled for today, the widget displays a "No jobs scheduled" message with a link to the calendar.
+Click any job to navigate directly to the job detail page. If no jobs are scheduled for today, the widget displays a "No jobs scheduled for today" message.
 
 ## Action Required
 
@@ -2616,8 +2481,7 @@ The dashboard also includes:
 
 In the top bar, the **notification bell** icon shows your unread notification count as a red badge. Clicking it opens a dropdown with your most recent notifications. Each notification shows a title, message, and timestamp. You can:
 
-- Click a notification to navigate to the relevant page (job, invoice, quote, etc.).
-- Click **Mark as read** on individual notifications.
+- Click a notification to navigate to the relevant page (job, invoice, quote, etc.) and mark it as read.
 - Click **Mark all as read** to clear all unread notifications.
 
 Notifications are polled every 30 seconds so they stay current without requiring a page refresh.
@@ -2634,7 +2498,7 @@ Notifications are polled every 30 seconds so they stay current without requiring
     category: "reports-analytics",
     title: "Revenue Reports",
     excerpt: "Deep dive into your revenue data with filtering and export options.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["revenue", "reports", "financial", "income", "export", "analytics"],
     content: `## Accessing Revenue Reports
@@ -2651,10 +2515,10 @@ The revenue report provides detailed financial data including:
 - **Avg. Per Job** -- Total revenue divided by completed jobs.
 - **Largest Invoice** -- The highest-value invoice in the period.
 
-### Revenue Over Time
-A chart showing revenue trends over the selected period. You can view this daily, weekly, or monthly to identify patterns and growth trends.
+### Revenue by Month
+A bar chart showing monthly revenue data. There is no option to switch between daily, weekly, or monthly views -- it displays monthly bars only.
 
-### Revenue by Service
+### Revenue by Category
 A breakdown of revenue by service type. See which services generate the most income for your business.
 
 ### Revenue by Customer
@@ -2669,6 +2533,7 @@ The reports page uses a date preset filter to narrow the time period. Available 
 - **Last Month** -- Previous month's data.
 - **This Quarter** -- Current quarter's data.
 - **This Year** -- Year-to-date data.
+- **Last 12 Months** -- Data from the past 12 months.
 
 ## Exporting
 
@@ -2677,7 +2542,7 @@ Click **Export** to download the report data as a CSV file. The export includes 
 ### Tips
 
 - Compare the same month year-over-year to measure business growth.
-- Use the "Revenue by Service" view to decide which services to promote or expand.
+- Use the "Revenue by Category" view to decide which service categories to promote or expand.
 - Export monthly reports for your accountant or bookkeeper.`,
   },
   {
@@ -2685,7 +2550,7 @@ Click **Export** to download the report data as a CSV file. The export includes 
     category: "reports-analytics",
     title: "Jobs, Quotes, and Team Reports",
     excerpt: "Explore the other report tabs for operational and team performance insights.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["jobs report", "quotes report", "team report", "performance", "analytics"],
     content: `## Jobs Report
@@ -2693,14 +2558,13 @@ Click **Export** to download the report data as a CSV file. The export includes 
 Access this from **Reports > Jobs**. It provides insights into your job pipeline and completion metrics:
 
 ### Key Metrics
-- **Total Jobs Created** -- How many jobs were created in the period.
-- **Jobs Completed** -- The number of completed jobs.
-- **Completion Rate** -- Percentage of created jobs that were completed.
-- **Average Job Duration** -- The typical time from creation to completion.
-- **Cancellation Rate** -- Percentage of jobs that were cancelled.
+- **Total Jobs** -- How many jobs were created in the period.
+- **Completed** -- The number of completed jobs.
+- **Cancelled** -- The number of cancelled jobs.
+- **Avg. Completion** -- The average duration of completed jobs.
 
-### Jobs by Status
-A breakdown showing how many jobs are in each status (Scheduled, In Progress, Completed, Cancelled). Identifies bottlenecks in your workflow.
+### Jobs by Month
+A chart showing Completed and Cancelled jobs by month. This helps you identify trends in your job completion and cancellation rates over time.
 
 ### Jobs by Service Type
 See which services are most in demand. This helps with staffing, inventory, and marketing decisions.
@@ -2710,30 +2574,28 @@ See which services are most in demand. This helps with staffing, inventory, and 
 Access this from **Reports > Quotes**. Track your quoting effectiveness:
 
 ### Key Metrics
-- **Quotes Sent** -- Total number of quotes sent to customers.
-- **Quotes Approved** -- How many were accepted.
-- **Approval Rate** -- The percentage of sent quotes that were approved. Industry benchmarks vary, but 40-60% is healthy for most service businesses.
-- **Average Quote Value** -- The typical dollar amount of your quotes.
-- **Total Quoted Value** -- The sum of all quotes sent.
+- **Sent** -- Total number of quotes sent to customers.
+- **Approved** -- How many were accepted.
+- **Declined** -- How many were declined by customers.
+- **Expired** -- How many expired without a response.
+- **Conversion Rate** -- The percentage of sent quotes that were approved.
 
-### Conversion Funnel
-A visual funnel showing Quotes Sent, Approved, and Converted to Job. Identify where prospects drop off.
-
-### Time to Approval
-How long customers take to respond to quotes. If this number is high, consider following up more proactively.
+### Conversion Rate by Month
+A line chart showing the quote conversion rate over time by month. This helps you track whether your quoting effectiveness is improving or declining.
 
 ## Team Report
 
 Access this from **Reports > Team**. Evaluate team performance:
 
-### Key Metrics per Team Member
+### Hours by Team Member
+A bar chart showing total hours worked by each team member.
+
+### Team Performance Table
+A table with the following columns per team member:
+- **Team Member** -- The team member's name.
+- **Hours Worked** -- Total hours tracked.
 - **Jobs Completed** -- Total jobs each team member finished.
 - **Revenue Generated** -- Total revenue from their completed jobs.
-- **Average Rating** -- If reviews mention specific team members.
-- **Utilization Rate** -- Percentage of available hours that were scheduled.
-
-### Comparison View
-Side-by-side comparison of team members across key metrics. Useful for performance reviews and identifying training needs.
 
 ## Customers Report
 
@@ -2812,7 +2674,7 @@ Password requirements:
     category: "account-settings",
     title: "Business Settings",
     excerpt: "Configure your business info, tax rates, document prefixes, and operating hours.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["business settings", "company", "tax", "hours", "configuration", "prefixes"],
     content: `## Accessing Business Settings
@@ -2824,10 +2686,11 @@ Password requirements:
 
 ### Company Details
 - **Business Name** -- Your registered or trade name. Appears on all customer-facing documents.
-- **Phone Number** -- Your main business line.
-- **Email Address** -- The primary contact email for your business.
+- **Business Email** -- The primary contact email for your business.
+- **Phone** -- Your main business line.
 - **Website** -- Your business website URL.
-- **Address** -- Your physical business address. Appears on invoices and quotes.
+- **Street Address** -- Your physical business street address. Appears on invoices and quotes.
+- **City**, **State**, **ZIP Code** -- Your business address details.
 
 ## Tax Settings
 
@@ -2853,7 +2716,7 @@ These hours are used for:
 Customize the prefixes for your document numbers:
 
 - **Invoice Prefix** -- Customize the prefix for invoice numbers (e.g., "INV-").
-- **Quote Prefix** -- Customize the prefix for quote numbers (e.g., "QT-").
+- **Quote Prefix** -- Customize the prefix for quote numbers (e.g., "QTE").
 - **Job Prefix** -- Customize the prefix for job numbers (e.g., "JOB-").
 
 ## Invoice and Quote Defaults
@@ -2871,7 +2734,7 @@ Customize the prefixes for your document numbers:
     category: "account-settings",
     title: "Managing Your Team",
     excerpt: "Add, remove, and manage team member accounts and their settings.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["team", "manage", "add", "remove", "deactivate", "members"],
     content: `## Team Management Page
@@ -2884,8 +2747,8 @@ Customize the prefixes for your document numbers:
 
 1. Click **Invite Team Member**.
 2. Enter their first name, last name, and email address.
-3. Select a role (Owner, Admin, or Technician).
-4. Click **Send Invite**.
+3. Select a role (Admin or Technician). Owner is not available as a role option at invite time.
+4. Click **Send Invitation**.
 
 The new member receives an email with instructions to set up their password and log in.
 
@@ -3046,7 +2909,7 @@ Customers can download quote PDFs from the portal at \`/portal/{your-slug}/quote
 
 Both invoice and quote PDFs include a professional layout with:
 
-- Your business name, logo (if configured), and contact information in the header.
+- Your business name and contact information in the header.
 - Document number, date, and status.
 - Customer name and contact details.
 - A line item table with descriptions, quantities, unit prices, and line totals.
@@ -3140,7 +3003,7 @@ At the top of the page, two switches control messaging at a global level:
 - **SMS Notifications** -- Master switch for all SMS messaging. When disabled, no SMS messages are sent regardless of individual automation rule settings.
 - **Email Notifications** -- Master switch for all email messaging. When disabled, no email messages are sent.
 
-Toggling either switch and clicking **Save Changes** applies the change immediately.
+Toggling either switch and clicking **Save Channel Settings** applies the change immediately.
 
 ## Automation Rules
 
@@ -3150,7 +3013,7 @@ Below the global toggles, a table lists all your automation rules. Each row disp
 - **Trigger** -- The event that fires the rule (e.g., Job Completed, Invoice Sent).
 - **Channel** -- Email, SMS, or Both.
 - **Delay** -- How many minutes after the trigger the message is sent.
-- **Status** -- An Active or Inactive badge.
+- **Status** -- An Active or Inactive Switch toggle.
 - **Actions** -- Edit (pencil icon) and Delete (trash icon) buttons.
 
 ## Creating Rules
@@ -3158,7 +3021,7 @@ Below the global toggles, a table lists all your automation rules. Each row disp
 Click **Add Rule** to create a new automation rule. The dialog includes:
 
 - **Name** -- Required. A descriptive name for the rule.
-- **Trigger** -- Required. Select from: Job Scheduled, Job Completed, Invoice Sent, Invoice Overdue, Quote Sent, Quote Approved, or Booking Received.
+- **Trigger** -- Required. Select from: Job Scheduled, Job Completed, Invoice Sent, Invoice Overdue, Quote Sent, Booking Received, or Booking Confirmed.
 - **Channel** -- Required. Choose Email, SMS, or Both.
 - **Subject** -- The email subject line (only shown when channel includes Email).
 - **Template Content** -- Required. The message body.
@@ -3289,17 +3152,14 @@ The time tracking timer lets your team track how long they spend on jobs. It is 
 
 ## Starting a Timer
 
-There are two ways to start tracking time:
+To start tracking time:
 
 ### From the Time Tracking Page
 1. Click **Time Tracking** in the left sidebar.
 2. Click the **Start Timer** button.
-3. The timer begins counting up, displaying hours and minutes.
+3. The timer begins counting up, displaying hours, minutes, and seconds (HH:MM:SS format).
 
-### From a Job Detail Page
-1. Open a job detail page.
-2. Click the **Time** tab.
-3. Click **Start Timer** to begin tracking time for that specific job.
+Note: Timers can only be started from the Time Tracking page. The Time tab on job detail pages does not have timer integration -- it only displays actual start/end timestamps from status changes.
 
 ## Stopping a Timer
 
@@ -3325,13 +3185,13 @@ The timer state is stored on the server, not just in your browser. This means:
 
 ## Viewing Time Entries
 
-All completed time entries appear on the **Time Tracking** page in a list format. Each entry shows:
+All completed time entries appear on the **Time Tracking** page in a day-view list format. Each entry shows:
 
-- Team member name
-- Associated job (if any)
-- Start and end time
+- Start time
+- End time
 - Duration
-- Date
+- Associated job (if any)
+- Notes
 
 ## Exporting Time Data
 
@@ -3413,14 +3273,15 @@ The Reports page also supports CSV export for revenue data. Click the **Export**
     keywords: ["edit job", "modify", "update", "change", "job details"],
     content: `## Editing an Existing Job
 
-After creating a job, you can edit any of its details at any time (as long as the job is not completed or cancelled).
+After creating a job, you can edit any of its details at any time regardless of status.
 
 ## How to Edit a Job
 
 1. Navigate to the job detail page by clicking the job in your Jobs list or Calendar.
-2. Click the **Edit** button on the job detail page.
-3. You are taken to the job edit form at \`/jobs/{id}/edit\`.
-4. The form is pre-populated with all current job details.
+2. Click the **three-dot dropdown menu** on the job detail page.
+3. Select **Edit Job** from the dropdown.
+4. You are taken to the job edit form at \`/jobs/{id}/edit\`.
+5. The form is pre-populated with all current job details.
 
 ## Editable Fields
 
@@ -3429,7 +3290,7 @@ The edit form includes all the same fields as the creation form:
 - **Customer** -- Change the associated customer.
 - **Job Title** -- Update the job description.
 - **Line Items** -- Add, remove, or modify line items with descriptions, quantities, and prices.
-- **Schedule** -- Change the start date, start time, and end time.
+- **Schedule** -- Change the start date, start time, and duration.
 - **Priority** -- Adjust the priority level (Low, Medium, High, Urgent).
 - **Assignment** -- Reassign to different team members.
 - **Notes** -- Update internal notes.
@@ -3438,11 +3299,7 @@ The edit form includes all the same fields as the creation form:
 
 ## Saving Changes
 
-Click **Update Job** to save your changes. The job detail page updates immediately with the new information, and the calendar reflects any schedule changes.
-
-## When You Cannot Edit
-
-Jobs in **Completed** or **Cancelled** status cannot be edited through the edit form. If you need to make changes to a completed job, you will need to change its status back to an active state first.
+Click **Save Changes** to save your changes. The job detail page updates immediately with the new information, and the calendar reflects any schedule changes.
 
 ### Tips
 
@@ -3473,7 +3330,7 @@ When creating a new job (or editing an existing one):
 2. Type a label for the checklist item in the input field.
 3. Click the **+** button (or press Enter) to add the item.
 4. Repeat for each item you want to include.
-5. To remove an item before saving, click the **X** button next to it.
+5. To remove an item before saving, click the **trash can** (Trash2) icon next to it.
 
 Checklist items are saved when you create or update the job.
 
@@ -3488,7 +3345,7 @@ Once the job is created, the checklist appears on the job detail page under the 
 
 ## Progress Tracking
 
-The Checklist tab header shows the completion count (e.g., "2/5 completed") so you can see at a glance how much of the job is done.
+The Checklist tab header shows the completion count in a compact format (e.g., "(2/5)") so you can see at a glance how much of the job is done.
 
 ## Best Practices for Checklists
 
@@ -3542,9 +3399,8 @@ Click the **Browse Files** button (or click anywhere in the upload zone) to open
 Uploaded files appear in a grid layout showing:
 
 - File name
-- File size (formatted as KB or MB)
+- Uploader name (who uploaded the file)
 - Upload date
-- A clickable link to download or view the file
 
 ## Supported Files
 
@@ -3590,7 +3446,7 @@ Below the header, customers see:
 - **Due Date** -- When payment is expected.
 
 ### Customer Information
-The customer's name, email, and phone number are displayed.
+The customer's name and email are displayed under "Bill To." Phone number is not shown.
 
 ### Line Items Table
 A detailed table showing every line item on the invoice:
@@ -3599,8 +3455,8 @@ A detailed table showing every line item on the invoice:
 |---|---|
 | Item | Service name and description |
 | Qty | Quantity |
-| Price | Unit price |
-| Total | Line total (qty x price) |
+| Rate | Unit price |
+| Amount | Line total (qty x rate) |
 
 ### Totals Section
 Below the table:
@@ -3620,13 +3476,11 @@ Any customer-visible notes included on the invoice appear at the bottom.
 Two primary actions are available:
 
 - **Download PDF** -- Generates and downloads a professional PDF of the invoice.
-- **Pay Now** -- Visible only when Stripe is connected, online payments are enabled, and the invoice has an outstanding balance. Clicking this button redirects the customer to Stripe Checkout where they can enter payment information securely.
+- **Pay Now** -- Visible when Stripe is connected and the invoice has an outstanding balance. Clicking this button redirects the customer to Stripe Checkout where they can enter payment information securely.
 
 The Pay Now button does not appear if:
 - Stripe is not connected.
-- Online payments are disabled.
 - The invoice is already fully paid.
-- The invoice is voided.
 
 ### Tips
 
@@ -3653,15 +3507,12 @@ Your business name and logo (if configured) appear at the top for branding.
 
 ### Quote Summary
 - **Quote Number** -- The unique identifier (e.g., QT-001).
-- **Status Badge** -- Color-coded badge showing: Draft (gray), Awaiting Response (blue), Approved (green), Declined (red), or Expired (orange).
+- **Status Badge** -- Color-coded badge showing: Draft (gray), Awaiting Response (blue), Approved (green), Declined (red), or Expired (gray).
 - **Created Date** -- When the quote was created.
 - **Valid Until** -- The expiration date after which the customer can no longer approve.
 
 ### Customer Information
-The customer's name, email, and phone number.
-
-### Customer Message
-If you included a personal message when creating the quote, it appears prominently in a blue highlighted section above the line items.
+The customer's name and email. Phone number is not displayed.
 
 ### Line Items Table
 A detailed table showing every line item:
@@ -3670,13 +3521,16 @@ A detailed table showing every line item:
 |---|---|
 | Item | Service name and description |
 | Qty | Quantity |
-| Price | Unit price |
-| Total | Line total (qty x price) |
+| Rate | Unit price |
+| Amount | Line total (qty x rate) |
 
 ### Totals Section
 - **Subtotal** -- Sum of all line items.
 - **Tax** -- Tax amount applied.
 - **Total** -- The final quoted amount.
+
+### Customer Message
+If you included a personal message when creating the quote, it appears below the line items and totals section.
 
 ## Action Buttons
 
@@ -3684,7 +3538,7 @@ A detailed table showing every line item:
 Two prominent action buttons appear:
 
 - **Approve** -- Clicking this immediately updates the quote status to Approved. A success confirmation appears on the page, and you receive a notification in JobStream.
-- **Decline** -- Clicking this opens a text area where the customer can optionally explain why they are declining. After entering a reason (or leaving it blank), they click **Submit Decline** to confirm. The quote status updates to Declined.
+- **Decline** -- Clicking this opens a text area where the customer can optionally explain why they are declining. After entering a reason (or leaving it blank), they click **Confirm Decline** to confirm. The quote status updates to Declined.
 
 ### After Action Taken
 Once the customer has approved or declined, the action buttons are replaced with a confirmation message showing what action was taken and when.
@@ -3732,10 +3586,10 @@ After selecting a date, available time slots appear based on your business hours
 
 ### 4. Contact Information
 The customer enters:
-- **First Name** (required)
-- **Last Name** (required)
+- **Your Name** (required) -- A single name field.
 - **Email** (required)
-- **Phone** (required)
+- **Phone** (optional)
+- **Service Address** -- The address where the service will be performed.
 
 ### 5. Additional Notes
 An optional text area where the customer can describe their needs, provide access instructions, or add any other relevant details.
@@ -3746,9 +3600,8 @@ The customer clicks **Request Booking** to submit. A success confirmation page a
 ## What Happens After Submission
 
 1. A new booking record is created in your **Bookings** section with a "Pending" status.
-2. The booking captures: customer name, email, phone, selected service, requested date, time, and notes.
+2. The booking captures: customer name, email, phone (if provided), service address, selected service, requested date, time, and notes.
 3. If the customer is new (email not already in your system), their information is stored with the booking for you to create a customer record.
-4. You receive a notification via the notification bell in the top bar.
 
 ## Inactive State
 
@@ -3791,8 +3644,7 @@ The notification bell automatically polls for new notifications every 30 seconds
 
 ## Taking Action on Notifications
 
-- **Click a notification** -- If the notification is linked to a specific page (job, invoice, quote, booking), clicking it navigates you to that page and marks the notification as read.
-- **Mark as read** -- Click the dot icon on an individual notification to mark it as read without navigating.
+- **Click a notification** -- If the notification is linked to a specific page (job, invoice, quote, booking), clicking it navigates you to that page and marks the notification as read. This is the only way to mark individual notifications as read.
 - **Mark all as read** -- Click the **Mark all as read** button at the top of the dropdown to clear all unread notifications at once.
 
 ## Types of Notifications
