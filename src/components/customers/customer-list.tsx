@@ -88,26 +88,27 @@ export function CustomerList({
   const [editingProperties, setEditingProperties] = useState<any[] | undefined>(undefined)
 
   async function handleEditClick(customer: CustomerRow) {
-    setEditingCustomer(customer)
-    // Fetch full customer data including properties
+    // Fetch full customer data including properties BEFORE opening the form
+    // to avoid a race condition where the form initializes with empty properties
+    let props: any[] | undefined
     try {
       const result = await getCustomer(customer.id)
       if ("customer" in result && result.customer) {
-        setEditingProperties(
-          result.customer.properties.map((p: any) => ({
-            addressLine1: p.addressLine1,
-            addressLine2: p.addressLine2 || "",
-            city: p.city,
-            state: p.state,
-            zip: p.zip,
-            notes: p.notes || "",
-            isPrimary: p.isPrimary,
-          }))
-        )
+        props = result.customer.properties.map((p: any) => ({
+          addressLine1: p.addressLine1,
+          addressLine2: p.addressLine2 || "",
+          city: p.city,
+          state: p.state,
+          zip: p.zip,
+          notes: p.notes || "",
+          isPrimary: p.isPrimary,
+        }))
       }
     } catch {
       // If fetch fails, properties will just be empty
     }
+    setEditingProperties(props)
+    setEditingCustomer(customer)
   }
 
   const fetchCustomers = useCallback(
