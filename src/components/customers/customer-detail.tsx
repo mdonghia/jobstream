@@ -217,7 +217,7 @@ export function CustomerDetail({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-8 w-8 border-[#E3E8EE]">
+                <Button variant="outline" size="icon" className="h-8 w-8 border-[#E3E8EE]" aria-label="More actions">
                   <MoreHorizontal className="w-4 h-4 text-[#425466]" />
                 </Button>
               </DropdownMenuTrigger>
@@ -427,6 +427,7 @@ export function CustomerDetail({
                         size="icon"
                         className="h-7 w-7 text-[#8898AA] hover:text-red-600"
                         onClick={() => handleDeleteProperty(prop.id)}
+                        aria-label="Delete property"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>

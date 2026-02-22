@@ -353,6 +353,7 @@ export function TeamMembers({
                                 variant="ghost"
                                 size="icon"
                                 className="h-8 w-8"
+                                aria-label="More actions"
                               >
                                 <MoreHorizontal className="h-4 w-4 text-[#8898AA]" />
                               </Button>

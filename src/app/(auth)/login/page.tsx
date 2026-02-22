@@ -89,7 +89,7 @@ function LoginForm() {
           </Button>
           <p className="text-sm text-[#8898AA] text-center">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-[#635BFF] hover:underline">
+            <Link href="/register" className="text-[#635BFF] underline hover:no-underline">
               Sign up
             </Link>
           </p>

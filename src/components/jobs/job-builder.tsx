@@ -382,6 +382,7 @@ export function JobBuilder({
           size="icon"
           asChild
           className="h-8 w-8"
+          aria-label="Go back"
         >
           <Link href="/jobs">
             <ArrowLeft className="w-4 h-4" />
@@ -606,6 +607,7 @@ export function JobBuilder({
                         size="icon"
                         className="h-9 w-9 text-[#8898AA] hover:text-red-500"
                         onClick={() => removeLineItem(li.id)}
+                        aria-label="Remove line item"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -917,6 +919,7 @@ export function JobBuilder({
                     size="icon"
                     className="h-7 w-7 text-[#8898AA] opacity-0 group-hover:opacity-100 hover:text-red-500"
                     onClick={() => removeChecklistItem(item.id)}
+                    aria-label="Remove checklist item"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
@@ -940,6 +943,7 @@ export function JobBuilder({
                   size="sm"
                   className="h-9 border-[#E3E8EE]"
                   onClick={addChecklistItem}
+                  aria-label="Add checklist item"
                 >
                   <Plus className="w-4 h-4" />
                 </Button>

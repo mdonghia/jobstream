@@ -98,6 +98,7 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8898AA] hover:text-[#425466]"
+                aria-label="Toggle visibility"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -128,7 +129,7 @@ export default function RegisterPage() {
           </Button>
           <p className="text-sm text-[#8898AA] text-center">
             Already have an account?{" "}
-            <Link href="/login" className="text-[#635BFF] hover:underline">
+            <Link href="/login" className="text-[#635BFF] underline hover:no-underline">
               Log in
             </Link>
           </p>

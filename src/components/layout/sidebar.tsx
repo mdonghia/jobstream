@@ -94,6 +94,7 @@ export function Sidebar({ collapsed, onToggle, orgName }: SidebarProps) {
             "p-1 rounded-md hover:bg-gray-200 text-[#8898AA] transition-colors",
             collapsed && "hidden"
           )}
+          aria-label="Collapse sidebar"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>

@@ -67,6 +67,7 @@ export function UnscheduledSidebar({ jobs }: UnscheduledSidebarProps) {
           size="icon-xs"
           onClick={() => setCollapsed(!collapsed)}
           className="text-[#8898AA] hover:text-[#0A2540]"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
         </Button>

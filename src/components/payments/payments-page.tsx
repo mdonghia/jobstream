@@ -304,6 +304,7 @@ export function PaymentsPage({
                 onChange={(e) => setDateFrom(e.target.value)}
                 className="h-9 w-[140px] border-[#E3E8EE] text-sm"
                 placeholder="From"
+                aria-label="Date from"
               />
               <Input
                 type="date"
@@ -311,6 +312,7 @@ export function PaymentsPage({
                 onChange={(e) => setDateTo(e.target.value)}
                 className="h-9 w-[140px] border-[#E3E8EE] text-sm"
                 placeholder="To"
+                aria-label="Date to"
               />
 
               <Select

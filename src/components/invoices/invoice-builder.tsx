@@ -306,6 +306,7 @@ export function InvoiceBuilder({
           size="icon"
           className="h-8 w-8"
           onClick={() => router.push("/invoices")}
+          aria-label="Go back"
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>
@@ -753,6 +754,7 @@ function LineItemRow({
             size="icon"
             className="h-8 w-8 text-[#8898AA] hover:text-red-500 mt-5"
             onClick={onRemove}
+            aria-label="Remove line item"
           >
             <Trash2 className="w-4 h-4" />
           </Button>

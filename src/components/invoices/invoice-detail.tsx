@@ -399,6 +399,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             size="icon"
             className="h-8 w-8 mt-1"
             onClick={() => router.push("/invoices")}
+            aria-label="Go back"
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>

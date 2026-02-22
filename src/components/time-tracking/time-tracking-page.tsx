@@ -611,6 +611,7 @@ export function TimeTrackingPage({
               size="icon"
               className="h-8 w-8 border-[#E3E8EE]"
               onClick={() => navigateDate("prev")}
+              aria-label="Previous"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -646,6 +647,7 @@ export function TimeTrackingPage({
               size="icon"
               className="h-8 w-8 border-[#E3E8EE]"
               onClick={() => navigateDate("next")}
+              aria-label="Next"
             >
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -734,6 +736,7 @@ export function TimeTrackingPage({
                                 size="icon"
                                 className="h-8 w-8"
                                 onClick={() => openEditDialog(entry)}
+                                aria-label="Edit"
                               >
                                 <Pencil className="w-3.5 h-3.5 text-[#8898AA]" />
                               </Button>
@@ -742,6 +745,7 @@ export function TimeTrackingPage({
                                 size="icon"
                                 className="h-8 w-8"
                                 onClick={() => handleDeleteEntry(entry.id)}
+                                aria-label="Delete"
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-red-500" />
                               </Button>

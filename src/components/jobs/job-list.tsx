@@ -536,7 +536,7 @@ export function JobList({
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="More actions">
                           <MoreHorizontal className="w-4 h-4 text-[#8898AA]" />
                         </Button>
                       </DropdownMenuTrigger>

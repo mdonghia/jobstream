@@ -332,6 +332,7 @@ export function CalendarView({
               size="icon-xs"
               onClick={goBack}
               className="text-[#8898AA] hover:text-[#0A2540]"
+              aria-label="Previous"
             >
               <ChevronLeft className="w-4 h-4" />
             </Button>
@@ -340,6 +341,7 @@ export function CalendarView({
               size="icon-xs"
               onClick={goForward}
               className="text-[#8898AA] hover:text-[#0A2540]"
+              aria-label="Next"
             >
               <ChevronRight className="w-4 h-4" />
             </Button>

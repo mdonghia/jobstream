@@ -227,12 +227,14 @@ export function CommunicationsPage({
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
               className="h-9 w-[140px] border-[#E3E8EE] text-sm"
+              aria-label="Date from"
             />
             <Input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
               className="h-9 w-[140px] border-[#E3E8EE] text-sm"
+              aria-label="Date to"
             />
           </div>
         </div>

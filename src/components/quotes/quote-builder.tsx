@@ -537,6 +537,7 @@ export function QuoteBuilder({
                             className="h-9 w-9 text-[#8898AA] hover:text-red-600"
                             disabled={lineItems.length <= 1}
                             onClick={() => removeLineItem(index)}
+                            aria-label="Remove line item"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

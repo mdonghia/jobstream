@@ -86,6 +86,7 @@ export function Topbar({ user, onMenuClick }: TopbarProps) {
         <button
           onClick={onMenuClick}
           className="lg:hidden p-1.5 rounded-md hover:bg-gray-100 text-[#425466]"
+          aria-label="Toggle menu"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -103,6 +104,7 @@ export function Topbar({ user, onMenuClick }: TopbarProps) {
               variant="outline"
               size="icon"
               className="h-8 w-8 border-[#E3E8EE]"
+              aria-label="Quick actions"
             >
               <Plus className="w-4 h-4 text-[#425466]" />
             </Button>
@@ -121,6 +123,7 @@ export function Topbar({ user, onMenuClick }: TopbarProps) {
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-[#425466]"
+          aria-label="Notifications"
         >
           <Bell className="w-4 h-4" />
         </Button>

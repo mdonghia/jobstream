@@ -412,7 +412,7 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-start gap-3">
-          <Button variant="ghost" size="icon" asChild className="h-8 w-8 mt-1">
+          <Button variant="ghost" size="icon" asChild className="h-8 w-8 mt-1" aria-label="Go back">
             <Link href="/jobs">
               <ArrowLeft className="w-4 h-4" />
             </Link>
@@ -474,7 +474,7 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
           {/* 3-dot menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="h-9 w-9 border-[#E3E8EE]">
+              <Button variant="outline" size="icon" className="h-9 w-9 border-[#E3E8EE]" aria-label="More actions">
                 <MoreHorizontal className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>

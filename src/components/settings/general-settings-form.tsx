@@ -363,6 +363,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               value="USD - US Dollar"
               disabled
               className={`${inputClass} bg-[#F6F8FA] text-[#8898AA]`}
+              aria-label="Currency"
             />
           </div>
         </div>
@@ -418,6 +419,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               value={invoiceDueDays}
               onChange={(e) => setInvoiceDueDays(e.target.value)}
               className={inputClass}
+              aria-label="Default invoice due days"
             />
           </div>
 
@@ -431,6 +433,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               value={quoteValidDays}
               onChange={(e) => setQuoteValidDays(e.target.value)}
               className={inputClass}
+              aria-label="Default quote validity days"
             />
           </div>
         </div>
@@ -486,6 +489,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
                         onCheckedChange={(checked) =>
                           updateDayHours(day, "open", checked)
                         }
+                        aria-label={`${DAY_LABELS[day]} open`}
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -499,6 +503,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
                         className={`h-9 w-32 border-[#E3E8EE] focus-visible:ring-[#635BFF] ${
                           !hours.open ? "opacity-40" : ""
                         }`}
+                        aria-label={`${DAY_LABELS[day]} start time`}
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -512,6 +517,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
                         className={`h-9 w-32 border-[#E3E8EE] focus-visible:ring-[#635BFF] ${
                           !hours.open ? "opacity-40" : ""
                         }`}
+                        aria-label={`${DAY_LABELS[day]} end time`}
                       />
                     </td>
                   </tr>
