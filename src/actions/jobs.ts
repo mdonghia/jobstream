@@ -168,9 +168,19 @@ export async function getJob(id: string) {
 
     if (!job) return { error: "Job not found" }
 
+    // Resolve S3 URLs to signed URLs for attachments
+    const { getFileUrl } = await import("@/lib/s3")
+    const resolvedAttachments = await Promise.all(
+      job.attachments.map(async (a) => ({
+        ...a,
+        fileUrl: await getFileUrl(a.fileUrl),
+      }))
+    )
+
     return {
       job: {
         ...job,
+        attachments: resolvedAttachments,
         lineItems: job.lineItems.map((li) => ({
           ...li,
           quantity: Number(li.quantity),
@@ -765,25 +775,12 @@ export async function uploadJobAttachment(jobId: string, formData: FormData) {
     const file = formData.get("file") as File
     if (!file) return { error: "No file provided" }
 
-    // Save to local public/uploads/ directory (S3 can be added later)
-    const fs = await import("fs/promises")
-    const path = await import("path")
-    const dir = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      user.organizationId,
-      jobId
-    )
-    await fs.mkdir(dir, { recursive: true })
-
+    const { uploadFile } = await import("@/lib/s3")
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_")
     const fileName = `${Date.now()}-${sanitizedName}`
-    const filePath = path.join(dir, fileName)
+    const key = `${user.organizationId}/${jobId}/${fileName}`
     const buffer = Buffer.from(await file.arrayBuffer())
-    await fs.writeFile(filePath, buffer)
-
-    const fileUrl = `/uploads/${user.organizationId}/${jobId}/${fileName}`
+    const fileUrl = await uploadFile(buffer, key, file.type)
 
     const attachment = await prisma.jobAttachment.create({
       data: {
