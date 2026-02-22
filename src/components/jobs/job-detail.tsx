@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -67,7 +67,7 @@ import {
   cn,
 } from "@/lib/utils"
 import { toast } from "sonner"
-import { updateJobStatus, addJobNote, toggleChecklistItem } from "@/actions/jobs"
+import { updateJobStatus, addJobNote, toggleChecklistItem, uploadJobAttachment, generateRecurringInstances } from "@/actions/jobs"
 
 // ---- Types ----
 
@@ -167,6 +167,8 @@ interface Job {
   actualEnd: string | null
   completionNotes: string | null
   cancelReason: string | null
+  isRecurring: boolean
+  recurrenceRule: string | null
   customer: JobCustomer
   property: JobProperty | null
   quote: JobQuote | null
@@ -215,6 +217,14 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
 
   // Complete modal
   const [completeModalOpen, setCompleteModalOpen] = useState(false)
+
+  // File upload
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [attachments, setAttachments] = useState(initialJob.attachments)
+
+  // Recurring instances
+  const [generatingInstances, setGeneratingInstances] = useState(false)
 
   // Computed
   const completedChecklistCount = checklistItems.filter(
@@ -350,6 +360,61 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
     }
   }
 
+  // ---- File Upload ----
+
+  async function handleFileUpload(files: FileList | null) {
+    if (!files?.length) return
+    setUploading(true)
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const formData = new FormData()
+        formData.append("file", files[i])
+        const result = await uploadJobAttachment(job.id, formData)
+        if ("error" in result) {
+          toast.error(result.error)
+        } else if (result.attachment) {
+          setAttachments((prev) => [
+            {
+              ...result.attachment,
+              createdAt:
+                result.attachment.createdAt instanceof Date
+                  ? result.attachment.createdAt.toISOString()
+                  : result.attachment.createdAt,
+              user: { firstName: "You", lastName: "" },
+            } as any,
+            ...prev,
+          ])
+          toast.success(`Uploaded ${files[i].name}`)
+        }
+      }
+    } catch {
+      toast.error("Failed to upload file")
+    } finally {
+      setUploading(false)
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  // ---- Generate Recurring Instances ----
+
+  async function handleGenerateRecurring() {
+    setGeneratingInstances(true)
+    try {
+      const result = await generateRecurringInstances(job.id)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success(`Generated ${result.created} recurring job instances`)
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to generate recurring instances")
+    } finally {
+      setGeneratingInstances(false)
+    }
+  }
+
   // ---- Activity Timeline (computed from job data) ----
   type ActivityItem = {
     id: string
@@ -468,6 +533,19 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
             >
               <RotateCcw className="w-4 h-4 mr-1.5" />
               Reopen
+            </Button>
+          )}
+
+          {/* Generate Recurring Instances button */}
+          {job.isRecurring && (
+            <Button
+              onClick={handleGenerateRecurring}
+              disabled={generatingInstances}
+              variant="outline"
+              className="border-[#E3E8EE] text-[#425466]"
+            >
+              <RotateCcw className="w-4 h-4 mr-1.5" />
+              {generatingInstances ? "Generating..." : "Generate Schedule"}
             </Button>
           )}
 
@@ -891,11 +969,39 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
             <TabsContent value="attachments" className="mt-4">
               <Card className="border-[#E3E8EE]">
                 <CardContent className="pt-6">
-                  {/* Upload zone placeholder */}
-                  <div className="border-2 border-dashed border-[#E3E8EE] rounded-lg p-8 text-center hover:border-[#635BFF]/30 transition-colors">
+                  {/* Hidden file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={(e) => handleFileUpload(e.target.files)}
+                    multiple
+                  />
+
+                  {/* Upload zone */}
+                  <div
+                    className="border-2 border-dashed border-[#E3E8EE] rounded-lg p-8 text-center hover:border-[#635BFF]/30 transition-colors cursor-pointer"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      e.currentTarget.classList.add("border-[#635BFF]")
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      e.currentTarget.classList.remove("border-[#635BFF]")
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      e.currentTarget.classList.remove("border-[#635BFF]")
+                      handleFileUpload(e.dataTransfer.files)
+                    }}
+                  >
                     <Upload className="w-10 h-10 text-[#8898AA] mx-auto mb-3" />
                     <p className="text-sm font-medium text-[#0A2540]">
-                      Drag and drop files here
+                      {uploading ? "Uploading..." : "Drag and drop files here"}
                     </p>
                     <p className="text-xs text-[#8898AA] mt-1">
                       or click to browse files
@@ -904,21 +1010,37 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
                       variant="outline"
                       size="sm"
                       className="mt-3 border-[#E3E8EE] text-sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        fileInputRef.current?.click()
+                      }}
+                      disabled={uploading}
                     >
                       Browse Files
                     </Button>
                   </div>
 
                   {/* Existing attachments */}
-                  {job.attachments.length > 0 && (
+                  {attachments.length > 0 && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-                      {job.attachments.map((attachment) => (
-                        <div
+                      {attachments.map((attachment) => (
+                        <a
                           key={attachment.id}
-                          className="border border-[#E3E8EE] rounded-lg p-3 hover:border-[#635BFF]/30 transition-colors"
+                          href={attachment.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="border border-[#E3E8EE] rounded-lg p-3 hover:border-[#635BFF]/30 transition-colors block"
                         >
                           <div className="w-full h-20 bg-[#F6F8FA] rounded flex items-center justify-center mb-2">
-                            <FileText className="w-8 h-8 text-[#8898AA]" />
+                            {attachment.fileType?.startsWith("image/") ? (
+                              <img
+                                src={attachment.fileUrl}
+                                alt={attachment.fileName}
+                                className="w-full h-full object-cover rounded"
+                              />
+                            ) : (
+                              <FileText className="w-8 h-8 text-[#8898AA]" />
+                            )}
                           </div>
                           <p className="text-xs font-medium text-[#0A2540] truncate">
                             {attachment.fileName}
@@ -928,12 +1050,12 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
                             {attachment.user.lastName} &middot;{" "}
                             {formatRelativeTime(attachment.createdAt)}
                           </p>
-                        </div>
+                        </a>
                       ))}
                     </div>
                   )}
 
-                  {job.attachments.length === 0 && (
+                  {attachments.length === 0 && (
                     <p className="text-sm text-[#8898AA] text-center mt-4">
                       No attachments yet.
                     </p>

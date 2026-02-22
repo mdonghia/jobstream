@@ -5,20 +5,31 @@ import {
   getJobsByStatusChart,
   getUpcomingJobs,
   getRecentActivity,
+  getTodaysSchedule,
+  getActionRequired,
 } from "@/actions/dashboard"
 import { DashboardPage as DashboardPageClient } from "@/components/dashboard/dashboard-page"
 
 export default async function DashboardPage() {
   const user = await requireAuth()
 
-  const [statsResult, revenueResult, statusResult, upcomingResult, activityResult] =
-    await Promise.all([
-      getDashboardStats(),
-      getRevenueChart(),
-      getJobsByStatusChart(),
-      getUpcomingJobs(),
-      getRecentActivity(),
-    ])
+  const [
+    statsResult,
+    revenueResult,
+    statusResult,
+    upcomingResult,
+    activityResult,
+    scheduleResult,
+    actionResult,
+  ] = await Promise.all([
+    getDashboardStats(),
+    getRevenueChart(),
+    getJobsByStatusChart(),
+    getUpcomingJobs(),
+    getRecentActivity(),
+    getTodaysSchedule(),
+    getActionRequired(),
+  ])
 
   // Provide fallback values if any server action returned an error
   const stats =
@@ -39,6 +50,11 @@ export default async function DashboardPage() {
   const jobsByStatus = "error" in statusResult ? [] : statusResult
   const upcomingJobs = "error" in upcomingResult ? [] : upcomingResult
   const recentActivity = "error" in activityResult ? [] : activityResult
+  const todaysSchedule = "error" in scheduleResult ? [] : scheduleResult
+  const actionRequired =
+    "error" in actionResult
+      ? { overdueInvoices: [], pendingQuotes: [], pendingBookings: [] }
+      : actionResult
 
   // Serialize for client component (handles Date -> string, Decimal -> number)
   const serializedData = JSON.parse(
@@ -48,6 +64,8 @@ export default async function DashboardPage() {
       jobsByStatus,
       upcomingJobs,
       recentActivity,
+      todaysSchedule,
+      actionRequired,
     })
   )
 
@@ -58,6 +76,8 @@ export default async function DashboardPage() {
       jobsByStatus={serializedData.jobsByStatus}
       upcomingJobs={serializedData.upcomingJobs}
       recentActivity={serializedData.recentActivity}
+      todaysSchedule={serializedData.todaysSchedule}
+      actionRequired={serializedData.actionRequired}
       userName={user.firstName}
     />
   )

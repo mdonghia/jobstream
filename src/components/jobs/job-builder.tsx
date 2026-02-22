@@ -47,7 +47,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils"
 import { toast } from "sonner"
-import { createJob } from "@/actions/jobs"
+import { createJob, updateJob } from "@/actions/jobs"
 import { getCustomers } from "@/actions/customers"
 import { format } from "date-fns"
 
@@ -115,6 +115,7 @@ interface JobBuilderProps {
   teamMembers: TeamMember[]
   orgSettings: OrgSettings
   initialData?: any
+  mode?: "create" | "edit"
 }
 
 // ---- Helpers ----
@@ -158,7 +159,9 @@ export function JobBuilder({
   teamMembers,
   orgSettings,
   initialData,
+  mode = "create",
 }: JobBuilderProps) {
+  const isEditing = mode === "edit"
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
 
@@ -325,7 +328,7 @@ export function JobBuilder({
 
     setSubmitting(true)
     try {
-      const result = await createJob({
+      const jobPayload = {
         customerId: selectedCustomerId,
         propertyId: selectedPropertyId || undefined,
         title: title.trim(),
@@ -333,11 +336,11 @@ export function JobBuilder({
         priority,
         scheduledStart: scheduledStart.toISOString(),
         scheduledEnd: scheduledEnd.toISOString(),
-        assignedUserIds: assignedUserIds.length > 0 ? assignedUserIds : undefined,
+        assignedUserIds: assignedUserIds.length > 0 ? assignedUserIds : [],
         checklistItems:
           checklistItems.length > 0
             ? checklistItems.map((ci) => ci.label)
-            : undefined,
+            : [],
         lineItems:
           lineItems.length > 0
             ? lineItems.map((li) => ({
@@ -348,7 +351,7 @@ export function JobBuilder({
                 unitPrice: li.unitPrice,
                 taxable: li.taxable,
               }))
-            : undefined,
+            : [],
         internalNote: internalNote.trim() || undefined,
         isRecurring,
         recurrenceRule: isRecurring ? frequency : undefined,
@@ -356,16 +359,27 @@ export function JobBuilder({
           isRecurring && recurrenceEnd === "date" && recurrenceEndDate
             ? recurrenceEndDate.toISOString()
             : undefined,
-      })
+      }
 
-      if ("error" in result) {
-        toast.error(result.error)
+      if (isEditing && initialData?.id) {
+        const result = await updateJob(initialData.id, jobPayload)
+        if ("error" in result) {
+          toast.error(result.error)
+        } else {
+          toast.success("Job updated successfully")
+          router.push(`/jobs/${initialData.id}`)
+        }
       } else {
-        toast.success("Job created successfully")
-        router.push(`/jobs/${result.jobId}`)
+        const result = await createJob(jobPayload)
+        if ("error" in result) {
+          toast.error(result.error)
+        } else {
+          toast.success("Job created successfully")
+          router.push(`/jobs/${result.jobId}`)
+        }
       }
     } catch {
-      toast.error("Failed to create job")
+      toast.error(isEditing ? "Failed to update job" : "Failed to create job")
     } finally {
       setSubmitting(false)
     }
@@ -389,9 +403,13 @@ export function JobBuilder({
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-[#0A2540]">New Job</h1>
+          <h1 className="text-2xl font-semibold text-[#0A2540]">
+            {isEditing ? "Edit Job" : "New Job"}
+          </h1>
           <p className="text-sm text-[#8898AA]">
-            Create a new job for a customer
+            {isEditing
+              ? "Update the details for this job"
+              : "Create a new job for a customer"}
           </p>
         </div>
       </div>
@@ -1105,7 +1123,13 @@ export function JobBuilder({
               disabled={submitting}
               className="w-full bg-[#635BFF] hover:bg-[#5851ea] text-white h-11"
             >
-              {submitting ? "Creating..." : "Create Job"}
+              {submitting
+                ? isEditing
+                  ? "Saving..."
+                  : "Creating..."
+                : isEditing
+                  ? "Save Changes"
+                  : "Create Job"}
             </Button>
           </div>
         </div>

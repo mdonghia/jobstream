@@ -805,8 +805,7 @@ export function ReviewsPage({
                 className="mt-1.5 h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
               />
               <p className="text-xs text-[#8898AA] mt-1">
-                Customer linking will be available when server actions are
-                connected.
+                Type a customer name to link this review to their profile.
               </p>
             </div>
           </div>

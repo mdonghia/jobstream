@@ -1,17 +1,16 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
   Plus,
-  Bell,
   Menu,
   User as UserIcon,
   Settings,
   LogOut,
 } from "lucide-react"
+import { NotificationBell } from "@/components/layout/notification-bell"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -118,15 +117,8 @@ export function Topbar({ user, onMenuClick }: TopbarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Notifications bell (placeholder) */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-[#425466]"
-          aria-label="Notifications"
-        >
-          <Bell className="w-4 h-4" />
-        </Button>
+        {/* Notifications bell */}
+        <NotificationBell />
 
         {/* User menu */}
         <DropdownMenu>

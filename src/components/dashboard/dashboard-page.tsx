@@ -13,13 +13,14 @@ import {
   ArrowRight,
   Clock,
   CheckCircle,
-  XCircle,
   AlertCircle,
   User,
   Calendar,
   FileCheck,
   Receipt,
   MessageSquare,
+  CalendarClock,
+  AlertTriangle,
 } from "lucide-react"
 import {
   LineChart,
@@ -39,6 +40,8 @@ import type {
   JobsByStatusPoint,
   UpcomingJob,
   ActivityEntry,
+  TodaysScheduleJob,
+  ActionRequiredData,
 } from "@/actions/dashboard"
 
 // =============================================================================
@@ -51,6 +54,8 @@ type DashboardPageProps = {
   jobsByStatus: JobsByStatusPoint[]
   upcomingJobs: UpcomingJob[]
   recentActivity: ActivityEntry[]
+  todaysSchedule: TodaysScheduleJob[]
+  actionRequired: ActionRequiredData
   userName: string
 }
 
@@ -203,6 +208,8 @@ export function DashboardPage({
   jobsByStatus,
   upcomingJobs,
   recentActivity,
+  todaysSchedule,
+  actionRequired,
   userName,
 }: DashboardPageProps) {
   // Format donut chart data
@@ -334,6 +341,259 @@ export function DashboardPage({
               </div>
             </div>
             <p className="text-xs text-[#8898AA] mt-2">This month</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Today's Schedule + Action Required Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Today's Schedule */}
+        <Card className="border-[#E3E8EE]">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-[#635BFF]" />
+              Today&apos;s Schedule
+            </CardTitle>
+            <Link
+              href="/schedule"
+              className="text-xs text-[#635BFF] hover:text-[#635BFF]/80 flex items-center gap-1 font-medium"
+            >
+              Full Schedule
+              <ArrowRight className="w-3 h-3" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {todaysSchedule.length > 0 ? (
+              <div className="space-y-2">
+                {todaysSchedule.map((job) => (
+                  <Link
+                    key={job.id}
+                    href={`/jobs/${job.id}`}
+                    className="flex items-start gap-3 p-3 rounded-lg hover:bg-[#F6F8FA] transition-colors border border-[#E3E8EE]"
+                  >
+                    {/* Time column */}
+                    <div className="flex-shrink-0 w-[90px] text-right">
+                      {job.scheduledStart && (
+                        <p className="text-xs font-semibold text-[#0A2540]">
+                          {formatTime(job.scheduledStart)}
+                        </p>
+                      )}
+                      {job.scheduledEnd && (
+                        <p className="text-[11px] text-[#8898AA]">
+                          {formatTime(job.scheduledEnd)}
+                        </p>
+                      )}
+                    </div>
+                    {/* Vertical accent bar */}
+                    <div
+                      className="w-0.5 self-stretch rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor:
+                          job.status === "IN_PROGRESS" ? "#F5A623" : "#635BFF",
+                      }}
+                    />
+                    {/* Job details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-[#0A2540] truncate">
+                          {job.title}
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 shrink-0 ${
+                            job.status === "IN_PROGRESS"
+                              ? "border-[#F5A623] text-[#F5A623] bg-[#F5A623]/10"
+                              : "border-[#E3E8EE] text-[#8898AA]"
+                          }`}
+                        >
+                          {STATUS_LABELS[job.status] || job.status}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-[#425466] mt-0.5">
+                        {job.customerName}
+                      </p>
+                      {/* Assigned team member dots */}
+                      {job.assignees.length > 0 && (
+                        <div className="flex items-center gap-1 mt-1.5">
+                          {job.assignees.map((assignee, idx) => (
+                            <div
+                              key={idx}
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+                              style={{ backgroundColor: assignee.color }}
+                              title={assignee.name}
+                            >
+                              {assignee.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")}
+                            </div>
+                          ))}
+                          <span className="text-[11px] text-[#8898AA] ml-1">
+                            {job.assignees.map((a) => a.name.split(" ")[0]).join(", ")}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <CalendarClock className="w-10 h-10 text-[#8898AA] mx-auto mb-2" />
+                <p className="text-sm text-[#8898AA]">No jobs scheduled for today</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Action Required */}
+        <Card className="border-[#E3E8EE]">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-[#F5A623]" />
+              Action Required
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* Overdue Invoices */}
+            {actionRequired.overdueInvoices.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1 h-4 rounded-full bg-[#E25950]" />
+                  <h4 className="text-xs font-semibold text-[#0A2540] uppercase tracking-wider">
+                    Overdue Invoices
+                  </h4>
+                  <span className="ml-auto text-[11px] font-medium text-[#E25950] bg-[#E25950]/10 px-1.5 py-0.5 rounded-full">
+                    {actionRequired.overdueInvoices.length}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {actionRequired.overdueInvoices.map((inv) => (
+                    <Link
+                      key={inv.id}
+                      href={`/invoices/${inv.id}`}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F6F8FA] transition-colors border-l-2 border-[#E25950] pl-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-[#0A2540]">
+                            {inv.invoiceNumber}
+                          </p>
+                          <span className="text-xs text-[#8898AA]">
+                            {inv.customer.firstName} {inv.customer.lastName}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#E25950] mt-0.5">
+                          Due {new Date(inv.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-[#0A2540]">
+                        {formatCurrency(inv.amountDue)}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pending Quotes */}
+            {actionRequired.pendingQuotes.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1 h-4 rounded-full bg-[#F5A623]" />
+                  <h4 className="text-xs font-semibold text-[#0A2540] uppercase tracking-wider">
+                    Pending Quotes
+                  </h4>
+                  <span className="ml-auto text-[11px] font-medium text-[#F5A623] bg-[#F5A623]/10 px-1.5 py-0.5 rounded-full">
+                    {actionRequired.pendingQuotes.length}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {actionRequired.pendingQuotes.map((q) => (
+                    <Link
+                      key={q.id}
+                      href={`/quotes/${q.id}`}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F6F8FA] transition-colors border-l-2 border-[#F5A623] pl-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-[#0A2540]">
+                            {q.quoteNumber}
+                          </p>
+                          <span className="text-xs text-[#8898AA]">
+                            {q.customer.firstName} {q.customer.lastName}
+                          </span>
+                        </div>
+                        {q.sentAt && (
+                          <p className="text-[11px] text-[#8898AA] mt-0.5">
+                            Sent {new Date(q.sentAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-sm font-semibold text-[#0A2540]">
+                        {formatCurrency(q.total)}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pending Bookings */}
+            {actionRequired.pendingBookings.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1 h-4 rounded-full bg-[#635BFF]" />
+                  <h4 className="text-xs font-semibold text-[#0A2540] uppercase tracking-wider">
+                    Pending Bookings
+                  </h4>
+                  <span className="ml-auto text-[11px] font-medium text-[#635BFF] bg-[#635BFF]/10 px-1.5 py-0.5 rounded-full">
+                    {actionRequired.pendingBookings.length}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {actionRequired.pendingBookings.map((b) => (
+                    <Link
+                      key={b.id}
+                      href="/bookings"
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#F6F8FA] transition-colors border-l-2 border-[#635BFF] pl-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#0A2540]">
+                          {b.customerName}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {b.service && (
+                            <span className="text-[11px] text-[#8898AA]">
+                              {b.service.name}
+                            </span>
+                          )}
+                          {b.preferredDate && (
+                            <span className="text-[11px] text-[#8898AA]">
+                              {new Date(b.preferredDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-[#8898AA] flex-shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state when nothing requires action */}
+            {actionRequired.overdueInvoices.length === 0 &&
+              actionRequired.pendingQuotes.length === 0 &&
+              actionRequired.pendingBookings.length === 0 && (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-10 h-10 text-[#30D158] mx-auto mb-2" />
+                  <p className="text-sm font-medium text-[#425466]">You&apos;re all caught up!</p>
+                  <p className="text-xs text-[#8898AA] mt-1">
+                    No overdue invoices, pending quotes, or bookings.
+                  </p>
+                </div>
+              )}
           </CardContent>
         </Card>
       </div>

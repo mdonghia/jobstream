@@ -3,6 +3,7 @@
 import { hash, compare } from "bcryptjs"
 import { v4 as uuidv4 } from "uuid"
 import { prisma } from "@/lib/db"
+import { Prisma } from "@/generated/prisma/client"
 import { requireAuth, requireRole } from "@/lib/auth-utils"
 import {
   organizationSettingsSchema,
@@ -649,5 +650,402 @@ export async function reorderServices(ids: string[]) {
     }
     console.error("reorderServices error:", error)
     return { error: "Failed to reorder services" }
+  }
+}
+
+// =============================================================================
+// 14. getPaymentSettings - Fetch Stripe + online payment settings
+// =============================================================================
+
+export async function getPaymentSettings() {
+  try {
+    const user = await requireAuth()
+
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: {
+        stripeAccountId: true,
+        stripeOnboarded: true,
+        paymentOnlineEnabled: true,
+      },
+    })
+
+    if (!org) return { error: "Organization not found" }
+
+    return { settings: org }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getPaymentSettings error:", error)
+    return { error: "Failed to fetch payment settings" }
+  }
+}
+
+// =============================================================================
+// 15. updatePaymentSettings - Toggle online payments (OWNER/ADMIN)
+// =============================================================================
+
+export async function updatePaymentSettings(data: {
+  paymentOnlineEnabled: boolean
+}) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: { paymentOnlineEnabled: data.paymentOnlineEnabled },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updatePaymentSettings error:", error)
+    return { error: "Failed to update payment settings" }
+  }
+}
+
+// =============================================================================
+// 16. disconnectStripeAccount - Remove Stripe connection (OWNER only)
+// =============================================================================
+
+export async function disconnectStripeAccount() {
+  try {
+    const user = await requireRole(["OWNER"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: {
+        stripeAccountId: null,
+        stripeOnboarded: false,
+        paymentOnlineEnabled: false,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("disconnectStripeAccount error:", error)
+    return { error: "Failed to disconnect Stripe" }
+  }
+}
+
+// =============================================================================
+// 17. getCommunicationSettings - Fetch comms settings + automation rules
+// =============================================================================
+
+export async function getCommunicationSettings() {
+  try {
+    const user = await requireAuth()
+
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: {
+        commSmsEnabled: true,
+        commEmailEnabled: true,
+      },
+    })
+
+    if (!org) return { error: "Organization not found" }
+
+    const rules = await prisma.automationRule.findMany({
+      where: { organizationId: user.organizationId },
+      orderBy: { createdAt: "asc" },
+    })
+
+    // Serialize dates for client components
+    const serializedRules = JSON.parse(JSON.stringify(rules))
+
+    return { settings: org, rules: serializedRules }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getCommunicationSettings error:", error)
+    return { error: "Failed to fetch communication settings" }
+  }
+}
+
+// =============================================================================
+// 18. updateCommunicationSettings - Toggle SMS/email channels (OWNER/ADMIN)
+// =============================================================================
+
+export async function updateCommunicationSettings(data: {
+  commSmsEnabled: boolean
+  commEmailEnabled: boolean
+}) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: {
+        commSmsEnabled: data.commSmsEnabled,
+        commEmailEnabled: data.commEmailEnabled,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateCommunicationSettings error:", error)
+    return { error: "Failed to update communication settings" }
+  }
+}
+
+// =============================================================================
+// 19. createAutomationRule - Add a new automation rule (OWNER/ADMIN)
+// =============================================================================
+
+export async function createAutomationRule(data: {
+  name: string
+  trigger: string
+  channel: string
+  templateSubject?: string
+  templateContent: string
+  delayMinutes: number
+  isActive: boolean
+}) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    if (!data.name.trim()) return { error: "Rule name is required" }
+    if (!data.templateContent.trim())
+      return { error: "Template content is required" }
+
+    const rule = await prisma.automationRule.create({
+      data: {
+        organizationId: user.organizationId,
+        name: data.name.trim(),
+        trigger: data.trigger as any,
+        channel: data.channel as any,
+        templateSubject: data.templateSubject?.trim() || null,
+        templateContent: data.templateContent.trim(),
+        delayMinutes: data.delayMinutes,
+        isActive: data.isActive,
+      },
+    })
+
+    return { rule: JSON.parse(JSON.stringify(rule)) }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("createAutomationRule error:", error)
+    return { error: "Failed to create automation rule" }
+  }
+}
+
+// =============================================================================
+// 20. updateAutomationRule - Edit an existing automation rule (OWNER/ADMIN)
+// =============================================================================
+
+export async function updateAutomationRule(
+  id: string,
+  data: {
+    name?: string
+    trigger?: string
+    channel?: string
+    templateSubject?: string | null
+    templateContent?: string
+    delayMinutes?: number
+    isActive?: boolean
+  }
+) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    // Verify the rule belongs to this organization
+    const existing = await prisma.automationRule.findFirst({
+      where: { id, organizationId: user.organizationId },
+    })
+
+    if (!existing) return { error: "Automation rule not found" }
+
+    const updateData: any = {}
+    if (data.name !== undefined) updateData.name = data.name.trim()
+    if (data.trigger !== undefined) updateData.trigger = data.trigger as any
+    if (data.channel !== undefined) updateData.channel = data.channel as any
+    if (data.templateSubject !== undefined)
+      updateData.templateSubject = data.templateSubject?.trim() || null
+    if (data.templateContent !== undefined)
+      updateData.templateContent = data.templateContent.trim()
+    if (data.delayMinutes !== undefined)
+      updateData.delayMinutes = data.delayMinutes
+    if (data.isActive !== undefined) updateData.isActive = data.isActive
+
+    const rule = await prisma.automationRule.update({
+      where: { id },
+      data: updateData,
+    })
+
+    return { rule: JSON.parse(JSON.stringify(rule)) }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateAutomationRule error:", error)
+    return { error: "Failed to update automation rule" }
+  }
+}
+
+// =============================================================================
+// 21. deleteAutomationRule - Remove an automation rule (OWNER/ADMIN)
+// =============================================================================
+
+export async function deleteAutomationRule(id: string) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    // Verify the rule belongs to this organization
+    const existing = await prisma.automationRule.findFirst({
+      where: { id, organizationId: user.organizationId },
+    })
+
+    if (!existing) return { error: "Automation rule not found" }
+
+    await prisma.automationRule.delete({ where: { id } })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("deleteAutomationRule error:", error)
+    return { error: "Failed to delete automation rule" }
+  }
+}
+
+// =============================================================================
+// 22. getBookingSettings - Fetch booking widget settings + available services
+// =============================================================================
+
+export async function getBookingSettings() {
+  try {
+    const user = await requireAuth()
+
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: {
+        bookingEnabled: true,
+        bookingServices: true,
+        bookingSlotDuration: true,
+        slug: true,
+      },
+    })
+
+    if (!org) return { error: "Organization not found" }
+
+    // Fetch active services for the checklist
+    const services = await prisma.service.findMany({
+      where: {
+        organizationId: user.organizationId,
+        isActive: true,
+      },
+      select: { id: true, name: true, defaultPrice: true },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    })
+
+    // Serialize Decimal values for client components
+    const serializedServices = JSON.parse(JSON.stringify(services))
+
+    return {
+      settings: {
+        bookingEnabled: org.bookingEnabled,
+        bookingServices: org.bookingServices as string[] | null,
+        bookingSlotDuration: org.bookingSlotDuration,
+        slug: org.slug,
+      },
+      services: serializedServices,
+    }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getBookingSettings error:", error)
+    return { error: "Failed to fetch booking settings" }
+  }
+}
+
+// =============================================================================
+// 23. updateBookingSettings - Save booking widget settings (OWNER/ADMIN)
+// =============================================================================
+
+export async function updateBookingSettings(data: {
+  bookingEnabled: boolean
+  bookingServices: string[] | null
+  bookingSlotDuration: number
+}) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: {
+        bookingEnabled: data.bookingEnabled,
+        bookingServices:
+          data.bookingServices === null
+            ? Prisma.DbNull
+            : data.bookingServices,
+        bookingSlotDuration: data.bookingSlotDuration,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateBookingSettings error:", error)
+    return { error: "Failed to update booking settings" }
+  }
+}
+
+// =============================================================================
+// 24. getReviewSettings - Fetch review platform URLs + auto-request settings
+// =============================================================================
+
+export async function getReviewSettings() {
+  try {
+    const user = await requireAuth()
+
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: {
+        name: true,
+        reviewGoogleUrl: true,
+        reviewYelpUrl: true,
+        reviewFacebookUrl: true,
+        reviewAutoRequest: true,
+        reviewRequestDelay: true,
+      },
+    })
+
+    if (!org) return { error: "Organization not found" }
+
+    return { settings: org }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getReviewSettings error:", error)
+    return { error: "Failed to fetch review settings" }
+  }
+}
+
+// =============================================================================
+// 25. updateReviewSettings - Save review platform URLs + auto-request config
+// =============================================================================
+
+export async function updateReviewSettings(data: {
+  reviewGoogleUrl?: string | null
+  reviewYelpUrl?: string | null
+  reviewFacebookUrl?: string | null
+  reviewAutoRequest: boolean
+  reviewRequestDelay: number
+}) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: {
+        reviewGoogleUrl: data.reviewGoogleUrl?.trim() || null,
+        reviewYelpUrl: data.reviewYelpUrl?.trim() || null,
+        reviewFacebookUrl: data.reviewFacebookUrl?.trim() || null,
+        reviewAutoRequest: data.reviewAutoRequest,
+        reviewRequestDelay: data.reviewRequestDelay,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateReviewSettings error:", error)
+    return { error: "Failed to update review settings" }
   }
 }

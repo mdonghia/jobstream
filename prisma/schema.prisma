@@ -137,8 +137,26 @@ model Organization {
   jobPrefix       String   @default("JOB")
   invoiceDueDays  Int      @default(30)
   quoteValidDays  Int      @default(30)
-  stripeAccountId String?
-  stripeOnboarded Boolean  @default(false)
+  stripeAccountId    String?
+  stripeOnboarded    Boolean  @default(false)
+  paymentOnlineEnabled Boolean @default(false)
+
+  // Booking settings
+  bookingEnabled      Boolean  @default(true)
+  bookingServices     Json?
+  bookingSlotDuration Int      @default(60)
+
+  // Review settings
+  reviewGoogleUrl     String?
+  reviewYelpUrl       String?
+  reviewFacebookUrl   String?
+  reviewAutoRequest   Boolean  @default(false)
+  reviewRequestDelay  Int      @default(24)
+
+  // Communication settings
+  commSmsEnabled      Boolean  @default(true)
+  commEmailEnabled    Boolean  @default(true)
+
   nextInvoiceNum  Int      @default(1001)
   nextQuoteNum    Int      @default(1001)
   nextJobNum      Int      @default(1001)

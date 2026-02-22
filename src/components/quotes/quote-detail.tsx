@@ -19,6 +19,7 @@ import {
   Lock,
   Clock,
   ExternalLink,
+  FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -390,7 +391,18 @@ export function QuoteDetail({ quote: initialQuote, timeline }: QuoteDetailProps)
             {quote.validUntil && ` \u00B7 Valid until ${formatDate(quote.validUntil)}`}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">{renderActions()}</div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {renderActions()}
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-[#E3E8EE] text-[#425466]"
+            onClick={() => window.open(`/api/pdf/quote/${quote.id}`, "_blank")}
+          >
+            <FileText className="w-4 h-4 mr-1.5" />
+            Download PDF
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

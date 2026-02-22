@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/command"
 import { cn, formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
-import { createQuote } from "@/actions/quotes"
+import { createQuote, updateQuote } from "@/actions/quotes"
 import { getCustomers } from "@/actions/customers"
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -88,6 +88,7 @@ interface QuoteBuilderProps {
   customers: CustomerItem[]
   orgSettings: OrgSettings
   initialData?: {
+    id?: string
     customerId?: string
     propertyId?: string
     lineItems?: LineItem[]
@@ -95,6 +96,7 @@ interface QuoteBuilderProps {
     internalNote?: string
     validDays?: number
   }
+  mode?: "create" | "edit"
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -122,6 +124,7 @@ export function QuoteBuilder({
   customers: initialCustomers,
   orgSettings,
   initialData,
+  mode = "create",
 }: QuoteBuilderProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -292,21 +295,29 @@ export function QuoteBuilder({
       validUntil: validUntil.toISOString(),
     }
 
-    const result = await createQuote(data)
-
-    if ("error" in result) {
-      toast.error(result.error as string)
-      setSaving(false)
-      return
-    }
-
-    if (asDraft) {
-      toast.success("Quote saved as draft")
-      router.push(`/quotes/${(result as any).quote.id}`)
+    if (mode === "edit" && initialData?.id) {
+      const result = await updateQuote(initialData.id, data)
+      if ("error" in result) {
+        toast.error(result.error as string)
+        setSaving(false)
+        return
+      }
+      toast.success("Quote updated")
+      router.push(`/quotes/${initialData.id}`)
     } else {
-      // Redirect to quote detail which will show the send modal
-      toast.success("Quote created")
-      router.push(`/quotes/${(result as any).quote.id}?action=send`)
+      const result = await createQuote(data)
+      if ("error" in result) {
+        toast.error(result.error as string)
+        setSaving(false)
+        return
+      }
+      if (asDraft) {
+        toast.success("Quote saved as draft")
+        router.push(`/quotes/${(result as any).quote.id}`)
+      } else {
+        toast.success("Quote created")
+        router.push(`/quotes/${(result as any).quote.id}?action=send`)
+      }
     }
   }
 
@@ -316,9 +327,13 @@ export function QuoteBuilder({
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-[#0A2540]">New Quote</h1>
+        <h1 className="text-2xl font-semibold text-[#0A2540]">
+          {mode === "edit" ? "Edit Quote" : "New Quote"}
+        </h1>
         <p className="text-sm text-[#8898AA] mt-0.5">
-          Create a quote to send to your customer
+          {mode === "edit"
+            ? "Update the details for this quote"
+            : "Create a quote to send to your customer"}
         </p>
       </div>
 
@@ -646,27 +661,42 @@ export function QuoteBuilder({
                 </div>
 
                 <div className="space-y-2 pt-2">
-                  <Button
-                    className="w-full bg-[#635BFF] hover:bg-[#5851ea] text-white"
-                    disabled={saving}
-                    onClick={() => handleSubmit(false)}
-                  >
-                    {saving && !sendAfterCreate ? null : saving && sendAfterCreate ? (
-                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                    ) : null}
-                    Send Quote
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full border-[#E3E8EE] text-[#425466]"
-                    disabled={saving}
-                    onClick={() => handleSubmit(true)}
-                  >
-                    {saving && !sendAfterCreate ? (
-                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                    ) : null}
-                    Save as Draft
-                  </Button>
+                  {mode === "edit" ? (
+                    <Button
+                      className="w-full bg-[#635BFF] hover:bg-[#5851ea] text-white"
+                      disabled={saving}
+                      onClick={() => handleSubmit(true)}
+                    >
+                      {saving ? (
+                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                      ) : null}
+                      {saving ? "Saving..." : "Save Changes"}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        className="w-full bg-[#635BFF] hover:bg-[#5851ea] text-white"
+                        disabled={saving}
+                        onClick={() => handleSubmit(false)}
+                      >
+                        {saving && !sendAfterCreate ? null : saving && sendAfterCreate ? (
+                          <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                        ) : null}
+                        Send Quote
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full border-[#E3E8EE] text-[#425466]"
+                        disabled={saving}
+                        onClick={() => handleSubmit(true)}
+                      >
+                        {saving && !sendAfterCreate ? (
+                          <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                        ) : null}
+                        Save as Draft
+                      </Button>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>

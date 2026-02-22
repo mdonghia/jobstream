@@ -26,6 +26,7 @@ import {
   List,
   Users,
   Loader2,
+  Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -411,6 +412,19 @@ export function CalendarView({
               </PopoverContent>
             </Popover>
           )}
+
+          {/* Add Job */}
+          <Button
+            size="sm"
+            className="h-8 bg-[#635BFF] hover:bg-[#5851ea] text-white text-xs"
+            onClick={() => {
+              const dateStr = format(currentDate, "yyyy-MM-dd")
+              router.push(`/jobs/new?date=${dateStr}`)
+            }}
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Add Job
+          </Button>
 
           {/* View toggle group */}
           <div className="flex items-center bg-[#F6F8FA] rounded-md border border-[#E3E8EE] p-0.5">

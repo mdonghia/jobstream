@@ -147,7 +147,7 @@ export async function sendManualSMS(data: { customerId: string; content: string 
       }
     } else {
       console.log(`[SMS] Would send to ${customer.phone}: ${data.content.trim()}`)
-      smsStatus = "SENT" // Log as sent when not configured (dev mode)
+      smsStatus = "QUEUED" // Log as queued when not configured (dev mode)
     }
 
     // Create communication log entry
@@ -240,7 +240,7 @@ export async function sendManualEmail(data: {
       }
     } else {
       console.log(`[Email] Would send to ${customer.email}: ${data.subject.trim()}`)
-      emailStatus = "SENT" // Log as sent when not configured (dev mode)
+      emailStatus = "QUEUED" // Log as queued when not configured (dev mode)
     }
 
     // Create communication log entry

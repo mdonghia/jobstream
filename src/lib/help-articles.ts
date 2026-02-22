@@ -223,7 +223,7 @@ You can edit any service at any time from the Services settings page. Changes ap
     category: "getting-started",
     title: "Connecting Stripe for Payments",
     excerpt: "Set up Stripe Connect to accept online payments from your customers.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 4,
     keywords: ["stripe", "payments", "online payments", "connect", "setup", "credit card"],
     content: `## Why Connect Stripe?
@@ -251,10 +251,10 @@ Before you begin, you need:
 
 ## What Happens After Connection
 
-Once connected, several things change in your JobStream experience:
+Once connected, the Payments settings page shows your Stripe account status as "Connected" with a green badge and your masked account ID. You also see:
 
-- **Invoices get a "Pay Online" button** -- When customers view invoices in the client portal, they see a prominent payment button.
-- **Payment status updates automatically** -- When a customer pays online, the invoice status changes to "Paid" in real time.
+- **Online Payments toggle** -- A switch to enable or disable online payments. When enabled, invoices in the client portal display a **Pay Now** button that redirects customers to Stripe Checkout.
+- **Payment status updates automatically** -- When a customer completes payment through Stripe Checkout, a webhook notifies JobStream and the invoice status changes to "Paid" automatically.
 - **Payouts go to your bank** -- Stripe deposits funds directly into your connected bank account on a rolling basis (typically 2 business days).
 
 ## Fees
@@ -842,14 +842,18 @@ Use the view toggle buttons in the top right of the calendar. You can also use t
     category: "scheduling-calendar",
     title: "Creating Jobs from the Calendar",
     excerpt: "Quickly create new jobs by clicking directly on the calendar.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
-    keywords: ["create job", "calendar", "quick create", "schedule", "new job"],
+    keywords: ["create job", "calendar", "quick create", "schedule", "new job", "add job"],
     content: `## Creating from the Calendar
 
-The fastest way to schedule a new job is to start from the calendar. Clicking on a time slot in the calendar navigates you directly to the full job creation form at **/jobs/new** with the date pre-selected.
+The fastest way to schedule a new job is to start from the calendar. There are two convenient methods.
 
-## How to Create a Job from the Calendar
+## Method 1: Add Job Button
+
+The calendar toolbar prominently displays an **Add Job** button. Clicking it navigates you to the job creation form at \`/jobs/new\` with the current calendar date pre-filled in the date field. This is the quickest way to create a new job while looking at your schedule.
+
+## Method 2: Click a Time Slot
 
 1. Navigate to the **Schedule** page.
 2. Switch to **Week** or **Day** view for the most precise time selection.
@@ -858,17 +862,14 @@ The fastest way to schedule a new job is to start from the calendar. Clicking on
 5. Fill in all job details: customer, title, line items, assignment, notes, etc.
 6. Click **Create Job** to save.
 
-## Creating from the Button
-
-You can also click the **New Job** button at the top of the calendar page. This opens the full job form where you manually set the date and time along with all other details.
-
 ## After Creation
 
 The new job immediately appears on the calendar in the correct time slot. It is color-coded by status (blue for scheduled) and displays the customer name and job title.
 
 ### Tips
 
-- Clicking a time slot on the calendar is a fast way to pre-fill the date for new jobs.
+- Use the **Add Job** button in the toolbar for the fastest experience -- it pre-fills the currently displayed date.
+- Click a specific time slot when you need to pre-fill a precise time as well.
 - Use the full form to add detailed line items, notes, and checklists.`,
   },
   {
@@ -1125,21 +1126,28 @@ When all checklist items are completed, you may see a prompt to mark the job as 
     slug: "working-on-a-job",
     category: "job-management",
     title: "Working on a Job",
-    excerpt: "Use checklists, notes, and photos during active jobs.",
-    lastUpdated: "2026-02-01",
-    readingTime: 3,
-    keywords: ["checklist", "notes", "photos", "field", "technician"],
+    excerpt: "Use checklists, notes, file attachments, and time tracking during active jobs.",
+    lastUpdated: "2026-02-22",
+    readingTime: 4,
+    keywords: ["checklist", "notes", "photos", "field", "technician", "file upload", "attachments", "drag and drop"],
     content: `## In the Field
 
-Once a job is in progress, your field technicians can use JobStream to track their work, communicate with the office, and document the job.
+Once a job is in progress, your field technicians can use JobStream to track their work, communicate with the office, and document the job. The job detail page organizes this information into tabs: **Checklist**, **Notes**, **Attachments**, and **Time**.
 
 ## Checklists
 
-If the job has a checklist, technicians see it prominently on the job detail page. They can tap each item to mark it complete as they work through the tasks. The office can see checklist progress in real time.
+If the job has a checklist, technicians see it on the job detail page under the Checklist tab. Each item has a checkbox that can be toggled to mark it as completed or not completed. The checklist persists on the server, so progress is saved immediately.
 
-### Adding Checklist Items on the Fly
+### Adding Checklist Items
 
-Technicians can add new checklist items while on-site if they discover additional work. This keeps the job record comprehensive and accurate.
+Checklist items can be added in two ways:
+
+1. **During job creation** -- When building a new job, add checklist items in the Checklist section of the job form. Type a label and click the **+** button or press Enter to add each item.
+2. **On the job detail page** -- While working on a job, you can add new items directly from the Checklist tab if additional tasks are discovered on-site.
+
+### Toggling Completion
+
+Click any checklist item to toggle it between completed and not completed. Completed items show a checkmark. The completion state is saved to the server immediately via a server action.
 
 ## Job Notes
 
@@ -1148,24 +1156,39 @@ Notes serve two purposes:
 - **Internal Notes** -- Visible only to your team. Technicians can add notes about what they found on-site, work performed, or issues encountered.
 - **Customer-Facing Notes** -- These appear on the invoice or completion summary sent to the customer.
 
-To add a note, open the job and type in the notes section. Notes are timestamped and attributed to the team member who wrote them.
+To add a note, open the job detail page, go to the Notes tab, type your note, and click **Add Note**. Notes are timestamped and attributed to the team member who wrote them.
 
-## Photos
+## File Attachments
 
-Documenting jobs with photos is valuable for before/after evidence, warranty documentation, and customer communication.
+The Attachments tab provides a drag-and-drop upload zone for attaching files to jobs. This is useful for photos, documents, diagrams, permits, or any other relevant files.
 
-1. Open the job on a mobile device.
-2. Tap the **Add Photo** button.
-3. Take a new photo or upload from the device gallery.
-4. Add an optional caption.
-5. The photo is attached to the job record.
+### Uploading Files
 
-Photos can be included when completing the job and generating the invoice.
+1. Open the job detail page.
+2. Click the **Attachments** tab.
+3. Either **drag and drop** files onto the upload zone, or click **Browse Files** to select files from your device.
+4. Files are uploaded to the server immediately. A success notification confirms each upload.
+5. Multiple files can be uploaded at once.
+
+### Viewing Attachments
+
+Uploaded files appear in a grid below the upload zone. Each attachment shows:
+
+- File name
+- File size
+- Upload date
+- A link to download or view the file
+
+## Time Tracking
+
+The Time tab on the job detail page integrates with JobStream's time tracking feature. See the Time Tracking section of the Help Center for details on starting, stopping, and managing timers.
 
 ### Tips
 
-- Encourage technicians to take before and after photos on every job for quality documentation.
-- Use checklists to maintain consistent service quality across your team.`,
+- Use checklists to maintain consistent service quality across your team.
+- Encourage technicians to upload before and after photos on every job for quality documentation.
+- Drag-and-drop makes it fast to attach multiple files from your desktop or file manager.
+- Add notes as you work rather than trying to remember details later.`,
   },
   {
     slug: "completing-a-job",
@@ -1218,7 +1241,7 @@ If you created an invoice, navigate to **Invoices** to review and send it to the
     category: "job-management",
     title: "Setting Up Recurring Jobs",
     excerpt: "Automate scheduling for repeat services like weekly maintenance.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["recurring", "repeat", "schedule", "automatic", "maintenance"],
     content: `## What Are Recurring Jobs?
@@ -1243,9 +1266,13 @@ Recurring jobs automatically generate new job entries on a set schedule. This is
 
 4. Click **Save** to create the recurring series.
 
+## Generating Recurring Instances
+
+After setting up a recurring job, click the **Generate Schedule** button on the job detail page to create the individual job instances. This button appears in the recurring section of the job details and generates the next batch of occurrences based on your recurrence pattern.
+
 ## How Recurring Jobs Appear
 
-JobStream generates individual job instances from your recurring pattern. Each instance appears on the calendar as its own job that can be independently edited, reassigned, or rescheduled. The series is linked, so you can also make changes to all future occurrences at once.
+Each generated instance appears on the calendar as its own job that can be independently edited, reassigned, or rescheduled. The series is linked, so you can also make changes to all future occurrences at once.
 
 ## Editing a Recurring Series
 
@@ -1423,7 +1450,7 @@ If you made an error recording a payment:
     category: "invoicing-payments",
     title: "Online Payments via Client Portal",
     excerpt: "How customers pay invoices online through Stripe.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
     keywords: ["online payment", "stripe", "credit card", "portal", "pay online"],
     content: `## How Online Payments Work
@@ -1433,13 +1460,13 @@ When you have Stripe connected, customers can pay invoices directly through the 
 ## The Customer Experience
 
 1. The customer receives an invoice email with a **View & Pay** button.
-2. Clicking the button opens the invoice in the client portal.
-3. They review the invoice details and amount due.
+2. Clicking the button opens the invoice in the client portal at \`/portal/{your-slug}/invoices/{token}\`.
+3. They review the invoice details, line items, and amount due. They can also download a PDF of the invoice.
 4. They click the **Pay Now** button.
-5. A secure Stripe payment form appears for entering card details.
-6. After entering payment information, they click **Submit Payment**.
-7. Payment is processed in real time.
-8. A payment confirmation page is displayed and a receipt is emailed.
+5. The customer is redirected to **Stripe Checkout**, a secure, hosted payment page managed entirely by Stripe.
+6. On the Stripe Checkout page, they enter their card details and complete the payment.
+7. After successful payment, a webhook from Stripe notifies JobStream automatically.
+8. The invoice status updates to Paid without any manual action required from you.
 
 ## What Happens in JobStream
 
@@ -1485,7 +1512,7 @@ The refund is processed through Stripe and the invoice status updates accordingl
     category: "invoicing-payments",
     title: "Handling Overdue Invoices",
     excerpt: "How JobStream detects overdue invoices and your options for follow-up.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["overdue", "late", "reminders", "follow up", "void", "past due"],
     content: `## How Overdue Detection Works
@@ -1502,13 +1529,15 @@ Overdue invoices are highlighted in your Invoices list with a red status badge. 
 
 ## Sending Payment Reminders
 
-When an invoice is overdue, you can send a reminder:
+When an invoice is overdue (or even just outstanding), you can send a payment-specific reminder:
 
-1. Open the overdue invoice.
-2. Click **Send Reminder** from the actions menu.
-3. JobStream sends a polite but clear reminder email to the customer with the invoice details and a payment link.
+1. Open the invoice.
+2. Click the **Send Reminder** button in the invoice action bar.
+3. JobStream sends a payment reminder email to the customer. This is a separate, purpose-built reminder message -- not a resend of the original invoice email. It is specifically worded to remind the customer about the outstanding payment and includes a link to view and pay.
 
-You can also set up automated reminders in **Settings > Communications** to send reminders at intervals you define (e.g., 3 days, 7 days, and 14 days after the due date).
+The Send Reminder button is available on invoices that are in Sent or Overdue status. It does not appear on Draft, Paid, or Void invoices.
+
+You can also set up automated payment reminders in **Settings > Communications** by creating an automation rule with the "Invoice Overdue" trigger.
 
 ## Other Follow-Up Options
 
@@ -1536,7 +1565,7 @@ Voided invoices remain in your records for auditing purposes but no longer count
     category: "invoicing-payments",
     title: "Using the Payments Dashboard",
     excerpt: "Overview of payment summary cards, filtering, and export options.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-22",
     readingTime: 2,
     keywords: ["payments", "dashboard", "summary", "filter", "export", "revenue"],
     content: `## Payments Dashboard Overview
@@ -1598,109 +1627,118 @@ The export includes all visible payments based on your current filters, so filte
     category: "client-portal",
     title: "How the Client Portal Works",
     excerpt: "Understand how customers access and use the self-service portal.",
-    lastUpdated: "2026-02-01",
-    readingTime: 3,
-    keywords: ["portal", "client portal", "access", "customer portal", "self-service"],
+    lastUpdated: "2026-02-22",
+    readingTime: 4,
+    keywords: ["portal", "client portal", "access", "customer portal", "self-service", "invoice portal", "quote portal", "booking form"],
     content: `## What Is the Client Portal?
 
-The client portal is a secure, customer-facing website where your customers can view quotes, pay invoices, see job history, and request new services. It provides a professional, self-service experience that reduces phone calls and speeds up approvals and payments.
+The client portal is a secure, customer-facing website where your customers can view quotes, pay invoices, and download PDF documents. It provides a professional, self-service experience that reduces phone calls and speeds up approvals and payments.
+
+## Portal Pages
+
+The client portal consists of three main areas, each with its own URL pattern:
+
+### Invoice Portal
+URL pattern: \`/portal/{org-slug}/invoices/{token}\`
+
+Customers can view invoice details including line items, subtotals, tax, and total amount due. If you have Stripe connected and online payments enabled, a **Pay Now** button appears that takes the customer through Stripe Checkout. Customers can also download a professional PDF of the invoice.
+
+### Quote Portal
+URL pattern: \`/portal/{org-slug}/quotes/{token}\`
+
+Customers can view the full quote with all line items and pricing. Two prominent action buttons -- **Approve** and **Decline** -- let the customer respond. If declining, they can provide an optional reason. Customers can also download a PDF of the quote.
+
+### Public Booking Form
+URL pattern: \`/book/{org-slug}\`
+
+Anyone can access this page to request a service booking. The form allows visitors to select a service from your catalog, pick a date, choose an available time slot based on your business hours, and submit their contact information. This is ideal for embedding on your website or sharing on social media.
 
 ## How Customers Access the Portal
 
-Customers access the portal through links in the emails they receive from you. Every quote email, invoice email, and appointment notification includes a link that opens the relevant document in the portal.
+Customers access the portal through links in the emails they receive from you. Every quote email and invoice email includes a link that opens the relevant document in the portal.
 
-There is no separate login required by default. Each link contains a secure, unique token that authenticates the customer automatically. This means customers do not need to remember a username or password.
+There is no separate login required. Each link contains a secure, unique access token that authenticates the customer automatically. This means customers do not need to remember a username or password.
 
-## Portal Verification
+## What Customers Can Do
 
-For added security, if a customer tries to access the portal directly (not through an email link), they can verify their identity by entering the email address associated with their account. JobStream sends a one-time verification code to that email, which the customer enters to gain access.
-
-## What Customers See
-
-Once in the portal, customers can:
-
-- **View Quotes** -- See all quotes sent to them, with the ability to approve or decline.
-- **View and Pay Invoices** -- See all invoices with amounts due and payment options.
-- **View Job History** -- See a list of past and upcoming jobs.
-- **Request New Service** -- Submit a request for new work (if you have this feature enabled).
-- **View Business Info** -- See your company's contact information and business hours.
+- **View and approve or decline quotes** -- with full line item detail and PDF download.
+- **View and pay invoices** -- with line item detail, PDF download, and online payment via Stripe Checkout.
+- **Request new service** -- through the public booking form at your unique booking URL.
 
 ## Portal Branding
 
-The client portal displays your business name and contact information. It uses a clean, professional design that builds trust with your customers.
+The client portal displays your business name, contact information, and logo. It uses a clean, professional design that builds trust with your customers.
 
 ### Tips
 
 - Mention the client portal to new customers so they know what to expect when they receive emails from you.
 - The portal works on all devices, so customers can approve quotes and pay invoices from their phones.
-- Enable the service request feature to make it easy for repeat customers to book new work.`,
+- Share your public booking URL (\`/book/{your-slug}\`) on your website, social media, and business cards to accept new booking requests.`,
   },
   {
-    slug: "portal-dashboard",
+    slug: "portal-pages-overview",
     category: "client-portal",
-    title: "The Portal Dashboard",
-    excerpt: "A tour of what your customers see when they log into the portal.",
-    lastUpdated: "2026-02-01",
-    readingTime: 2,
-    keywords: ["portal dashboard", "customer view", "portal home"],
-    content: `## Portal Home Page
+    title: "Portal Pages Overview",
+    excerpt: "A tour of the different portal pages your customers can access.",
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["portal pages", "customer view", "portal home", "invoice portal", "quote portal"],
+    content: `## How Portal Pages Work
 
-When a customer accesses the client portal, they see a clean dashboard tailored to their account. Here is what each section includes.
+The JobStream client portal is document-based. Rather than a single dashboard, each quote and invoice has its own dedicated portal page with a unique access token URL. Customers access these pages through links in the emails they receive.
 
-## Active Quotes
+## Invoice Portal Pages
 
-This section shows any pending quotes awaiting the customer's response. Each quote card displays:
+Each invoice has a portal page at \`/portal/{your-slug}/invoices/{token}\`. When a customer opens this page, they see:
 
-- Quote number and date.
-- Brief description of the proposed work.
-- Total amount.
-- Expiration date.
-- **Approve** and **Decline** buttons.
+- Your business branding (name and logo).
+- The invoice number, status, issue date, and due date.
+- Customer information.
+- A complete line item table with descriptions, quantities, prices, and totals.
+- Subtotal, tax, discount, and grand total.
+- Payment history (if any payments have been made).
+- A **Download PDF** button to save a professional copy.
+- A **Pay Now** button (if Stripe is connected and online payments are enabled) that redirects to Stripe Checkout.
 
-If there are no pending quotes, this section is hidden.
+## Quote Portal Pages
 
-## Outstanding Invoices
+Each quote has a portal page at \`/portal/{your-slug}/quotes/{token}\`. Customers see:
 
-Any unpaid invoices are listed prominently with:
+- Your business branding (name and logo).
+- The quote number, status, creation date, and expiration date.
+- Customer information.
+- Your customer message (if included).
+- A complete line item table with descriptions, quantities, prices, and totals.
+- Subtotal, tax, and grand total.
+- A **Download PDF** button.
+- **Approve** and **Decline** buttons (for quotes awaiting response).
 
-- Invoice number and date.
-- Amount due and due date.
-- A **Pay Now** button (if Stripe is connected).
-- Overdue indicators for past-due invoices.
+## Public Booking Page
 
-Customers can click into any invoice to see the full line-item details before paying.
+The public booking form at \`/book/{your-slug}\` lets anyone request a service. It is not tied to a specific document -- it is a standalone form for new booking requests. See the "Public Booking Form" article for full details.
 
-## Upcoming Jobs
+## Security
 
-This section lists any scheduled jobs for the customer, showing:
+Each portal page URL contains a unique access token that serves as authentication. This means:
 
-- Job title and description.
-- Scheduled date and time.
-- Assigned team member name.
-
-This gives customers visibility into when your team will be arriving.
-
-## Job History
-
-A chronological list of completed jobs, providing a record of all work performed. Customers can click into any job to see details, notes, and photos (if you have shared them).
-
-## Request Service
-
-If enabled, a **Request Service** button appears on the dashboard. Clicking it opens a simple form where the customer can describe what they need and submit a request for your team to review.
+- No login or account creation is required from customers.
+- Each token grants access to only one specific document.
+- Tokens are generated when quotes and invoices are created and included in notification emails.
 
 ### Tips
 
-- The portal automatically adjusts to show only what is relevant. A new customer with no history will see a simple, clean page.
-- Encourage customers to check the portal for job schedules rather than calling your office.`,
+- Portal pages are fully responsive and work on phones, tablets, and desktops.
+- If a customer loses their email, you can resend the quote or invoice to provide a fresh portal link.
+- Encourage customers to download PDFs for their own record keeping.`,
   },
   {
     slug: "customers-paying-invoices",
     category: "client-portal",
     title: "Customers Paying Invoices Online",
     excerpt: "The step-by-step process customers follow to pay through the portal.",
-    lastUpdated: "2026-02-01",
-    readingTime: 2,
-    keywords: ["pay invoice", "customer payment", "portal payment", "online pay"],
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["pay invoice", "customer payment", "portal payment", "online pay", "stripe checkout", "pdf"],
     content: `## Customer Payment Process
 
 Here is exactly what your customer experiences when paying an invoice through the client portal.
@@ -1708,51 +1746,55 @@ Here is exactly what your customer experiences when paying an invoice through th
 ## Step-by-Step from the Customer's Perspective
 
 1. **Receive Email** -- The customer gets an email from your business with the invoice summary and a "View & Pay" button.
-2. **Open Invoice** -- Clicking the button opens the full invoice in the client portal. They see all line items, tax, and the total amount due.
-3. **Click Pay Now** -- The customer clicks the **Pay Now** button on the invoice.
-4. **Enter Payment Details** -- A secure Stripe payment form appears. The customer enters their credit card or debit card information.
-5. **Confirm Payment** -- They review the amount and click **Submit Payment**.
-6. **Confirmation** -- A success page confirms the payment was processed. The customer also receives a payment receipt by email.
+2. **Open Invoice** -- Clicking the button opens the full invoice in the client portal at a URL like \`/portal/{your-slug}/invoices/{token}\`. They see all line items, tax, discount (if any), and the total amount due.
+3. **Download PDF (Optional)** -- A **Download PDF** button lets the customer save a professional PDF copy of the invoice for their records.
+4. **Click Pay Now** -- If you have Stripe connected and online payments enabled, the customer clicks the **Pay Now** button on the invoice.
+5. **Stripe Checkout** -- The customer is redirected to Stripe Checkout, a secure, hosted payment page. They enter their credit card or debit card information there.
+6. **Payment Processed** -- After successful payment, a webhook from Stripe automatically updates the invoice status in JobStream.
 
-## Payment Receipt
+## Invoice Portal Details
 
-After payment, the customer receives an email receipt containing:
+The invoice portal page displays:
 
-- Your business name and contact information.
-- Invoice number and payment date.
-- Amount paid and payment method (last 4 digits of card).
-- A link to view the paid invoice in the portal.
+- Your business name, logo, and contact information in the header.
+- Invoice number and status badge (Sent, Paid, Overdue, etc.).
+- Issue date and due date.
+- Full line item table with descriptions, quantities, unit prices, and totals.
+- Subtotal, tax, discount, and grand total.
+- Payment history showing any previous payments made.
+- Customer notes (if included on the invoice).
 
 ## For You (The Business)
 
-When the customer completes payment, the following happens automatically:
+When the customer completes payment via Stripe Checkout, the following happens automatically via webhook:
 
 - The invoice status changes to **Paid**.
-- A payment record is created in your Payments section.
-- You receive a notification.
+- A payment record is created in your Payments section with method "online."
 - Revenue reports update in real time.
 
 ## Troubleshooting Customer Payment Issues
 
 If a customer reports they cannot pay:
 
-- **Card declined** -- Ask them to verify their card details or try a different card.
+- **No Pay Now button** -- Verify that Stripe is connected in Settings > Payments and that online payments are enabled.
+- **Card declined** -- Ask them to verify their card details or try a different card on the Stripe Checkout page.
 - **Page not loading** -- Confirm their internet connection and suggest a different browser.
-- **Link expired** -- Resend the invoice from JobStream to generate a fresh link.
+- **Link expired** -- Resend the invoice from JobStream to generate a fresh email with the portal link.
 
 ### Tips
 
 - Test the payment flow yourself by creating a test invoice to understand the customer experience.
-- Mention that payments are processed securely through Stripe to build customer confidence.`,
+- Mention that payments are processed securely through Stripe to build customer confidence.
+- Encourage customers to download the PDF for their records before or after paying.`,
   },
   {
     slug: "customers-approving-quotes",
     category: "client-portal",
     title: "Customers Approving Quotes",
     excerpt: "How the quote approval and decline process works from the customer's side.",
-    lastUpdated: "2026-02-01",
-    readingTime: 2,
-    keywords: ["approve quote", "customer approval", "portal approval", "accept quote"],
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["approve quote", "customer approval", "portal approval", "accept quote", "decline quote", "pdf"],
     content: `## Customer Quote Experience
 
 Understanding what your customers see when they receive a quote helps you communicate better and close more deals.
@@ -1760,39 +1802,42 @@ Understanding what your customers see when they receive a quote helps you commun
 ## The Customer's View
 
 1. **Email Arrives** -- The customer receives an email with a summary of your quote: the proposed services, total amount, and expiration date.
-2. **Open Quote** -- They click the "View Quote" button to see the full details in the client portal.
+2. **Open Quote** -- They click the "View Quote" button to see the full details in the client portal at a URL like \`/portal/{your-slug}/quotes/{token}\`.
 3. **Review Details** -- The portal displays:
-   - All line items with descriptions, quantities, and prices.
+   - Your business name, logo, and contact information.
+   - Quote number and status badge (Awaiting Response, Approved, Declined, Expired).
+   - All line items with descriptions, quantities, unit prices, and line totals.
    - Subtotal, tax, and total amount.
-   - Your company notes and terms.
-   - The expiration date for the quote.
-4. **Take Action** -- Two prominent buttons appear: **Approve** and **Decline**.
+   - Your customer message (if included).
+   - The expiration date ("Valid Until") for the quote.
+4. **Download PDF** -- A **Download PDF** button lets the customer save a professional PDF copy of the quote.
+5. **Take Action** -- Two prominent buttons appear: **Approve** and **Decline**.
 
 ## Approving a Quote
 
 When the customer clicks **Approve**:
 
-- If digital signatures are enabled, they are prompted to draw or type their signature.
 - A confirmation message appears thanking them for their approval.
-- You receive an instant notification in JobStream.
-- The quote status updates to "Approved."
+- The quote status updates to "Approved" immediately on the page.
+- You receive a notification in JobStream.
 
 ## Declining a Quote
 
 When the customer clicks **Decline**:
 
-- An optional text field appears where they can explain why they are declining.
+- A text area appears where they can explain why they are declining (optional but encouraged).
+- They click **Submit Decline** to confirm.
 - A confirmation message appears.
 - You receive a notification with the decline reason (if provided).
 - The quote status updates to "Declined."
 
 ## No Account Required
 
-Customers do not need to create an account or remember a password. The email link securely identifies them. This frictionless process leads to faster response rates.
+Customers do not need to create an account or remember a password. The email link contains a secure access token that identifies them. This frictionless process leads to faster response rates.
 
 ## Mobile Friendly
 
-The quote approval page is fully responsive and works well on phones and tablets. Customers can approve or decline from anywhere.
+The quote portal page is fully responsive and works well on phones and tablets. Customers can approve or decline from anywhere.
 
 ### Tips
 
@@ -1803,55 +1848,68 @@ The quote approval page is fully responsive and works well on phones and tablets
   {
     slug: "customer-service-requests",
     category: "client-portal",
-    title: "Customer Service Requests",
-    excerpt: "Allow customers to request new work through the client portal.",
-    lastUpdated: "2026-02-01",
-    readingTime: 2,
-    keywords: ["service request", "new work", "customer request", "booking"],
-    content: `## What Are Service Requests?
+    title: "Customer Service Requests via Public Booking",
+    excerpt: "Allow customers to request new work through the public booking form.",
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["service request", "new work", "customer request", "booking", "public booking form", "book"],
+    content: `## What Is the Public Booking Form?
 
-Service requests allow your existing customers to submit requests for new work directly through the client portal. Instead of calling or emailing, they fill out a simple form describing what they need, and you receive it as a new request in JobStream.
+The public booking form is a standalone page where anyone -- existing customers or new prospects -- can request a service booking from your business. It is accessible at \`/book/{your-org-slug}\` and does not require any login or account.
 
-## Enabling Service Requests
+## Enabling Public Booking
 
 1. Go to **Settings** in the left sidebar.
-2. Navigate to the **Client Portal** section.
-3. Toggle **Allow Service Requests** to on.
-4. Optionally customize the request form fields.
-5. Click **Save**.
+2. Click the **Booking Widget** tab.
+3. Toggle **Online Booking** to on.
+4. Select which services from your catalog should appear on the booking form by checking the boxes next to each service.
+5. Set the **Slot Duration** (15, 30, 45, 60, 90, or 120 minutes) to control the time slot intervals displayed.
+6. Click **Save Changes**.
+
+Your booking URL is displayed on the settings page and can be copied with the **Copy Link** button.
 
 ## What the Customer Sees
 
-In the client portal, an active **Request Service** button appears. Clicking it opens a form with:
+The public booking form at \`/book/{your-slug}\` walks the customer through a simple multi-step process:
 
-- **Service Type** -- A dropdown of your available services (if configured), or a free-text field.
-- **Description** -- A text area where the customer describes the work they need.
-- **Preferred Date** -- An optional date picker for when they would like the work done.
-- **Urgency** -- Optional indication of how urgent the request is.
-- **Photos** -- The ability to upload photos showing the issue or area.
+1. **Select Service** -- A dropdown lists the services you have enabled for online booking. Each service shows its name and default price.
+2. **Pick Date** -- A date input lets them choose their preferred date.
+3. **Pick Time Slot** -- Available time slots are generated based on your business hours for that day of the week. If the selected day is outside your business hours (e.g., a day you are closed), no time slots appear.
+4. **Enter Contact Information** -- The customer enters their first name, last name, email, and phone number.
+5. **Add Notes (Optional)** -- A text area for any additional details about the work needed.
+6. **Submit** -- The customer clicks **Request Booking** to submit.
+
+After submission, a success confirmation appears letting the customer know their request has been received.
 
 ## How You Receive Requests
 
-When a customer submits a request:
+When a customer submits a booking:
 
-1. A notification appears in JobStream.
-2. The request shows up in your **Jobs** section with a "Requested" status.
-3. The customer's details and request information are pre-filled.
+1. The request appears in your **Bookings** section with a "Pending" status.
+2. You receive a notification (via the notification bell in the top bar).
+3. The customer's name, email, phone, selected service, requested date, and time are all captured.
 
-## Managing Requests
+## Managing Booking Requests
 
-You have several options for each request:
+From the Bookings page, you can:
 
-- **Convert to Quote** -- Create a quote based on the request and send it for approval.
-- **Convert to Job** -- If pricing is already known, create a job directly and schedule it.
-- **Contact Customer** -- Reach out for more details before proceeding.
-- **Decline** -- If you cannot fulfill the request, decline it with an explanation.
+- **Confirm & Create Job** -- Accept the booking and create a job on your calendar.
+- **Decline** -- Decline the booking with an optional reason.
+
+## Sharing Your Booking URL
+
+Your booking URL follows the pattern \`/book/{your-org-slug}\`. You can share this link:
+
+- On your business website (embed or link).
+- On social media profiles and posts.
+- In email signatures.
+- On printed materials like business cards and flyers.
 
 ### Tips
 
-- Enable service requests to give repeat customers a convenient self-service channel.
-- Respond to requests within a few hours to demonstrate excellent service.
-- Use the request as a starting point for a quote when the scope needs clarification.`,
+- Keep the service list short and clear to avoid overwhelming visitors.
+- Make sure your business hours are configured in Settings > General so that time slots display correctly.
+- Respond to booking requests promptly -- speed of response is a major factor in winning new business.`,
   },
   // ============================================
   // ONLINE BOOKING
@@ -1859,53 +1917,61 @@ You have several options for each request:
   {
     slug: "setting-up-booking-widget",
     category: "online-booking",
-    title: "Setting Up the Booking Widget",
-    excerpt: "Configure your online booking widget so customers can book services from your website.",
-    lastUpdated: "2026-02-01",
+    title: "Setting Up Online Booking",
+    excerpt: "Configure your online booking form so customers can request services directly.",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
-    keywords: ["booking widget", "online booking", "configuration", "setup"],
-    content: `## What Is the Booking Widget?
+    keywords: ["booking widget", "online booking", "configuration", "setup", "booking url", "slot duration"],
+    content: `## What Is Online Booking?
 
-The booking widget is an embeddable form that you can add to your website, social media pages, or landing pages. It allows potential customers to select a service, choose an available time slot, and submit a booking request directly to your JobStream account.
+Online booking gives your business a public booking page where potential customers can select a service, choose a date and time slot, enter their contact information, and submit a booking request. The page is hosted at \`/book/{your-org-slug}\` and does not require any login.
 
-## Configuring the Widget
+## Configuring Online Booking
 
 1. Go to **Settings** in the left sidebar.
-2. Click the **Online Booking** tab.
+2. Click the **Booking Widget** tab.
 3. Configure the following options:
 
+### Enable Online Booking
+Toggle the **Online Booking** switch to turn the feature on or off. When disabled, the booking URL returns an inactive page.
+
 ### Available Services
-Select which services from your catalog should appear in the booking widget. You might want to offer a subset of your services for online booking while handling complex projects through direct consultation.
+A checklist displays all services from your service catalog. Check the boxes next to services you want to offer for online booking. You might want to offer a subset of your services while handling complex projects through direct consultation.
 
-### Available Time Slots
-Define when customers can book:
+### Slot Duration
+Select the default appointment length from the dropdown. Available options are:
 
-- **Business Hours** -- Use your standard business hours as the available window.
-- **Custom Hours** -- Set specific booking hours that differ from your business hours.
-- **Buffer Time** -- Add buffer time between appointments to allow for travel and preparation.
-- **Slot Duration** -- Define the default appointment length.
+- 15 minutes
+- 30 minutes
+- 45 minutes
+- 60 minutes
+- 90 minutes
+- 120 minutes
 
-### Booking Lead Time
-Set the minimum advance notice required for bookings. For example, requiring 24 hours ensures you are not caught off guard by same-day bookings.
+This setting controls how time slots are spaced on the booking form. For example, a 60-minute duration shows slots at 8:00, 9:00, 10:00, etc., while 30-minute shows 8:00, 8:30, 9:00, etc.
 
-### Auto-Confirm vs. Manual Review
-Choose whether bookings are automatically confirmed or held for your review:
+### Booking URL
+Your unique booking URL is displayed on the settings page. Use the **Copy Link** button to copy it to your clipboard for sharing. The URL follows the pattern \`/book/{your-org-slug}\`.
 
-- **Auto-Confirm** -- Bookings are immediately confirmed and added to your calendar. Best for simple services with predictable durations.
-- **Manual Review** -- Bookings create a pending request for you to review, contact the customer if needed, and confirm or decline. Best for services that require assessment.
+4. Click **Save Changes** to apply your configuration.
 
-### Customer Information
-Choose which fields customers must fill out: name, email, phone, address, and any custom questions you want to ask.
+## How Time Slots Work
 
-## Preview and Embed Code
+Time slots on the booking form are generated automatically from your **business hours** (configured in Settings > General). For each day of the week:
 
-After configuring, click **Preview** to see how the widget looks. When you are satisfied, click **Get Embed Code** to copy the HTML snippet for your website.
+- If the day is marked as open, slots are generated from the start time to the end time at intervals matching your slot duration.
+- If the day is marked as closed, no time slots are shown and customers cannot book on that day.
+
+## After a Customer Books
+
+All booking requests arrive in your **Bookings** section as pending requests. You review each one and either confirm it (which creates a job on your calendar) or decline it.
 
 ### Tips
 
-- Start with Manual Review until you are comfortable with the booking volume and types of requests.
 - Keep the service list short and clear -- too many options can overwhelm visitors.
-- Set reasonable buffer times to avoid back-to-back bookings that could cause delays.`,
+- Set your business hours accurately in Settings > General before enabling online booking.
+- Share your booking URL on your website, social media, email signatures, and printed materials.
+- Review pending bookings promptly to provide a responsive customer experience.`,
   },
   {
     slug: "embedding-on-website",
@@ -2080,62 +2146,76 @@ Each message type can be individually enabled or disabled in **Settings > Commun
     slug: "configuring-automation-rules",
     category: "communications",
     title: "Configuring Automation Rules",
-    excerpt: "Set up message templates, merge fields, and timing for automated communications.",
-    lastUpdated: "2026-02-01",
+    excerpt: "Set up automation rules with triggers, channels, templates, and timing.",
+    lastUpdated: "2026-02-22",
     readingTime: 3,
-    keywords: ["templates", "merge fields", "timing", "configuration", "rules"],
-    content: `## Accessing Automation Settings
+    keywords: ["templates", "automation rules", "timing", "configuration", "rules", "triggers", "sms", "email"],
+    content: `## Accessing Communications Settings
 
 1. Go to **Settings** in the left sidebar.
 2. Click the **Communications** tab.
-3. You will see a list of all automation rules with their current status (enabled/disabled).
+3. The page has two sections: global SMS/Email toggles at the top, and an Automation Rules table below.
 
-## Editing a Template
+## Global Channel Toggles
 
-Click any automation rule to customize it. Each rule has:
+At the top of the page, two switches control global messaging capabilities:
 
-### Message Template
-The content of the email or SMS. You can edit the text to match your brand voice and communication style. Templates support rich formatting for emails (headings, bold, links) and plain text for SMS.
+- **SMS Notifications** -- Enable or disable all SMS messaging across JobStream.
+- **Email Notifications** -- Enable or disable all email messaging across JobStream.
 
-### Merge Fields
-Merge fields are placeholders that automatically fill in with real data when the message is sent. Common merge fields include:
+These are master switches. If SMS is disabled globally, no automation rules can send SMS even if individually configured to do so.
 
-- \`{{customer_first_name}}\` -- The customer's first name.
-- \`{{customer_last_name}}\` -- The customer's last name.
-- \`{{job_title}}\` -- The title of the related job.
-- \`{{scheduled_date}}\` -- The appointment date.
-- \`{{scheduled_time}}\` -- The appointment time.
-- \`{{team_member_name}}\` -- The assigned technician's name.
-- \`{{invoice_total}}\` -- The invoice amount.
-- \`{{quote_total}}\` -- The quote total.
-- \`{{business_name}}\` -- Your business name.
-- \`{{portal_link}}\` -- A link to the client portal.
+## Automation Rules Table
 
-Click the **Insert Merge Field** button while editing a template to see all available fields.
+Below the toggles, a table lists all your automation rules. Each row shows the rule name, trigger event, channel (Email, SMS, or Both), delay, and an active/inactive badge.
 
-### Timing
-For messages that are triggered before or after an event, set the timing:
+## Creating a New Automation Rule
 
-- **Appointment reminders**: 24 hours before, 2 hours before, or a custom interval.
-- **Payment reminders**: 3 days after due date, 7 days after, 14 days after, or custom.
-- **Review requests**: 1 hour after completion, 1 day after, or custom.
+1. Click the **Add Rule** button above the table.
+2. A dialog opens with the following fields:
 
-### Delivery Channel
-Choose whether to send via Email, SMS, or Both.
+### Rule Name
+A descriptive name for the automation, such as "Appointment Reminder 24h" or "Post-Job Review Request."
 
-## Testing Your Templates
+### Trigger
+Select the event that fires this automation. Available triggers include:
 
-Before enabling an automation, click the **Send Test** button to send a test message to yourself. This lets you verify the formatting, merge fields, and overall appearance.
+- **Job Scheduled** -- Fires when a job is scheduled.
+- **Job Completed** -- Fires when a job is marked complete.
+- **Invoice Sent** -- Fires when an invoice is sent.
+- **Invoice Overdue** -- Fires when an invoice becomes overdue.
+- **Quote Sent** -- Fires when a quote is sent.
+- **Quote Approved** -- Fires when a customer approves a quote.
+- **Booking Received** -- Fires when a new booking request comes in.
 
-## Creating Custom Rules
+### Channel
+Choose the delivery channel: **Email**, **SMS**, or **Both**.
 
-Beyond the built-in automations, you can create custom rules for specific scenarios. Click **Add Custom Rule** and define the trigger event, conditions, timing, and message.
+### Subject (Email Only)
+If the channel includes email, enter the subject line for the email.
+
+### Template Content
+Write the message body. This is the content of the email or SMS that will be sent.
+
+### Delay (Minutes)
+Set the delay in minutes between when the trigger fires and when the message is sent. For example, set 1440 for a 24-hour delay (useful for review requests sent a day after job completion) or 0 for immediate delivery.
+
+3. Click **Save** to create the rule. It is active by default.
+
+## Editing and Deleting Rules
+
+- Click the **pencil icon** on any row to edit the rule. The same dialog opens with the current values pre-filled.
+- Click the **trash icon** to delete a rule. A confirmation dialog appears before deletion.
+
+## Activating and Deactivating Rules
+
+Each rule has an active/inactive status shown as a badge. When editing a rule, you can toggle the **Active** switch to enable or disable it without deleting it. Inactive rules remain in your list but do not fire.
 
 ### Tips
 
-- Personalize messages with the customer's first name for a friendlier tone.
-- Keep SMS messages under 160 characters for reliable delivery.
-- Test every template change before enabling it in production.`,
+- Start with the most impactful automations: appointment reminders and invoice payment reminders.
+- Use meaningful names so your team can understand what each rule does at a glance.
+- Set delays thoughtfully -- a 24-hour delay for review requests gives customers time to evaluate your work before being asked for feedback.`,
   },
   {
     slug: "appointment-reminders",
@@ -2300,11 +2380,11 @@ The Communications section shows conversations threaded by customer, so you can 
   {
     slug: "setting-up-review-links",
     category: "reviews",
-    title: "Setting Up Review Links",
-    excerpt: "Configure your Google, Yelp, and Facebook review page URLs.",
-    lastUpdated: "2026-02-01",
-    readingTime: 2,
-    keywords: ["review links", "google", "yelp", "facebook", "setup"],
+    title: "Setting Up Review Links and Auto-Requests",
+    excerpt: "Configure your Google, Yelp, and Facebook review page URLs and automatic review requests.",
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["review links", "google", "yelp", "facebook", "setup", "auto-request", "delay"],
     content: `## Why Review Links Matter
 
 When JobStream sends automated review requests to your customers, those messages include a direct link to your review page. Setting up these links correctly ensures customers land on the right page with minimal friction.
@@ -2313,38 +2393,49 @@ When JobStream sends automated review requests to your customers, those messages
 
 1. Go to **Settings** in the left sidebar.
 2. Click the **Reviews** tab.
-3. Enter the URLs for each platform you want to collect reviews on.
+3. The page has two sections: Review Platform URLs and Auto-Request Settings.
 
-### Google Business Profile
+### Google Business Profile URL
 1. Search for your business on Google Maps.
 2. Click your business listing.
 3. Click **Write a Review** and copy the URL from your browser's address bar.
-4. Paste this URL into the Google Review Link field in JobStream.
+4. Paste this URL into the Google Review URL field in JobStream.
 
-### Yelp
+### Yelp URL
 1. Go to your Yelp business page.
 2. Copy the URL from your browser's address bar.
-3. Paste it into the Yelp Review Link field.
+3. Paste it into the Yelp Review URL field.
 
-### Facebook
+### Facebook URL
 1. Go to your Facebook business page.
 2. Click the **Reviews** tab.
 3. Copy the URL.
-4. Paste it into the Facebook Review Link field.
+4. Paste it into the Facebook Review URL field.
 
-## Choosing a Primary Platform
+## Auto-Request Settings
 
-If you have multiple review links configured, select one as your **primary platform**. This is the platform featured most prominently in review request messages. We recommend Google as your primary since Google reviews have the highest impact on local search visibility.
+Below the review URLs, the Reviews settings page includes controls for automatically requesting reviews after job completion:
 
-## Testing Your Links
+### Auto-Request Reviews Toggle
+A switch that enables or disables automatic review requests. When enabled, JobStream will automatically send a review request to customers after their job is completed.
 
-After entering your links, click each **Test Link** button to verify they open the correct review page. Broken or incorrect links lead to customer frustration and lost reviews.
+### Request Delay (Hours)
+A number input that sets how many hours after job completion the review request is sent. The default is 24 hours. Common settings:
+
+- **1 hour** -- While the experience is fresh. Best for short service calls.
+- **24 hours** -- Gives the customer time to evaluate. Best for larger projects.
+- **48 hours** -- For projects where the customer needs time to test the work.
+
+## Saving Your Settings
+
+Click **Save Changes** at the bottom of the page to apply your review URL and auto-request configuration.
 
 ### Tips
 
 - Focus on one or two platforms rather than spreading reviews too thin across many sites.
 - Google reviews are generally the most valuable for local service businesses.
-- Update your links if you change your business name or if the platform updates their URL structure.`,
+- Update your links if you change your business name or if the platform updates their URL structure.
+- The auto-request delay is a key lever -- experiment to find the timing that gets the best response rate.`,
   },
   {
     slug: "automated-review-requests",
@@ -2461,23 +2552,23 @@ When you receive a negative review:
     slug: "dashboard-overview",
     category: "reports-analytics",
     title: "Dashboard Overview",
-    excerpt: "Understand the summary cards and charts on your main dashboard.",
-    lastUpdated: "2026-02-01",
-    readingTime: 3,
-    keywords: ["dashboard", "overview", "summary", "cards", "charts", "metrics"],
+    excerpt: "Understand the summary cards, charts, and action widgets on your main dashboard.",
+    lastUpdated: "2026-02-22",
+    readingTime: 4,
+    keywords: ["dashboard", "overview", "summary", "cards", "charts", "metrics", "today schedule", "action required", "notifications"],
     content: `## The Main Dashboard
 
-When you log into JobStream, the Dashboard is your home base. It provides a quick snapshot of your business health with summary cards and visual charts.
+When you log into JobStream, the Dashboard is your home base. It greets you by name and provides a quick snapshot of your business health with summary cards, visual charts, and action-oriented widgets.
 
 ## Summary Cards
 
-The top of the dashboard displays four key performance indicators:
+The top of the dashboard displays four key performance indicators, each with a comparison to the prior period:
 
 ### Revenue This Month
-Your total collected revenue for the current month. This updates in real time as payments are received.
+Your total collected revenue for the current month. This updates in real time as payments are received. A percentage change indicator shows the trend compared to last month.
 
 ### Jobs Completed
-The number of jobs marked as completed. Helps you gauge team productivity.
+The number of jobs marked as completed this month. Helps you gauge team productivity.
 
 ### Outstanding Invoices
 The total dollar amount of unpaid invoices. This includes both current and overdue amounts.
@@ -2487,26 +2578,56 @@ Your quote conversion rate, showing the percentage of quotes that have been appr
 
 ## Charts and Graphs
 
-Below the summary cards, the dashboard includes visual analytics:
+Below the summary cards, the dashboard includes two visual analytics panels side by side:
 
 ### Revenue Chart
-A line or bar chart showing revenue over time (daily, weekly, or monthly). Use the time range selector to zoom into specific periods.
+A line chart showing revenue over time for the current month, with data points for each day. Hover over any point to see the exact revenue for that date.
 
 ### Job Status Breakdown
-A pie or donut chart showing the distribution of job statuses (Scheduled, In Progress, Completed, Cancelled). Helps you understand your pipeline at a glance.
+A donut chart showing the distribution of job statuses (Scheduled, In Progress, Completed, Cancelled) with a total count in the center. A color-coded legend identifies each status.
 
-### Recent Activity
-A timeline of recent actions across your account: new customers added, quotes sent, jobs completed, payments received. This keeps you aware of what is happening in your business in real time.
+## Today's Schedule
 
-## Customizing the Dashboard
+The **Today's Schedule** widget shows all jobs scheduled for the current day. Each entry displays:
 
-The dashboard layout is designed for the most common metrics. The time period for each section can be adjusted using the date controls at the top of the page.
+- Job title
+- Customer name
+- Scheduled time
+- Assigned team member
+
+Click any job to navigate directly to the job detail page. If no jobs are scheduled for today, the widget displays a "No jobs scheduled" message with a link to the calendar.
+
+## Action Required
+
+The **Action Required** widget highlights items that need your immediate attention. It shows three categories:
+
+- **Overdue Invoices** -- Invoices past their due date, with the customer name, invoice number, and amount. Each links directly to the invoice detail page.
+- **Pending Quotes** -- Quotes awaiting customer response, with the customer name, quote number, and total. Each links to the quote detail page.
+- **Pending Bookings** -- Booking requests that need to be confirmed or declined, with the customer name, service, and requested date. Each links to the bookings page.
+
+## Recent Activity and Upcoming Jobs
+
+The dashboard also includes:
+
+- **Recent Activity** -- A timeline of the latest actions: jobs completed, invoices sent, payments received, quotes sent, and new customers added. Each entry is timestamped and clickable.
+- **Upcoming Jobs** -- A list of the next scheduled jobs with dates, customer names, and statuses.
+
+## Notification Bell
+
+In the top bar, the **notification bell** icon shows your unread notification count as a red badge. Clicking it opens a dropdown with your most recent notifications. Each notification shows a title, message, and timestamp. You can:
+
+- Click a notification to navigate to the relevant page (job, invoice, quote, etc.).
+- Click **Mark as read** on individual notifications.
+- Click **Mark all as read** to clear all unread notifications.
+
+Notifications are polled every 30 seconds so they stay current without requiring a page refresh.
 
 ### Tips
 
 - Start each work day by reviewing the dashboard for 60 seconds to understand the state of your business.
+- Use the Action Required widget to prioritize your morning tasks -- overdue invoices and pending bookings need prompt attention.
 - Pay attention to the Outstanding Invoices card -- a rising number means your collection process may need attention.
-- Track your Quote Conversion rate to gauge how effectively you are closing deals.`,
+- Check the notification bell regularly for real-time updates from your team and customers.`,
   },
   {
     slug: "revenue-reports",
@@ -2884,6 +3005,815 @@ The change takes effect immediately. The team member may need to refresh their b
 - Start with the most restrictive role that fits the person's job duties and escalate if needed.
 - When in doubt, Admin is a good choice for trusted office staff who need broad access.
 - Periodically audit roles to ensure they still match each person's actual responsibilities.`,
+  },
+  // ============================================
+  // PDF GENERATION
+  // ============================================
+  {
+    slug: "downloading-pdf-documents",
+    category: "invoicing-payments",
+    title: "Downloading PDF Documents",
+    excerpt: "Generate and download professional PDF copies of invoices and quotes.",
+    lastUpdated: "2026-02-22",
+    readingTime: 2,
+    keywords: ["pdf", "download", "invoice pdf", "quote pdf", "print", "document"],
+    content: `## PDF Generation Overview
+
+JobStream lets you generate professional PDF documents for invoices and quotes. PDFs are available both from within your dashboard and from the public client portal.
+
+## Downloading an Invoice PDF
+
+### From the Dashboard
+1. Navigate to **Invoices** in the left sidebar.
+2. Click on the invoice you want to download.
+3. On the invoice detail page, click the **Download PDF** button.
+4. The PDF is generated on the server and downloaded to your device.
+
+### From the Client Portal
+Customers can also download invoice PDFs from the portal. When viewing an invoice at \`/portal/{your-slug}/invoices/{token}\`, a **Download PDF** button is available. This uses a separate public endpoint that validates the access token.
+
+## Downloading a Quote PDF
+
+### From the Dashboard
+1. Navigate to **Quotes** in the left sidebar.
+2. Click on the quote you want to download.
+3. On the quote detail page, click the **Download PDF** button.
+
+### From the Client Portal
+Customers can download quote PDFs from the portal at \`/portal/{your-slug}/quotes/{token}\` using the **Download PDF** button.
+
+## What the PDF Includes
+
+Both invoice and quote PDFs include a professional layout with:
+
+- Your business name, logo (if configured), and contact information in the header.
+- Document number, date, and status.
+- Customer name and contact details.
+- A line item table with descriptions, quantities, unit prices, and line totals.
+- Subtotal, tax, discount (if applicable), and grand total.
+- Any notes included on the document.
+
+## Use Cases
+
+- **Record keeping** -- Save PDFs for your accounting records or tax documentation.
+- **Customer requests** -- Send a PDF directly to a customer who prefers email attachments.
+- **Printing** -- Print the PDF for customers who prefer paper copies.
+- **Offline access** -- Customers can save the PDF for reference without needing internet access.
+
+### Tips
+
+- PDFs reflect the current state of the document at the time of download.
+- Encourage customers to download PDFs from the portal for their own records.
+- Keep your business information up to date in Settings > General since it appears on every PDF.`,
+  },
+  // ============================================
+  // SETTINGS PAGES (DETAILED)
+  // ============================================
+  {
+    slug: "payment-settings",
+    category: "account-settings",
+    title: "Payment Settings",
+    excerpt: "Configure Stripe Connect, online payments, and payment preferences.",
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["payment settings", "stripe", "online payments", "connect", "disconnect", "configuration"],
+    content: `## Accessing Payment Settings
+
+1. Click **Settings** in the left sidebar.
+2. Click the **Payments** tab.
+
+## Stripe Connection Status
+
+The top of the page shows your current Stripe connection status:
+
+### Not Connected
+If Stripe is not connected, you see a **Connect with Stripe** button. Clicking it initiates the Stripe Connect onboarding flow (see the "Connecting Stripe for Payments" article for full details).
+
+### Connected
+If Stripe is connected and onboarded, you see:
+- A green "Connected" badge.
+- Your masked Stripe account ID (first 4 and last 4 characters visible).
+- A **Disconnect** button to remove the Stripe connection.
+
+## Online Payments Toggle
+
+Below the connection status, a **Online Payments** switch controls whether customers see the "Pay Now" button on invoices in the client portal.
+
+- **Enabled** -- Invoices in the portal display a Pay Now button that initiates Stripe Checkout.
+- **Disabled** -- Invoices are viewable in the portal but no payment button is shown.
+
+This toggle requires Stripe to be connected. If Stripe is not connected, the toggle is not functional.
+
+## Disconnecting Stripe
+
+If you need to disconnect your Stripe account:
+
+1. Click the **Disconnect** button.
+2. A confirmation dialog appears warning that customers will no longer be able to pay online.
+3. Click **Disconnect** to confirm.
+
+After disconnecting, the online payments toggle is automatically turned off and the page reverts to showing the "Connect with Stripe" button.
+
+### Tips
+
+- Keep online payments enabled at all times for the fastest payment collection.
+- Only disconnect Stripe if you are switching to a different Stripe account or no longer want to accept online payments.
+- Changes to the online payments toggle take effect immediately on all portal invoice pages.`,
+  },
+  {
+    slug: "communications-settings",
+    category: "account-settings",
+    title: "Communications Settings",
+    excerpt: "Configure SMS, email, and automation rules for customer communications.",
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["communications settings", "sms", "email", "automation", "rules", "templates"],
+    content: `## Accessing Communications Settings
+
+1. Click **Settings** in the left sidebar.
+2. Click the **Communications** tab.
+
+## Global Channel Toggles
+
+At the top of the page, two switches control messaging at a global level:
+
+- **SMS Notifications** -- Master switch for all SMS messaging. When disabled, no SMS messages are sent regardless of individual automation rule settings.
+- **Email Notifications** -- Master switch for all email messaging. When disabled, no email messages are sent.
+
+Toggling either switch and clicking **Save Changes** applies the change immediately.
+
+## Automation Rules
+
+Below the global toggles, a table lists all your automation rules. Each row displays:
+
+- **Rule name** -- A descriptive label you choose.
+- **Trigger** -- The event that fires the rule (e.g., Job Completed, Invoice Sent).
+- **Channel** -- Email, SMS, or Both.
+- **Delay** -- How many minutes after the trigger the message is sent.
+- **Status** -- An Active or Inactive badge.
+- **Actions** -- Edit (pencil icon) and Delete (trash icon) buttons.
+
+## Creating Rules
+
+Click **Add Rule** to create a new automation rule. The dialog includes:
+
+- **Name** -- Required. A descriptive name for the rule.
+- **Trigger** -- Required. Select from: Job Scheduled, Job Completed, Invoice Sent, Invoice Overdue, Quote Sent, Quote Approved, or Booking Received.
+- **Channel** -- Required. Choose Email, SMS, or Both.
+- **Subject** -- The email subject line (only shown when channel includes Email).
+- **Template Content** -- Required. The message body.
+- **Delay (Minutes)** -- How many minutes to wait after the trigger fires. Use 0 for immediate, 60 for one hour, 1440 for one day.
+- **Active** -- A toggle to enable or disable the rule. Active by default.
+
+Click **Save** to create the rule. It appears immediately in the table.
+
+## Editing and Deleting Rules
+
+- Click the pencil icon to edit any rule. All fields can be modified.
+- Click the trash icon to delete a rule. A confirmation dialog appears before permanent deletion.
+
+### Tips
+
+- Create separate rules for different timing scenarios (e.g., one appointment reminder 24 hours before and another 2 hours before).
+- Use the global SMS toggle to quickly disable all text messaging if needed (e.g., during off-hours).
+- Start with a few essential rules and add more as you learn which automations are most valuable for your business.`,
+  },
+  {
+    slug: "booking-widget-settings",
+    category: "account-settings",
+    title: "Booking Widget Settings",
+    excerpt: "Configure your online booking form, available services, slot duration, and shareable URL.",
+    lastUpdated: "2026-02-22",
+    readingTime: 2,
+    keywords: ["booking settings", "booking widget", "slot duration", "booking url", "services"],
+    content: `## Accessing Booking Settings
+
+1. Click **Settings** in the left sidebar.
+2. Click the **Booking Widget** tab.
+
+## Configuration Options
+
+### Online Booking Toggle
+A switch to enable or disable the public booking form. When disabled, the booking URL returns an inactive page.
+
+### Available Services
+A checklist of all services in your catalog. Check the services you want to make available for online booking. Customers will see these services in a dropdown on the booking form.
+
+### Slot Duration
+A dropdown to set the interval between available time slots. Options include:
+
+- 15 minutes
+- 30 minutes
+- 45 minutes
+- 60 minutes (default)
+- 90 minutes
+- 120 minutes
+
+The slot duration determines how time slots are spaced based on your business hours. For example, if your hours are 8:00 AM to 5:00 PM and the slot duration is 60 minutes, slots appear at 8:00, 9:00, 10:00, etc.
+
+### Booking URL
+Your unique booking URL is displayed on the page. Two copy buttons are available:
+
+- **Copy Link** -- Copies the direct URL (e.g., \`https://yoursite.com/book/your-slug\`) for sharing in emails, social media, or messaging.
+- **Copy Embed** -- Copies an HTML snippet for embedding on your website.
+
+## Saving Changes
+
+Click **Save Changes** at the bottom of the form to apply your configuration. Changes take effect immediately on the public booking page.
+
+### Tips
+
+- Only enable services that have predictable durations and pricing for online booking. Complex services are better handled through direct quotes.
+- Set the slot duration to match the average length of your most common service.
+- Make sure your business hours are configured in Settings > General before enabling online booking.`,
+  },
+  {
+    slug: "review-settings",
+    category: "account-settings",
+    title: "Review Settings",
+    excerpt: "Configure review platform URLs and automatic review request settings.",
+    lastUpdated: "2026-02-22",
+    readingTime: 2,
+    keywords: ["review settings", "google reviews", "yelp", "facebook", "auto-request", "delay"],
+    content: `## Accessing Review Settings
+
+1. Click **Settings** in the left sidebar.
+2. Click the **Reviews** tab.
+
+## Review Platform URLs
+
+Enter the URLs for each review platform where you want to collect customer reviews:
+
+- **Google Review URL** -- The direct link to your Google Business Profile review page.
+- **Yelp Review URL** -- The link to your Yelp business listing.
+- **Facebook Review URL** -- The link to your Facebook page reviews section.
+
+These URLs are included in review request messages sent to customers. Leave a field blank if you do not use that platform.
+
+## Auto-Request Settings
+
+### Auto-Request Reviews Toggle
+A switch to enable or disable automatic review requests after job completion. When enabled, JobStream sends a review request to the customer after each completed job.
+
+### Request Delay (Hours)
+A number field that sets how many hours to wait after job completion before sending the review request. Common values:
+
+- **1** -- Ask immediately while the experience is fresh.
+- **24** -- Wait a day for the customer to evaluate the work (recommended default).
+- **48** -- Wait two days for projects where results take time to assess.
+
+## Saving Changes
+
+Click **Save Changes** to apply your review configuration. The auto-request setting takes effect for all future job completions.
+
+### Tips
+
+- Google reviews have the highest impact on local search rankings, so prioritize filling in the Google Review URL.
+- A 24-hour delay strikes a good balance between timeliness and giving customers time to evaluate your work.
+- Monitor your review volume in the Reviews section to gauge the effectiveness of your auto-request settings.`,
+  },
+  // ============================================
+  // TIME TRACKING & EXPORTS
+  // ============================================
+  {
+    slug: "time-tracking-timer",
+    category: "job-management",
+    title: "Using the Time Tracking Timer",
+    excerpt: "Start, stop, and discard time entries with the built-in job timer.",
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["timer", "time tracking", "start", "stop", "discard", "clock", "hours"],
+    content: `## What Is the Timer?
+
+The time tracking timer lets your team track how long they spend on jobs. It is wired to server-side actions, so timer state persists across page loads and browser sessions. If a technician starts a timer and navigates away or refreshes, the timer continues running.
+
+## Starting a Timer
+
+There are two ways to start tracking time:
+
+### From the Time Tracking Page
+1. Click **Time Tracking** in the left sidebar.
+2. Click the **Start Timer** button.
+3. The timer begins counting up, displaying hours and minutes.
+
+### From a Job Detail Page
+1. Open a job detail page.
+2. Click the **Time** tab.
+3. Click **Start Timer** to begin tracking time for that specific job.
+
+## Stopping a Timer
+
+When you finish working, click the **Stop** button on the active timer. This creates a time entry record with:
+
+- Start time
+- End time
+- Total duration
+- The job it was associated with (if started from a job)
+- The team member who tracked the time
+
+## Discarding a Timer
+
+If you started a timer by mistake, click the **Discard** button to cancel it without creating a time entry. The timer resets and no record is saved.
+
+## Timer Persistence
+
+The timer state is stored on the server, not just in your browser. This means:
+
+- Refreshing the page does not lose your active timer.
+- Closing and reopening your browser shows the timer still running.
+- The elapsed time is calculated from the server-recorded start time, ensuring accuracy.
+
+## Viewing Time Entries
+
+All completed time entries appear on the **Time Tracking** page in a list format. Each entry shows:
+
+- Team member name
+- Associated job (if any)
+- Start and end time
+- Duration
+- Date
+
+## Exporting Time Data
+
+Click the **Export** button on the Time Tracking page to download all visible time entries as a CSV file. This is useful for:
+
+- Payroll processing
+- Client billing for hourly work
+- Productivity analysis
+- Importing into accounting software
+
+### Tips
+
+- Encourage technicians to start the timer when they arrive at a job site and stop it when they leave.
+- Use the discard feature if a timer was started accidentally rather than creating a zero-duration entry.
+- Export time data regularly for payroll and billing purposes.`,
+  },
+  {
+    slug: "csv-exports",
+    category: "reports-analytics",
+    title: "Exporting Data to CSV",
+    excerpt: "Export payments, time tracking, and report data as CSV files.",
+    lastUpdated: "2026-02-22",
+    readingTime: 2,
+    keywords: ["csv", "export", "download", "payments", "time tracking", "data", "spreadsheet"],
+    content: `## CSV Export Overview
+
+JobStream supports CSV (Comma Separated Values) exports from several pages, making it easy to get your data into spreadsheets, accounting software, or other tools.
+
+## Pages with CSV Export
+
+### Payments Page
+1. Navigate to **Payments** in the left sidebar.
+2. Apply any filters you need (date range, payment method, status).
+3. Click the **Export** button.
+4. A CSV file downloads containing all payments matching your current filters.
+
+The payments CSV includes: customer name, invoice number, amount, payment method, date, status, and reference.
+
+### Time Tracking Page
+1. Navigate to **Time Tracking** in the left sidebar.
+2. Click the **Export** button.
+3. A CSV file downloads containing all time entries.
+
+The time tracking CSV includes: team member name, job reference, start time, end time, duration, and date.
+
+### Reports Page
+The Reports page also supports CSV export for revenue data. Click the **Export** button on the Reports page to download the current report view.
+
+## How Exports Work
+
+- Exports include all data matching your current filters and view settings.
+- Filter your data first, then export to get only the subset you need.
+- CSV files can be opened in Excel, Google Sheets, Numbers, or any spreadsheet application.
+- The filename includes the data type and date for easy identification.
+
+## Common Use Cases
+
+- **Accounting** -- Export payment data monthly for your bookkeeper or to import into QuickBooks, Xero, or FreshBooks.
+- **Payroll** -- Export time tracking data to calculate employee hours and wages.
+- **Tax preparation** -- Export annual payment data for tax filing.
+- **Analysis** -- Import data into a spreadsheet for custom reports and visualizations.
+
+### Tips
+
+- Export data at regular intervals (weekly or monthly) to maintain up-to-date records in your accounting system.
+- Use date range filters before exporting to get clean, period-specific data.
+- Keep exported CSV files organized in folders by month or quarter for easy retrieval.`,
+  },
+  // ============================================
+  // JOB EDITING
+  // ============================================
+  {
+    slug: "editing-a-job",
+    category: "job-management",
+    title: "Editing a Job",
+    excerpt: "Modify job details, schedule, assignments, and line items after creation.",
+    lastUpdated: "2026-02-22",
+    readingTime: 2,
+    keywords: ["edit job", "modify", "update", "change", "job details"],
+    content: `## Editing an Existing Job
+
+After creating a job, you can edit any of its details at any time (as long as the job is not completed or cancelled).
+
+## How to Edit a Job
+
+1. Navigate to the job detail page by clicking the job in your Jobs list or Calendar.
+2. Click the **Edit** button on the job detail page.
+3. You are taken to the job edit form at \`/jobs/{id}/edit\`.
+4. The form is pre-populated with all current job details.
+
+## Editable Fields
+
+The edit form includes all the same fields as the creation form:
+
+- **Customer** -- Change the associated customer.
+- **Job Title** -- Update the job description.
+- **Line Items** -- Add, remove, or modify line items with descriptions, quantities, and prices.
+- **Schedule** -- Change the start date, start time, and end time.
+- **Priority** -- Adjust the priority level (Low, Medium, High, Urgent).
+- **Assignment** -- Reassign to different team members.
+- **Notes** -- Update internal notes.
+- **Checklist** -- Add or modify checklist items.
+- **Recurring Settings** -- Modify the recurrence pattern if this is a recurring job.
+
+## Saving Changes
+
+Click **Update Job** to save your changes. The job detail page updates immediately with the new information, and the calendar reflects any schedule changes.
+
+## When You Cannot Edit
+
+Jobs in **Completed** or **Cancelled** status cannot be edited through the edit form. If you need to make changes to a completed job, you will need to change its status back to an active state first.
+
+### Tips
+
+- Review line items before creating an invoice to ensure they reflect the actual work performed.
+- Update the schedule promptly when a customer reschedules to keep the calendar accurate.
+- Use the edit page rather than re-creating a job to preserve the job's history and linked records.`,
+  },
+  // ============================================
+  // JOB CHECKLIST (DETAILED)
+  // ============================================
+  {
+    slug: "job-checklists",
+    category: "job-management",
+    title: "Using Job Checklists",
+    excerpt: "Add checklist items during job creation and track completion in the field.",
+    lastUpdated: "2026-02-22",
+    readingTime: 2,
+    keywords: ["checklist", "tasks", "items", "completion", "toggle", "job creation"],
+    content: `## What Are Job Checklists?
+
+Job checklists are task lists attached to individual jobs. They help ensure that every step of a job is completed consistently, especially for complex or multi-step services.
+
+## Adding Checklist Items During Job Creation
+
+When creating a new job (or editing an existing one):
+
+1. Scroll to the **Checklist** section of the job form.
+2. Type a label for the checklist item in the input field.
+3. Click the **+** button (or press Enter) to add the item.
+4. Repeat for each item you want to include.
+5. To remove an item before saving, click the **X** button next to it.
+
+Checklist items are saved when you create or update the job.
+
+## Tracking Completion on the Job Detail Page
+
+Once the job is created, the checklist appears on the job detail page under the **Checklist** tab:
+
+- Each item displays its label with a checkbox.
+- Click the checkbox to toggle the item between **completed** and **not completed**.
+- Completion changes are saved to the server immediately -- no need to click a separate save button.
+- Completed items show a checkmark indicator.
+
+## Progress Tracking
+
+The Checklist tab header shows the completion count (e.g., "2/5 completed") so you can see at a glance how much of the job is done.
+
+## Best Practices for Checklists
+
+- **Standard checklists** -- Create consistent checklists for each service type (e.g., "HVAC Inspection" always includes "Check filters," "Test thermostat," "Inspect ductwork").
+- **Safety items** -- Include safety checks as checklist items to ensure compliance.
+- **Quality control** -- Add final inspection items like "Clean work area" and "Test all fixtures."
+- **Documentation** -- Include "Take before photo" and "Take after photo" as checklist items.
+
+### Tips
+
+- Keep checklist items short and actionable.
+- Use checklists to train new team members on your standard procedures.
+- Review completed checklists before marking a job as complete to ensure nothing was missed.`,
+  },
+  // ============================================
+  // FILE UPLOADS (DETAILED)
+  // ============================================
+  {
+    slug: "job-file-uploads",
+    category: "job-management",
+    title: "Uploading Files to Jobs",
+    excerpt: "Attach photos, documents, and other files to job records.",
+    lastUpdated: "2026-02-22",
+    readingTime: 2,
+    keywords: ["upload", "files", "attachments", "photos", "documents", "drag and drop"],
+    content: `## File Attachments Overview
+
+Every job in JobStream supports file attachments. You can upload photos, documents, permits, diagrams, or any other files that are relevant to the job. Files are stored on the server and accessible from the job detail page.
+
+## How to Upload Files
+
+1. Open the job detail page.
+2. Click the **Attachments** tab.
+3. You have two upload methods:
+
+### Drag and Drop
+Drag files from your computer's file manager directly onto the dashed upload zone on the page. The zone highlights when files are dragged over it. Drop the files to begin uploading.
+
+### Click to Browse
+Click the **Browse Files** button (or click anywhere in the upload zone) to open your device's file picker. Select one or more files and confirm.
+
+## Upload Behavior
+
+- Multiple files can be uploaded at once.
+- Each file uploads individually and shows a success notification when complete.
+- The upload zone displays "Uploading..." while files are being processed.
+- After upload, files appear immediately in the attachments grid below the upload zone.
+
+## Viewing Attachments
+
+Uploaded files appear in a grid layout showing:
+
+- File name
+- File size (formatted as KB or MB)
+- Upload date
+- A clickable link to download or view the file
+
+## Supported Files
+
+You can upload any file type. Common uploads include:
+
+- **Photos** -- Before/after pictures, site conditions, completed work.
+- **Documents** -- Permits, warranties, specifications, customer agreements.
+- **Diagrams** -- Wiring diagrams, floor plans, schematics.
+- **Receipts** -- Material purchase receipts for job costing.
+
+### Tips
+
+- Upload before and after photos for every job to build a visual record.
+- Use descriptive file names before uploading so they are easy to identify later.
+- Drag and drop is the fastest method when uploading multiple files from your desktop.`,
+  },
+  // ============================================
+  // PORTAL PAGES (DETAILED)
+  // ============================================
+  {
+    slug: "invoice-portal-page",
+    category: "client-portal",
+    title: "Invoice Portal Page",
+    excerpt: "Detailed look at what customers see on the invoice portal page.",
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["invoice portal", "portal", "pay invoice", "pdf", "stripe checkout", "line items"],
+    content: `## Invoice Portal Overview
+
+The invoice portal page is a public, customer-facing page where your customers view and pay invoices. It is accessible at \`/portal/{your-org-slug}/invoices/{access-token}\` -- no login required.
+
+## Page Layout
+
+### Header
+The top of the page displays your business name and logo (if configured). It serves as the branding element so customers know who the invoice is from.
+
+### Invoice Summary
+Below the header, customers see:
+
+- **Invoice Number** -- The unique identifier (e.g., INV-001).
+- **Status Badge** -- Color-coded badge showing the current status: Draft (gray), Sent (blue), Paid (green), Overdue (red), or Void (gray).
+- **Issue Date** -- When the invoice was created.
+- **Due Date** -- When payment is expected.
+
+### Customer Information
+The customer's name, email, and phone number are displayed.
+
+### Line Items Table
+A detailed table showing every line item on the invoice:
+
+| Column | Description |
+|---|---|
+| Item | Service name and description |
+| Qty | Quantity |
+| Price | Unit price |
+| Total | Line total (qty x price) |
+
+### Totals Section
+Below the table:
+- **Subtotal** -- Sum of all line items before tax and discount.
+- **Tax** -- Tax amount applied.
+- **Discount** -- Discount amount (if any).
+- **Total** -- The final amount due.
+
+### Payment History
+If any payments have been recorded, a payment history section shows each payment with its date, amount, method, and status.
+
+### Notes
+Any customer-visible notes included on the invoice appear at the bottom.
+
+## Action Buttons
+
+Two primary actions are available:
+
+- **Download PDF** -- Generates and downloads a professional PDF of the invoice.
+- **Pay Now** -- Visible only when Stripe is connected, online payments are enabled, and the invoice has an outstanding balance. Clicking this button redirects the customer to Stripe Checkout where they can enter payment information securely.
+
+The Pay Now button does not appear if:
+- Stripe is not connected.
+- Online payments are disabled.
+- The invoice is already fully paid.
+- The invoice is voided.
+
+### Tips
+
+- Share the direct invoice portal link with customers who need to access their invoice again.
+- The portal page is mobile-responsive and works well on phones and tablets.
+- Customers can bookmark the invoice URL for future reference.`,
+  },
+  {
+    slug: "quote-portal-page",
+    category: "client-portal",
+    title: "Quote Portal Page",
+    excerpt: "Detailed look at what customers see on the quote portal page.",
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["quote portal", "portal", "approve", "decline", "pdf", "customer view"],
+    content: `## Quote Portal Overview
+
+The quote portal page is a public, customer-facing page where your customers review, approve, or decline quotes. It is accessible at \`/portal/{your-org-slug}/quotes/{access-token}\` -- no login required.
+
+## Page Layout
+
+### Header
+Your business name and logo (if configured) appear at the top for branding.
+
+### Quote Summary
+- **Quote Number** -- The unique identifier (e.g., QT-001).
+- **Status Badge** -- Color-coded badge showing: Draft (gray), Awaiting Response (blue), Approved (green), Declined (red), or Expired (orange).
+- **Created Date** -- When the quote was created.
+- **Valid Until** -- The expiration date after which the customer can no longer approve.
+
+### Customer Information
+The customer's name, email, and phone number.
+
+### Customer Message
+If you included a personal message when creating the quote, it appears prominently in a blue highlighted section above the line items.
+
+### Line Items Table
+A detailed table showing every line item:
+
+| Column | Description |
+|---|---|
+| Item | Service name and description |
+| Qty | Quantity |
+| Price | Unit price |
+| Total | Line total (qty x price) |
+
+### Totals Section
+- **Subtotal** -- Sum of all line items.
+- **Tax** -- Tax amount applied.
+- **Total** -- The final quoted amount.
+
+## Action Buttons
+
+### When Awaiting Response (Status: Sent)
+Two prominent action buttons appear:
+
+- **Approve** -- Clicking this immediately updates the quote status to Approved. A success confirmation appears on the page, and you receive a notification in JobStream.
+- **Decline** -- Clicking this opens a text area where the customer can optionally explain why they are declining. After entering a reason (or leaving it blank), they click **Submit Decline** to confirm. The quote status updates to Declined.
+
+### After Action Taken
+Once the customer has approved or declined, the action buttons are replaced with a confirmation message showing what action was taken and when.
+
+### Download PDF
+A **Download PDF** button is available regardless of status, letting customers save a professional PDF copy of the quote.
+
+### Expired Quotes
+If the quote has passed its Valid Until date, the status shows as Expired and the Approve/Decline buttons are no longer available.
+
+### Tips
+
+- Follow up with customers whose quotes are still in "Awaiting Response" status after a few days.
+- Review decline reasons in your notifications to understand why customers are not accepting quotes.
+- The quote portal is fully mobile-responsive for customers reviewing on their phones.`,
+  },
+  {
+    slug: "public-booking-form",
+    category: "online-booking",
+    title: "Public Booking Form",
+    excerpt: "How the customer-facing booking form works and what customers experience.",
+    lastUpdated: "2026-02-22",
+    readingTime: 3,
+    keywords: ["public booking", "booking form", "book", "customer booking", "service request", "time slots"],
+    content: `## Public Booking Form Overview
+
+The public booking form is a standalone page at \`/book/{your-org-slug}\` where anyone can request a service booking from your business. No login or account is required.
+
+## Customer Experience
+
+The booking form presents a clean, step-by-step layout:
+
+### 1. Select Service
+A dropdown lists all services you have enabled for online booking (configured in Settings > Booking Widget). Each service shows its name and price.
+
+### 2. Choose Date
+A date input lets the customer pick their preferred date. The form uses a standard date picker.
+
+### 3. Choose Time Slot
+After selecting a date, available time slots appear based on your business hours for that day of the week:
+
+- If the day is open, slots are generated from your start time to your end time at intervals matching your configured slot duration.
+- If the day is closed (e.g., Sunday), no time slots appear and a message indicates no availability.
+- Slot duration options (set in Settings > Booking Widget) control the spacing: 15, 30, 45, 60, 90, or 120 minutes.
+
+### 4. Contact Information
+The customer enters:
+- **First Name** (required)
+- **Last Name** (required)
+- **Email** (required)
+- **Phone** (required)
+
+### 5. Additional Notes
+An optional text area where the customer can describe their needs, provide access instructions, or add any other relevant details.
+
+### 6. Submit
+The customer clicks **Request Booking** to submit. A success confirmation page appears letting them know the request has been received and your team will follow up.
+
+## What Happens After Submission
+
+1. A new booking record is created in your **Bookings** section with a "Pending" status.
+2. The booking captures: customer name, email, phone, selected service, requested date, time, and notes.
+3. If the customer is new (email not already in your system), their information is stored with the booking for you to create a customer record.
+4. You receive a notification via the notification bell in the top bar.
+
+## Inactive State
+
+If online booking is disabled in Settings > Booking Widget, the booking page displays a message that online booking is not currently available.
+
+### Tips
+
+- Test your booking form by visiting \`/book/{your-slug}\` to see exactly what customers experience.
+- Make sure your business hours are set correctly since they directly control available time slots.
+- Share the booking URL prominently on your website and marketing materials.`,
+  },
+  // ============================================
+  // NOTIFICATION BELL
+  // ============================================
+  {
+    slug: "notification-bell",
+    category: "account-settings",
+    title: "Notification Bell",
+    excerpt: "Stay informed with real-time in-app notifications and the notification bell.",
+    lastUpdated: "2026-02-22",
+    readingTime: 2,
+    keywords: ["notifications", "bell", "alerts", "unread", "mark as read", "real-time"],
+    content: `## What Is the Notification Bell?
+
+The notification bell is an icon in the top bar of JobStream that shows you real-time notifications about important events in your business. A red badge displays the number of unread notifications.
+
+## How It Works
+
+The notification bell automatically polls for new notifications every 30 seconds. When new notifications arrive, the unread count badge updates without requiring a page refresh.
+
+## Viewing Notifications
+
+1. Click the **bell icon** in the top bar.
+2. A dropdown opens showing your 10 most recent notifications.
+3. Each notification displays:
+   - **Title** -- A brief description of the event (e.g., "New Booking Request," "Invoice Paid").
+   - **Message** -- Additional detail about the event.
+   - **Time** -- How long ago the notification was created (e.g., "5 min ago," "2h ago").
+   - **Read/Unread indicator** -- Unread notifications are visually highlighted.
+
+## Taking Action on Notifications
+
+- **Click a notification** -- If the notification is linked to a specific page (job, invoice, quote, booking), clicking it navigates you to that page and marks the notification as read.
+- **Mark as read** -- Click the dot icon on an individual notification to mark it as read without navigating.
+- **Mark all as read** -- Click the **Mark all as read** button at the top of the dropdown to clear all unread notifications at once.
+
+## Types of Notifications
+
+Notifications are generated for key business events including:
+
+- New booking requests received.
+- Quote approved or declined by a customer.
+- Invoice payment received.
+- Job status changes.
+- New customer messages or replies.
+
+## Empty State
+
+When you have no notifications, the dropdown displays a "No notifications" message.
+
+### Tips
+
+- Check the notification bell multiple times per day to stay on top of customer activity.
+- Use "Mark all as read" at the end of each day to start fresh the next morning.
+- Clicking a notification is the fastest way to navigate directly to the relevant page.`,
   },
 ]
 

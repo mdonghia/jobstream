@@ -113,6 +113,7 @@ export function TimeTrackingPage({
   const [elapsed, setElapsed] = useState(0)
   const [timerJobId, setTimerJobId] = useState<string>("")
   const [timerNotes, setTimerNotes] = useState("")
+  const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Data
@@ -176,6 +177,28 @@ export function TimeTrackingPage({
     fetchEntries()
   }, [fetchEntries])
 
+  // Check for active timer on mount
+  useEffect(() => {
+    async function checkActiveTimer() {
+      try {
+        const mod = await import("@/actions/time-entries").catch(() => null)
+        if (mod?.getActiveTimer) {
+          const result = await mod.getActiveTimer()
+          if (result && !("error" in result) && result.entry) {
+            setActiveEntryId(result.entry.id)
+            setTimerStart(new Date(result.entry.clockIn))
+            setTimerRunning(true)
+            if (result.entry.jobId) setTimerJobId(result.entry.jobId)
+            if (result.entry.notes) setTimerNotes(result.entry.notes)
+          }
+        }
+      } catch {
+        // Server actions not yet available
+      }
+    }
+    checkActiveTimer()
+  }, [])
+
   // Timer tick
   useEffect(() => {
     if (timerRunning && timerStart) {
@@ -193,11 +216,34 @@ export function TimeTrackingPage({
   // Handlers
   // ---------------------------------------------------------------------------
 
-  function handleStartTimer() {
-    const now = new Date()
-    setTimerStart(now)
-    setTimerRunning(true)
-    setElapsed(0)
+  async function handleStartTimer() {
+    try {
+      const mod = await import("@/actions/time-entries").catch(() => null)
+      if (mod?.startTimer) {
+        const result = await mod.startTimer({
+          jobId: timerJobId && timerJobId !== "none" ? timerJobId : undefined,
+          notes: timerNotes || undefined,
+        })
+        if (result && "error" in result) {
+          toast.error(result.error as string)
+          return
+        }
+        if (result?.entry) {
+          setActiveEntryId(result.entry.id)
+          setTimerStart(new Date(result.entry.clockIn))
+          setTimerRunning(true)
+          setElapsed(0)
+          return
+        }
+      }
+      // Fallback: local-only timer
+      const now = new Date()
+      setTimerStart(now)
+      setTimerRunning(true)
+      setElapsed(0)
+    } catch {
+      toast.error("Failed to start timer")
+    }
   }
 
   async function handleStopTimer() {
@@ -207,14 +253,24 @@ export function TimeTrackingPage({
 
     try {
       const mod = await import("@/actions/time-entries").catch(() => null)
-      if (mod?.createManualEntry) {
+      // If we have an active entry ID, use stopTimer
+      if (activeEntryId && mod?.stopTimer) {
+        const result = await mod.stopTimer(activeEntryId)
+        if (result && "error" in result) {
+          toast.error(result.error as string)
+        } else {
+          toast.success("Time entry saved")
+          fetchEntries()
+        }
+      } else if (mod?.createManualEntry) {
+        // Fallback: create manual entry if no active entry ID
         const clockIn = timerStart
         const clockOut = new Date()
         const result = await mod.createManualEntry({
           date: format(clockIn, "yyyy-MM-dd"),
           startTime: format(clockIn, "HH:mm"),
           endTime: format(clockOut, "HH:mm"),
-          jobId: timerJobId || undefined,
+          jobId: timerJobId && timerJobId !== "none" ? timerJobId : undefined,
           notes: timerNotes || undefined,
         })
         if (result && "error" in result) {
@@ -244,15 +300,32 @@ export function TimeTrackingPage({
     }
 
     // Reset timer
+    setActiveEntryId(null)
     setTimerStart(null)
     setElapsed(0)
     setTimerJobId("")
     setTimerNotes("")
   }
 
-  function handleDiscardTimer() {
+  async function handleDiscardTimer() {
     setTimerRunning(false)
     if (intervalRef.current) clearInterval(intervalRef.current)
+
+    // Delete the server-side entry if it exists
+    if (activeEntryId) {
+      try {
+        const mod = await import("@/actions/time-entries").catch(() => null)
+        if (mod?.discardTimer) {
+          await mod.discardTimer(activeEntryId)
+        } else if (mod?.deleteTimeEntry) {
+          await mod.deleteTimeEntry(activeEntryId)
+        }
+      } catch {
+        // Best effort cleanup
+      }
+    }
+
+    setActiveEntryId(null)
     setTimerStart(null)
     setElapsed(0)
     setTimerJobId("")
@@ -394,10 +467,44 @@ export function TimeTrackingPage({
           dateFrom = ws.toISOString()
           dateTo = we.toISOString()
         }
-        await mod.exportTimeEntries({ dateFrom, dateTo })
-        toast.success("Export started")
+        const result = await mod.exportTimeEntries({ dateFrom, dateTo })
+        if (!result || "error" in result || !result.entries || result.entries.length === 0) {
+          toast.error("No time entries to export")
+          return
+        }
+        const csvRows = result.entries.map((e: any) => ({
+          Date: e.clockIn ? new Date(e.clockIn).toLocaleDateString() : "",
+          "Team Member": e.user ? `${e.user.firstName} ${e.user.lastName}` : "Unknown",
+          "Clock In": e.clockIn ? new Date(e.clockIn).toLocaleTimeString() : "",
+          "Clock Out": e.clockOut ? new Date(e.clockOut).toLocaleTimeString() : "Running",
+          "Duration (min)": e.durationMinutes != null ? String(e.durationMinutes) : "",
+          Job: e.job ? `${e.job.jobNumber} - ${e.job.title}` : "",
+          Notes: e.notes ?? "",
+        }))
+        const headers = Object.keys(csvRows[0])
+        const rows = csvRows.map((row: any) =>
+          headers
+            .map((h) => {
+              const val = String(row[h] ?? "")
+              return val.includes(",") || val.includes('"')
+                ? `"${val.replace(/"/g, '""')}"`
+                : val
+            })
+            .join(",")
+        )
+        const csv = [headers.join(","), ...rows].join("\n")
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        link.href = url
+        link.download = `time-entries-export-${new Date().toISOString().slice(0, 10)}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        toast.success("Time entries exported")
       } else {
-        toast("Export not yet available")
+        toast.error("No time entries to export")
       }
     } catch {
       toast.error("Failed to export")

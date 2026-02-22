@@ -27,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils"
 import { toast } from "sonner"
-import { sendInvoice, voidInvoice } from "@/actions/invoices"
+import { sendInvoice, voidInvoice, sendInvoiceReminder } from "@/actions/invoices"
 import { RecordPaymentModal } from "./record-payment-modal"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -174,6 +174,22 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
     }
   }
 
+  async function handleSendReminder() {
+    setActionLoading("send")
+    try {
+      const result = await sendInvoiceReminder(invoice.id)
+      if ("error" in result) {
+        toast.error(result.error)
+        return
+      }
+      toast.success("Payment reminder sent")
+    } catch {
+      toast.error("Failed to send reminder")
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   // ─── Action Buttons per Status ─────────────────────────────────────────
 
   function renderActions() {
@@ -242,7 +258,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           key="reminder"
           variant="outline"
           className="border-[#E3E8EE] text-[#425466]"
-          onClick={handleSend}
+          onClick={handleSendReminder}
           disabled={actionLoading === "send"}
         >
           <Bell className="w-4 h-4 mr-2" />
@@ -320,6 +336,19 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         </Button>
       )
     }
+
+    // PDF Download button - always available
+    buttons.push(
+      <Button
+        key="pdf"
+        variant="outline"
+        className="border-[#E3E8EE] text-[#425466]"
+        onClick={() => window.open(`/api/pdf/invoice/${invoice.id}`, "_blank")}
+      >
+        <FileText className="w-4 h-4 mr-2" />
+        Download PDF
+      </Button>
+    )
 
     return buttons
   }
