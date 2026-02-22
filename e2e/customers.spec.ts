@@ -16,8 +16,10 @@ const TEST_FIRST = "Cust";
 const TEST_LAST = "Tester";
 const TEST_BUSINESS = "Cust Test Business";
 
-/** Timestamp suffix used to make customer data unique per run. */
-const TS = Date.now();
+/** Timestamp suffix used to make customer data unique per run.
+ *  Computed once in beforeAll so all tests in the suite share the same value.
+ */
+let TS: number;
 
 /** Helper: fill the login form and wait for the dashboard. */
 async function loginViaForm(page: Page) {
@@ -36,6 +38,7 @@ async function loginViaForm(page: Page) {
 // One-time setup: register a fresh user so the org has no customers.
 // ---------------------------------------------------------------------------
 test.beforeAll(async ({ browser }) => {
+  TS = Date.now();
   TEST_EMAIL = `cust-test-${TS}-${Math.floor(Math.random() * 10000)}@example.com`;
 
   const page = await browser.newPage();
@@ -96,8 +99,10 @@ test.describe("Customer CRUD", () => {
     // Click "Add Customer" -- could be the empty state button or the header button
     await page.getByRole("button", { name: /add customer/i }).click();
 
-    // The side sheet opens with title "Add Customer"
-    await expect(page.getByText("Add Customer")).toBeVisible({ timeout: 5000 });
+    // The side sheet opens -- verify via the sheet heading (not the trigger button)
+    await expect(
+      page.getByRole("heading", { name: "Add Customer" })
+    ).toBeVisible({ timeout: 5000 });
 
     // Fill contact information via label-based IDs
     await page.locator("#firstName").fill(`TestFirst-${TS}`);
@@ -118,19 +123,18 @@ test.describe("Customer CRUD", () => {
     });
 
     // Fill city -- the first input after the address fields within the card
-    // that doesn't have a placeholder set. We target by the Label "City *"
-    // parent container.
+    // Inputs inside property card: 0=addressLine1, 1=addressLine2, 2=city, 3=zip, 4=notes
     const cityInput = propertyCard
       .locator("input")
-      .nth(2); // addressLine1=0, addressLine2=1, city=2
+      .nth(2);
     await cityInput.fill("Testville");
 
     // State -- it's a Select component, click the trigger then pick a state
     await propertyCard.locator("button").filter({ hasText: "State" }).click();
     await page.getByRole("option", { name: "FL" }).click();
 
-    // ZIP
-    const zipInput = propertyCard.locator("input").last();
+    // ZIP -- index 3 (not .last() which is the property notes input)
+    const zipInput = propertyCard.locator("input").nth(3);
     await zipInput.fill("33101");
 
     // Submit the form
@@ -261,7 +265,7 @@ test.describe("Customer CRUD", () => {
     await page.getByRole("menuitem", { name: /edit/i }).click();
 
     // The edit sheet should open with the title "Edit Customer"
-    await expect(page.getByText("Edit Customer")).toBeVisible({
+    await expect(page.getByRole("heading", { name: "Edit Customer" })).toBeVisible({
       timeout: 5000,
     });
 
@@ -306,13 +310,8 @@ test.describe("Customer CRUD", () => {
   });
 
   test("can add a note to a customer", async ({ page }) => {
-    // First, unarchive -- switch to archived filter, find our customer, unarchive
-    await page.goto("/customers");
-
-    // Switch filter to "Archived" to find our archived customer
-    // Click the status Select trigger (first Select with "Active" text)
-    await page.locator("button").filter({ hasText: "Active" }).first().click();
-    await page.getByRole("option", { name: "Archived" }).click();
+    // First, unarchive -- navigate directly to the archived filter via URL
+    await page.goto("/customers?status=archived");
 
     // Wait for archived customer to appear
     await expect(
@@ -329,17 +328,13 @@ test.describe("Customer CRUD", () => {
     });
 
     // Unarchive via the dropdown menu on the detail page
-    // Click the MoreHorizontal button
-    const moreButton = page.locator("button").filter({
-      has: page.locator("svg"),
-    });
-    // The actions dropdown trigger is the icon-only button in the header area
-    await page
-      .locator(".flex.items-center.gap-2")
-      .locator("button")
-      .filter({ has: page.locator("svg.w-4.h-4") })
-      .last()
-      .click();
+    // The DropdownMenuTrigger is a small icon-only button (h-8 w-8) with MoreHorizontal icon
+    // Find it by looking for a button with the lucide-ellipsis SVG class
+    const moreMenuButton = page.locator('button:has(svg.lucide-ellipsis)').first();
+    await expect(moreMenuButton).toBeVisible({ timeout: 5000 });
+    await moreMenuButton.click();
+    // Wait for dropdown to appear
+    await expect(page.getByRole("menuitem", { name: /unarchive/i })).toBeVisible({ timeout: 5000 });
     await page.getByRole("menuitem", { name: /unarchive/i }).click();
     await expect(page.getByText("Customer restored")).toBeVisible({
       timeout: 10000,

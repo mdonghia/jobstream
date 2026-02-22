@@ -121,26 +121,20 @@ test.describe("Quick actions dropdown", () => {
     page,
   }) => {
     // The quick-actions trigger is the "+" icon button in the topbar header.
-    // It is an outline variant Button with a Plus icon.
+    // Looking at topbar.tsx: it is a Button with variant="outline" size="icon"
+    // containing a Plus icon. It is the first icon button in the right side of header.
+    // The DropdownMenuTrigger wraps it with asChild so no extra data attribute is added.
     const header = page.locator("header");
 
-    // The Plus button is the first dropdown trigger in the right side of the
-    // topbar. We target the button that contains the svg Plus icon.
-    const quickActionButton = header.locator('button[data-slot="trigger"]').first();
+    // Target the Plus/quick-actions button -- it's the outline icon button in the header.
+    // The header right side has: quick-actions button, bell button, user menu button.
+    // The Plus button is the first button containing an SVG in the right group.
+    // We use the fact that it has class h-8 w-8 border-[#E3E8EE] to distinguish it.
+    const quickActionButton = header.locator(
+      'button.h-8.w-8'
+    ).first();
 
-    // Fallback: if the radix trigger attribute is different, use a broader
-    // selector -- the first small icon button in the header's right side.
-    if (!(await quickActionButton.isVisible().catch(() => false))) {
-      // Use a CSS approach: the quick actions button is `variant="outline" size="icon"`
-      // which renders as a square button.
-      await header
-        .locator("button")
-        .filter({ has: page.locator("svg") })
-        .first()
-        .click();
-    } else {
-      await quickActionButton.click();
-    }
+    await quickActionButton.click();
 
     // The dropdown content should now be visible with all four actions
     const expectedActions = [
@@ -162,13 +156,9 @@ test.describe("Quick actions dropdown", () => {
   }) => {
     const header = page.locator("header");
 
-    // Open the quick actions dropdown
-    // Target the Plus button -- it's the outline/icon button
-    await header
-      .locator("button")
-      .filter({ has: page.locator("svg") })
-      .first()
-      .click();
+    // Open the quick actions dropdown -- same approach as above
+    const quickActionButton = header.locator('button.h-8.w-8').first();
+    await quickActionButton.click();
 
     // Click "New Quote" as a representative test
     await page.getByRole("menuitem", { name: "New Quote" }).click();

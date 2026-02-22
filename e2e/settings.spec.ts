@@ -190,9 +190,12 @@ test.describe("Team members", () => {
   test("can invite a team member", async ({ page }) => {
     await page.goto("/settings/team");
 
-    // Wait for the Team Members heading to appear
+    // Wait for the Team Members heading to appear.
+    // The TopBar h1 shows "Team Members" for this route.
+    // The TeamMembers component renders an h2 "Team Members" in the content area.
+    // Scope to main to avoid the topbar h1.
     await expect(
-      page.getByRole("heading", { name: "Team Members" })
+      page.getByRole("main").getByRole("heading", { name: "Team Members" })
     ).toBeVisible({ timeout: 10000 });
 
     // The current user should be listed (they are the OWNER)
@@ -211,7 +214,8 @@ test.describe("Team members", () => {
     ).toBeVisible({ timeout: 5000 });
 
     // Fill out the invite form
-    await page.getByPlaceholder("John").fill(`Invited-${TS}`);
+    // First name placeholder is "John" -- use exact match to avoid ambiguity
+    await page.getByPlaceholder("John", { exact: true }).fill(`Invited-${TS}`);
     await page.getByPlaceholder("Doe").fill("Member");
     await page
       .getByPlaceholder("john@example.com")
@@ -255,8 +259,9 @@ test.describe("Profile page", () => {
       page.getByRole("heading", { name: "Change Password" })
     ).toBeVisible();
 
-    // The first name and last name inputs should be pre-filled
-    const firstNameInput = page.getByPlaceholder("John");
+    // The first name input has placeholder "John" -- use exact match to avoid
+    // matching other inputs that might partially contain "John" (e.g. "john@example.com")
+    const firstNameInput = page.getByPlaceholder("John", { exact: true });
     await expect(firstNameInput).toHaveValue(TEST_FIRST, { timeout: 5000 });
 
     const lastNameInput = page.getByPlaceholder("Doe");

@@ -13,9 +13,10 @@ async function loginViaForm(page: Page) {
   await page.getByLabel(/email/i).fill("demo@jobstream.app");
   await page.getByLabel(/password/i).fill("password123");
   await page.getByRole("button", { name: /sign in/i }).click();
-  await page.waitForURL((url) => !url.pathname.includes("/login"), {
-    timeout: 15000,
-  });
+  // Wait for the topbar heading to confirm we landed on the dashboard
+  await expect(
+    page.locator("header").getByRole("heading", { level: 1 })
+  ).toHaveText("Dashboard", { timeout: 15000 });
 }
 
 // ---------------------------------------------------------------------------
@@ -25,19 +26,26 @@ test.describe("Payments Page", () => {
   test.beforeEach(async ({ page }) => {
     await loginViaForm(page);
     await page.goto("/payments");
-    // Wait for the page heading to confirm the page loaded
+    await page.waitForURL("/payments");
+    // Wait for the Payments h1 within main content
     await expect(
-      page.getByRole("main").getByRole("heading", { name: "Payments", level: 1 })
+      page.locator("main").locator("h1", { hasText: "Payments" })
     ).toBeVisible({ timeout: 15000 });
   });
 
   test("payments page loads with summary cards", async ({ page }) => {
-    // The page renders four summary cards with these uppercase label texts:
+    // The page renders four summary cards.
+    // Looking at payments-page.tsx, the card labels (uppercase CSS) are:
     // "Received This Month", "Received Last Month", "Outstanding", "Overdue"
     await expect(page.getByText("Received This Month")).toBeVisible();
     await expect(page.getByText("Received Last Month")).toBeVisible();
-    await expect(page.getByText("Outstanding")).toBeVisible();
-    await expect(page.getByText("Overdue")).toBeVisible();
+    // "Outstanding" also appears in the subtitle text, so use exact match
+    await expect(
+      page.getByText("Outstanding", { exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByText("Overdue", { exact: true })
+    ).toBeVisible();
   });
 
   test("payments table shows correct columns", async ({ page }) => {

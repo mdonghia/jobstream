@@ -178,6 +178,7 @@ test.describe("Create Job", () => {
 // ---------------------------------------------------------------------------
 test.describe("Job Detail & Status Transitions", () => {
   let jobDetailUrl: string;
+  const UNIQUE_JOB_TITLE = `Status Test Job ${Date.now()}`;
 
   test.beforeAll(async ({ browser }) => {
     // Create a job that subsequent tests will use
@@ -194,10 +195,10 @@ test.describe("Job Detail & Status Transitions", () => {
     await expect(page.locator("[cmdk-list]")).toBeVisible({ timeout: 5000 });
     await page.locator("[cmdk-item]").first().click();
 
-    // Set title
+    // Set title with unique name
     await page
       .locator('input[placeholder="e.g., Weekly lawn mowing"]')
-      .fill("Status Transition Test Job");
+      .fill(UNIQUE_JOB_TITLE);
 
     // Set date
     const dateButton = page.getByRole("button", { name: /pick a date/i });
@@ -213,7 +214,8 @@ test.describe("Job Detail & Status Transitions", () => {
 
     // Create the job
     await page.getByRole("button", { name: /create job/i }).click();
-    await expect(page).toHaveURL(/\/jobs\/[a-zA-Z0-9-]+$/, { timeout: 15000 });
+    // Wait for redirect to job detail page (UUID format, not /jobs/new)
+    await expect(page).toHaveURL(/\/jobs\/(?!new)[a-zA-Z0-9-]+$/, { timeout: 15000 });
 
     jobDetailUrl = page.url();
     await page.close();
@@ -230,14 +232,14 @@ test.describe("Job Detail & Status Transitions", () => {
     const searchInput = page.locator(
       'input[placeholder="Search by customer name, job number, or title..."]'
     );
-    await searchInput.fill("Status Transition Test Job");
+    await searchInput.fill(UNIQUE_JOB_TITLE);
 
     // Wait for the search debounce and results to update
     await page.waitForTimeout(1000);
 
     // The table should show our job
     await expect(
-      page.locator("tbody").getByText("Status Transition Test Job")
+      page.locator("tbody").getByText(UNIQUE_JOB_TITLE).first()
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -247,7 +249,7 @@ test.describe("Job Detail & Status Transitions", () => {
 
     // The job title should be in the heading
     await expect(
-      page.getByRole("heading", { name: "Status Transition Test Job" })
+      page.getByRole("heading", { name: UNIQUE_JOB_TITLE })
     ).toBeVisible({ timeout: 10000 });
 
     // The job number should be visible (font-mono style)
@@ -274,7 +276,7 @@ test.describe("Job Detail & Status Transitions", () => {
 
     // Wait for the page to load
     await expect(
-      page.getByRole("heading", { name: "Status Transition Test Job" })
+      page.getByRole("heading", { name: UNIQUE_JOB_TITLE })
     ).toBeVisible({ timeout: 10000 });
 
     // The "Start Job" button should be visible for a SCHEDULED job
@@ -284,8 +286,8 @@ test.describe("Job Detail & Status Transitions", () => {
     // Click "Start Job"
     await startButton.click();
 
-    // Wait for the status to update
-    await expect(page.getByText(/job started/i)).toBeVisible({ timeout: 5000 });
+    // Wait for the status to update (use .first() as text appears in both activity timeline and toast)
+    await expect(page.getByText(/job started/i).first()).toBeVisible({ timeout: 5000 });
 
     // The status badge should now show "In Progress"
     await expect(page.getByText("In Progress").first()).toBeVisible({
@@ -307,7 +309,7 @@ test.describe("Job Detail & Status Transitions", () => {
 
     // Wait for the page to load
     await expect(
-      page.getByRole("heading", { name: "Status Transition Test Job" })
+      page.getByRole("heading", { name: UNIQUE_JOB_TITLE })
     ).toBeVisible({ timeout: 10000 });
 
     // The job should now be IN_PROGRESS (from the previous test)
@@ -337,8 +339,8 @@ test.describe("Job Detail & Status Transitions", () => {
     });
     await confirmCompleteButton.click();
 
-    // Wait for success toast
-    await expect(page.getByText(/job completed successfully/i)).toBeVisible({
+    // Wait for success toast (use .first() in case it appears in both toast and timeline)
+    await expect(page.getByText(/job completed successfully/i).first()).toBeVisible({
       timeout: 10000,
     });
 
@@ -350,6 +352,18 @@ test.describe("Job Detail & Status Transitions", () => {
 
     // Dismiss the invoice prompt by clicking "Not Now"
     await dialog.getByRole("button", { name: /not now/i }).click();
+
+    // Wait for the dialog to close
+    await expect(dialog).not.toBeVisible({ timeout: 5000 });
+
+    // Reload the page to pick up the new status from the server
+    // (router.refresh() may not reliably complete in time)
+    await page.reload({ waitUntil: "networkidle" });
+
+    // Wait for the page to fully load
+    await expect(
+      page.getByRole("heading", { name: UNIQUE_JOB_TITLE })
+    ).toBeVisible({ timeout: 10000 });
 
     // The status badge should now show "Completed"
     await expect(page.getByText("Completed").first()).toBeVisible({

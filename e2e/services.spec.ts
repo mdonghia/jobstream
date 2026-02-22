@@ -75,9 +75,11 @@ test.describe("Services navigation", () => {
 
     await expect(page).toHaveURL(/\/settings\/services/, { timeout: 10000 });
 
-    // The Services heading should be visible
+    // The Services heading should be visible -- scope to main to avoid
+    // matching the topbar h1 ("Services") and empty-state h3.
+    // The settings/services page renders an h2 "Services" in the content area.
     await expect(
-      page.getByRole("heading", { name: "Services" })
+      page.getByRole("main").getByRole("heading", { name: "Services", level: 2 })
     ).toBeVisible({ timeout: 5000 });
   });
 });

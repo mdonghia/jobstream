@@ -12,7 +12,10 @@ async function loginViaForm(page: Page) {
   await page.getByLabel(/email/i).fill('demo@jobstream.app');
   await page.getByLabel(/password/i).fill('password123');
   await page.getByRole('button', { name: /sign in/i }).click();
-  await page.waitForURL(url => !url.pathname.includes('/login'));
+  // Wait for the topbar heading to confirm we landed on the dashboard
+  await expect(
+    page.locator("header").getByRole("heading", { level: 1 })
+  ).toHaveText("Dashboard", { timeout: 15000 });
 }
 
 // =============================================================================
@@ -94,8 +97,12 @@ test.describe("Dashboard Page", () => {
       page.getByRole("heading", { name: /welcome back/i, level: 1 })
     ).toBeVisible({ timeout: 15000 });
 
-    // The recent activity card has the title "Recent Activity"
-    await expect(page.getByText("Recent Activity")).toBeVisible();
+    // The recent activity card has the CardTitle "Recent Activity".
+    // With no activity in a fresh seed, it shows "No recent activity" empty state.
+    // Either the card title or the empty-state text should be visible.
+    await expect(
+      page.getByRole("main").getByText(/recent activity/i).first()
+    ).toBeVisible({ timeout: 10000 });
   });
 });
 

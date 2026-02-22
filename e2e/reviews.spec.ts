@@ -12,7 +12,10 @@ async function loginViaForm(page: Page) {
   await page.getByLabel(/email/i).fill('demo@jobstream.app');
   await page.getByLabel(/password/i).fill('password123');
   await page.getByRole('button', { name: /sign in/i }).click();
-  await page.waitForURL(url => !url.pathname.includes('/login'));
+  // Wait for the topbar heading to confirm we landed on the dashboard
+  await expect(
+    page.locator("header").getByRole("heading", { level: 1 })
+  ).toHaveText("Dashboard", { timeout: 15000 });
 }
 
 test.describe("Reviews Page", () => {
@@ -94,20 +97,24 @@ test.describe("Reviews Page", () => {
     await expect(page.getByRole("option", { name: "5 Stars" })).toBeVisible();
     await expect(page.getByRole("option", { name: "1 Star" })).toBeVisible();
 
-    // Close dropdown by pressing Escape
+    // Close rating dropdown by pressing Escape
     await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
 
-    // Responded filter -- the trigger shows "All" by default
-    const respondedTrigger = page.getByRole("combobox").filter({
-      hasText: /^All$/,
-    });
+    // Responded filter -- the trigger shows "All" by default.
+    // After closing the rating dropdown, find the combobox that shows exactly "All"
+    // (not "All Platforms" or "All Ratings"). Use nth(2) since order is:
+    // 0=Platform (now "Google"), 1=Rating (still "All Ratings"), 2=Responded ("All")
+    const allComboboxes = page.getByRole("combobox");
+    // The responded filter is the 3rd combobox (index 2) in the filter row
+    const respondedTrigger = allComboboxes.nth(2);
     await expect(respondedTrigger).toBeVisible();
     await respondedTrigger.click();
     await expect(
-      page.getByRole("option", { name: "Responded" })
+      page.getByRole("option", { name: "Responded", exact: true })
     ).toBeVisible();
     await expect(
-      page.getByRole("option", { name: "Not Responded" })
+      page.getByRole("option", { name: "Not Responded", exact: true })
     ).toBeVisible();
 
     // Close dropdown

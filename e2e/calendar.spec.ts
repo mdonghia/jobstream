@@ -103,10 +103,13 @@ test.describe("Calendar / Schedule", () => {
   });
 
   test("Today button works", async ({ page }) => {
+    // Scope to the main area to avoid duplicate chevron-right icons elsewhere
+    const mainArea = page.getByRole("main");
+
     // First navigate away from today by clicking the forward arrow a few times
-    const forwardButton = page.locator("button").filter({
+    const forwardButton = mainArea.locator("button").filter({
       has: page.locator("svg.lucide-chevron-right"),
-    });
+    }).first();
     await expect(forwardButton).toBeVisible();
 
     // Click forward to go to next week
@@ -127,14 +130,17 @@ test.describe("Calendar / Schedule", () => {
   });
 
   test("navigation arrows change the date range", async ({ page }) => {
+    // Scope to the main area to avoid duplicate chevron icons elsewhere
+    const mainArea = page.getByRole("main");
+
     // Capture current date label
     const dateLabel = page.locator("h2.text-base.font-semibold");
     const initialText = await dateLabel.textContent();
 
-    // Click the forward arrow
-    const forwardButton = page.locator("button").filter({
+    // Click the forward arrow (scoped to main to avoid topbar icons)
+    const forwardButton = mainArea.locator("button").filter({
       has: page.locator("svg.lucide-chevron-right"),
-    });
+    }).first();
     await forwardButton.click();
     await page.waitForTimeout(500);
 
@@ -143,9 +149,9 @@ test.describe("Calendar / Schedule", () => {
     expect(afterForwardText).not.toBe(initialText);
 
     // Click the back arrow
-    const backButton = page.locator("button").filter({
+    const backButton = mainArea.locator("button").filter({
       has: page.locator("svg.lucide-chevron-left"),
-    });
+    }).first();
     await backButton.click();
     await page.waitForTimeout(500);
 
