@@ -29,6 +29,7 @@ import {
   archiveCustomer,
   unarchiveCustomer,
   getCustomers,
+  getCustomer,
   getAllTags,
 } from "@/actions/customers"
 
@@ -39,6 +40,8 @@ interface CustomerRow {
   email: string | null
   phone: string | null
   company: string | null
+  source: string | null
+  notes: string | null
   tags: string[]
   isArchived: boolean
   propertiesCount: number
@@ -82,6 +85,30 @@ export function CustomerList({
 
   const [formOpen, setFormOpen] = useState(searchParams.get("action") === "new")
   const [editingCustomer, setEditingCustomer] = useState<CustomerRow | null>(null)
+  const [editingProperties, setEditingProperties] = useState<any[] | undefined>(undefined)
+
+  async function handleEditClick(customer: CustomerRow) {
+    setEditingCustomer(customer)
+    // Fetch full customer data including properties
+    try {
+      const result = await getCustomer(customer.id)
+      if ("customer" in result && result.customer) {
+        setEditingProperties(
+          result.customer.properties.map((p: any) => ({
+            addressLine1: p.addressLine1,
+            addressLine2: p.addressLine2 || "",
+            city: p.city,
+            state: p.state,
+            zip: p.zip,
+            notes: p.notes || "",
+            isPrimary: p.isPrimary,
+          }))
+        )
+      }
+    } catch {
+      // If fetch fails, properties will just be empty
+    }
+  }
 
   const fetchCustomers = useCallback(
     async (params?: {
@@ -167,16 +194,17 @@ export function CustomerList({
 
   async function handleUpdateCustomer(
     customerData: any,
-    _properties: any[]
+    properties: any[]
   ) {
     if (!editingCustomer) return
-    const result = await updateCustomer(editingCustomer.id, customerData)
+    const result = await updateCustomer(editingCustomer.id, customerData, properties)
     if (result && "error" in result) {
       toast.error(result.error as string)
       throw new Error(result.error as string)
     }
     toast.success("Customer updated")
     setEditingCustomer(null)
+    setEditingProperties(undefined)
     fetchCustomers()
   }
 
@@ -396,7 +424,7 @@ export function CustomerList({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem
-                          onClick={() => setEditingCustomer(customer)}
+                          onClick={() => handleEditClick(customer)}
                         >
                           <Pencil className="w-4 h-4 mr-2" />
                           Edit
@@ -483,7 +511,10 @@ export function CustomerList({
         <CustomerForm
           open={!!editingCustomer}
           onOpenChange={(open) => {
-            if (!open) setEditingCustomer(null)
+            if (!open) {
+              setEditingCustomer(null)
+              setEditingProperties(undefined)
+            }
           }}
           onSave={handleUpdateCustomer}
           title="Edit Customer"
@@ -493,9 +524,10 @@ export function CustomerList({
             email: editingCustomer.email || "",
             phone: editingCustomer.phone || "",
             company: editingCustomer.company || "",
-            source: "",
+            source: editingCustomer.source || "",
             tags: editingCustomer.tags || [],
-            notes: "",
+            notes: editingCustomer.notes || "",
+            properties: editingProperties,
           }}
         />
       )}

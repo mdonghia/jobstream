@@ -63,12 +63,19 @@ export async function getCustomers(params: GetCustomersParams = {}) {
     }
 
     // Search across firstName, lastName, email, phone
+    // Split on whitespace so multi-word searches like "David Brown" match across fields
     if (search && search.trim()) {
-      where.OR = [
-        { firstName: { contains: search, mode: "insensitive" } },
-        { lastName: { contains: search, mode: "insensitive" } },
-        { email: { contains: search, mode: "insensitive" } },
-        { phone: { contains: search, mode: "insensitive" } },
+      const words = search.trim().split(/\s+/)
+      where.AND = [
+        ...(where.AND || []),
+        ...words.map((word: string) => ({
+          OR: [
+            { firstName: { contains: word, mode: "insensitive" } },
+            { lastName: { contains: word, mode: "insensitive" } },
+            { email: { contains: word, mode: "insensitive" } },
+            { phone: { contains: word, mode: "insensitive" } },
+          ],
+        })),
       ]
     }
 
@@ -306,7 +313,8 @@ export async function createCustomer(
 
 export async function updateCustomer(
   id: string,
-  data: Partial<z.infer<typeof customerSchema>>
+  data: Partial<z.infer<typeof customerSchema>>,
+  properties?: z.infer<typeof propertySchema>[]
 ) {
   try {
     const user = await requireAuth()
@@ -330,9 +338,48 @@ export async function updateCustomer(
       return { error: result.error.issues[0].message }
     }
 
-    const customer = await prisma.customer.update({
-      where: { id },
-      data: result.data,
+    // Validate properties if provided
+    if (properties && properties.length > 0) {
+      for (const prop of properties) {
+        const propResult = propertySchema.safeParse(prop)
+        if (!propResult.success) {
+          return { error: propResult.error.issues[0].message }
+        }
+      }
+    }
+
+    // Use a transaction to update customer and replace properties atomically
+    const customer = await prisma.$transaction(async (tx) => {
+      const updatedCustomer = await tx.customer.update({
+        where: { id },
+        data: result.data,
+      })
+
+      // If properties are provided, delete all existing and create new ones
+      if (properties !== undefined) {
+        await tx.property.deleteMany({
+          where: { customerId: id },
+        })
+
+        if (properties.length > 0) {
+          for (const prop of properties) {
+            await tx.property.create({
+              data: {
+                customerId: id,
+                addressLine1: prop.addressLine1,
+                addressLine2: prop.addressLine2 || null,
+                city: prop.city,
+                state: prop.state,
+                zip: prop.zip,
+                notes: prop.notes || null,
+                isPrimary: prop.isPrimary ?? false,
+              },
+            })
+          }
+        }
+      }
+
+      return updatedCustomer
     })
 
     return { customer }

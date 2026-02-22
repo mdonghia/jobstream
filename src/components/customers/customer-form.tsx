@@ -201,7 +201,7 @@ export function CustomerForm({
           <SheetTitle className="text-[#0A2540]">{title}</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-6 space-y-6">
+        <div className="mt-6 space-y-6 px-6">
           {/* Contact Information */}
           <div>
             <h3 className="text-xs font-semibold uppercase text-[#8898AA] mb-3">
