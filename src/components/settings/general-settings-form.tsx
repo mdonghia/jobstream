@@ -450,7 +450,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
           Set the hours your business operates each day.
         </p>
 
-        <div className="mt-4 overflow-hidden rounded-lg border border-[#E3E8EE]">
+        <div className="mt-4 overflow-x-auto rounded-lg border border-[#E3E8EE]">
           <table className="w-full">
             <thead>
               <tr className="border-b border-[#E3E8EE] bg-[#F6F8FA]">

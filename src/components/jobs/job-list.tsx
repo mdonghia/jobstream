@@ -287,7 +287,7 @@ export function JobList({
       </div>
 
       {/* Status Tabs */}
-      <div className="flex gap-1 mb-4 border-b border-[#E3E8EE]">
+      <div className="flex gap-1 mb-4 border-b border-[#E3E8EE] overflow-x-auto">
         {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}

@@ -410,7 +410,7 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-6">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" asChild className="h-8 w-8 mt-1" aria-label="Go back">
             <Link href="/jobs">
@@ -418,7 +418,7 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
             </Link>
           </Button>
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-semibold text-[#0A2540]">
                 {job.title}
               </h1>
@@ -430,7 +430,7 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
           {/* Status action buttons */}
           {job.status === "SCHEDULED" && (
             <Button

@@ -213,7 +213,7 @@ export function TeamMembers({
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-[#0A2540]">
             Team Members
@@ -226,7 +226,7 @@ export function TeamMembers({
         {canManageTeam && (
           <Button
             onClick={() => setInviteOpen(true)}
-            className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+            className="bg-[#635BFF] hover:bg-[#5851ea] text-white flex-shrink-0"
           >
             <UserPlus className="mr-2 h-4 w-4" />
             Invite Team Member

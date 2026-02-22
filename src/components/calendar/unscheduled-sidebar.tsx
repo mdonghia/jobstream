@@ -46,7 +46,7 @@ export function UnscheduledSidebar({ jobs }: UnscheduledSidebarProps) {
   return (
     <div
       className={cn(
-        "shrink-0 border-l border-[#E3E8EE] bg-white transition-all duration-200 flex flex-col",
+        "shrink-0 border-l border-[#E3E8EE] bg-white transition-all duration-200 hidden lg:flex flex-col",
         collapsed ? "w-10" : "w-[280px]"
       )}
     >

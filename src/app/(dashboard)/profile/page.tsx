@@ -20,7 +20,7 @@ export default async function ProfilePage() {
 
   if (!dbUser) {
     return (
-      <div className="p-8">
+      <div className="p-4 sm:p-6 lg:p-8">
         <h1 className="text-2xl font-semibold text-[#0A2540]">Profile</h1>
         <p className="mt-2 text-sm text-red-500">User not found.</p>
       </div>
@@ -28,7 +28,7 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[#0A2540]">Profile</h1>
       <p className="mt-1 text-sm text-[#425466]">
         Manage your personal information and password.

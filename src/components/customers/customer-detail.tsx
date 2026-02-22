@@ -175,7 +175,7 @@ export function CustomerDetail({
           Customers
         </Link>
 
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-semibold text-[#0A2540]">
@@ -192,7 +192,7 @@ export function CustomerDetail({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -242,7 +242,7 @@ export function CustomerDetail({
 
       {/* Tabs */}
       <Tabs defaultValue="overview">
-        <TabsList className="bg-transparent border-b border-[#E3E8EE] rounded-none w-full justify-start h-auto p-0 gap-0">
+        <TabsList className="bg-transparent border-b border-[#E3E8EE] rounded-none w-full justify-start h-auto p-0 gap-0 overflow-x-auto">
           {[
             { value: "overview", label: "Overview" },
             { value: "quotes", label: "Quotes", count: quotes.length },
@@ -455,8 +455,8 @@ export function CustomerDetail({
               </Button>
             </div>
           ) : (
-            <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden">
-              <table className="w-full">
+            <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden overflow-x-auto">
+              <table className="w-full min-w-[500px]">
                 <thead>
                   <tr className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Quote #</th>
@@ -504,8 +504,8 @@ export function CustomerDetail({
               </Button>
             </div>
           ) : (
-            <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden">
-              <table className="w-full">
+            <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden overflow-x-auto">
+              <table className="w-full min-w-[450px]">
                 <thead>
                   <tr className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Job #</th>
@@ -551,8 +551,8 @@ export function CustomerDetail({
               </Button>
             </div>
           ) : (
-            <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden">
-              <table className="w-full">
+            <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden overflow-x-auto">
+              <table className="w-full min-w-[500px]">
                 <thead>
                   <tr className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Invoice #</th>
@@ -592,8 +592,8 @@ export function CustomerDetail({
               <p className="text-sm text-[#8898AA]">No payments yet</p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden">
-              <table className="w-full">
+            <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden overflow-x-auto">
+              <table className="w-full min-w-[500px]">
                 <thead>
                   <tr className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Date</th>

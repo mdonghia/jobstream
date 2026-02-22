@@ -22,11 +22,34 @@ export default function SettingsLayout({
   const pathname = usePathname()
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <h1 className="text-2xl font-semibold text-[#0A2540]">Settings</h1>
 
+      {/* Mobile: horizontal scrollable nav */}
+      <nav className="mt-4 -mx-4 px-4 overflow-x-auto lg:hidden">
+        <div className="flex gap-1 min-w-max pb-2">
+          {settingsLinks.map((link) => {
+            const isActive = pathname === link.href
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-[#635BFF] text-white"
+                    : "bg-[#F6F8FA] text-[#425466] hover:bg-gray-200"
+                }`}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
+        </div>
+      </nav>
+
       <div className="mt-6 flex gap-8">
-        <nav className="w-56 flex-shrink-0">
+        {/* Desktop: vertical sidebar nav */}
+        <nav className="hidden lg:block w-56 flex-shrink-0">
           <ul className="space-y-1">
             {settingsLinks.map((link) => {
               const isActive = pathname === link.href

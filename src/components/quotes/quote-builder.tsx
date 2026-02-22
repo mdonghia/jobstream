@@ -322,7 +322,7 @@ export function QuoteBuilder({
         </p>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col lg:flex-row gap-6">
         {/* Left column */}
         <div className="flex-1 space-y-6">
           {/* Section 1: Customer & Property */}
@@ -346,7 +346,7 @@ export function QuoteBuilder({
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[460px] p-0" align="start">
+                  <PopoverContent className="w-[min(460px,calc(100vw-2rem))] p-0" align="start">
                     <Command shouldFilter={false}>
                       <CommandInput
                         placeholder="Search by name, email, or phone..."
@@ -594,7 +594,7 @@ export function QuoteBuilder({
         </div>
 
         {/* Right column: Summary card */}
-        <div className="w-[320px] flex-shrink-0">
+        <div className="w-full lg:w-[320px] flex-shrink-0">
           <div className="sticky top-6">
             <Card className="border-[#E3E8EE]">
               <CardContent className="pt-6 space-y-4">

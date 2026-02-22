@@ -1028,7 +1028,7 @@ export function ReportsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList variant="line" className="mb-6">
+        <TabsList variant="line" className="mb-6 overflow-x-auto">
           <TabsTrigger value="revenue" className="gap-1.5">
             <DollarSign className="w-4 h-4" />
             Revenue

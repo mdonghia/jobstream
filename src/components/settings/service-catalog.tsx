@@ -297,7 +297,7 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-[#0A2540]">Services</h2>
           <p className="mt-1 text-sm text-[#425466]">
@@ -307,7 +307,7 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
         </div>
         <Button
           onClick={openAddDialog}
-          className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+          className="bg-[#635BFF] hover:bg-[#5851ea] text-white flex-shrink-0"
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Service

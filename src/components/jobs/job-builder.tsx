@@ -822,7 +822,7 @@ export function JobBuilder({
                     <Label className="text-sm text-[#425466]">
                       Repeat on days
                     </Label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {WEEKDAYS.map((day, index) => (
                         <button
                           key={day}
