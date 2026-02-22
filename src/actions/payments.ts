@@ -50,13 +50,20 @@ export async function getPayments(params: GetPaymentsParams = {}) {
       where.status = status
     }
 
+    // Split on whitespace so multi-word searches like "David Brown" match across fields
     if (search && search.trim()) {
-      where.OR = [
-        { reference: { contains: search, mode: "insensitive" } },
-        { notes: { contains: search, mode: "insensitive" } },
-        { invoice: { invoiceNumber: { contains: search, mode: "insensitive" } } },
-        { invoice: { customer: { firstName: { contains: search, mode: "insensitive" } } } },
-        { invoice: { customer: { lastName: { contains: search, mode: "insensitive" } } } },
+      const words = search.trim().split(/\s+/)
+      where.AND = [
+        ...(where.AND || []),
+        ...words.map((word: string) => ({
+          OR: [
+            { reference: { contains: word, mode: "insensitive" } },
+            { notes: { contains: word, mode: "insensitive" } },
+            { invoice: { invoiceNumber: { contains: word, mode: "insensitive" } } },
+            { invoice: { customer: { firstName: { contains: word, mode: "insensitive" } } } },
+            { invoice: { customer: { lastName: { contains: word, mode: "insensitive" } } } },
+          ],
+        })),
       ]
     }
 

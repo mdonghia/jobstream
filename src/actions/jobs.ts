@@ -63,12 +63,19 @@ export async function getJobs(params: GetJobsParams = {}) {
       if (dateTo) where.scheduledStart.lte = new Date(dateTo)
     }
 
+    // Split on whitespace so multi-word searches like "David Brown" match across fields
     if (search && search.trim()) {
-      where.OR = [
-        { jobNumber: { contains: search, mode: "insensitive" } },
-        { title: { contains: search, mode: "insensitive" } },
-        { customer: { firstName: { contains: search, mode: "insensitive" } } },
-        { customer: { lastName: { contains: search, mode: "insensitive" } } },
+      const words = search.trim().split(/\s+/)
+      where.AND = [
+        ...(where.AND || []),
+        ...words.map((word: string) => ({
+          OR: [
+            { jobNumber: { contains: word, mode: "insensitive" } },
+            { title: { contains: word, mode: "insensitive" } },
+            { customer: { firstName: { contains: word, mode: "insensitive" } } },
+            { customer: { lastName: { contains: word, mode: "insensitive" } } },
+          ],
+        })),
       ]
     }
 

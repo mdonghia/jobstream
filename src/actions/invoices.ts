@@ -39,11 +39,18 @@ export async function getInvoices(params: GetInvoicesParams = {}) {
       where.status = status
     }
 
+    // Split on whitespace so multi-word searches like "David Brown" match across fields
     if (search && search.trim()) {
-      where.OR = [
-        { invoiceNumber: { contains: search, mode: "insensitive" } },
-        { customer: { firstName: { contains: search, mode: "insensitive" } } },
-        { customer: { lastName: { contains: search, mode: "insensitive" } } },
+      const words = search.trim().split(/\s+/)
+      where.AND = [
+        ...(where.AND || []),
+        ...words.map((word: string) => ({
+          OR: [
+            { invoiceNumber: { contains: word, mode: "insensitive" } },
+            { customer: { firstName: { contains: word, mode: "insensitive" } } },
+            { customer: { lastName: { contains: word, mode: "insensitive" } } },
+          ],
+        })),
       ]
     }
 

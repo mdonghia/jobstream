@@ -10,6 +10,7 @@ import {
   Building2,
   MapPin,
   Tag,
+  Globe,
   Calendar,
   MoreHorizontal,
   Pencil,
@@ -42,10 +43,12 @@ import {
   archiveCustomer,
   unarchiveCustomer,
   deleteCustomer,
+  updateCustomer,
   addCustomerNote,
   addProperty,
   deleteProperty,
 } from "@/actions/customers"
+import { CustomerForm } from "@/components/customers/customer-form"
 
 interface Property {
   id: string
@@ -112,6 +115,7 @@ export function CustomerDetail({
   const [notes, setNotes] = useState(initialNotes)
   const [noteInput, setNoteInput] = useState("")
   const [noteSaving, setNoteSaving] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   async function handleArchive() {
     const result = customer.isArchived
@@ -160,6 +164,64 @@ export function CustomerDetail({
       return
     }
     toast.success("Property deleted")
+    router.refresh()
+  }
+
+  async function handleSave(
+    customerData: {
+      firstName: string
+      lastName: string
+      email: string
+      phone: string
+      company: string
+      source: string
+      tags: string[]
+      notes: string
+    },
+    properties: {
+      addressLine1: string
+      addressLine2: string
+      city: string
+      state: string
+      zip: string
+      notes: string
+      isPrimary: boolean
+    }[]
+  ) {
+    // Update the customer fields
+    const result = await updateCustomer(customer.id, customerData)
+    if (result && "error" in result) {
+      toast.error(result.error as string)
+      return
+    }
+
+    // Handle properties: delete all existing, then create new ones
+    // This ensures a clean sync between form state and database
+    for (const existing of customer.properties) {
+      const delResult = await deleteProperty(existing.id)
+      if (delResult && "error" in delResult) {
+        toast.error(delResult.error as string)
+        return
+      }
+    }
+
+    for (const prop of properties) {
+      const addResult = await addProperty(customer.id, {
+        addressLine1: prop.addressLine1,
+        addressLine2: prop.addressLine2 || "",
+        city: prop.city,
+        state: prop.state,
+        zip: prop.zip,
+        notes: prop.notes || "",
+        isPrimary: prop.isPrimary,
+      })
+      if (addResult && "error" in addResult) {
+        toast.error(addResult.error as string)
+        return
+      }
+    }
+
+    toast.success("Customer updated")
     router.refresh()
   }
 
@@ -222,6 +284,11 @@ export function CustomerDetail({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleArchive}>
                   <Archive className="w-4 h-4 mr-2" />
                   {customer.isArchived ? "Unarchive" : "Archive"}
@@ -242,7 +309,7 @@ export function CustomerDetail({
 
       {/* Tabs */}
       <Tabs defaultValue="overview">
-        <TabsList className="bg-transparent border-b border-[#E3E8EE] rounded-none w-full justify-start h-auto p-0 gap-0 overflow-x-auto">
+        <TabsList className="bg-transparent border-b border-[#E3E8EE] rounded-none w-full justify-start h-auto p-0 gap-0 overflow-x-auto overflow-y-hidden">
           {[
             { value: "overview", label: "Overview" },
             { value: "quotes", label: "Quotes", count: quotes.length },
@@ -308,8 +375,8 @@ export function CustomerDetail({
                 )}
                 {customer.source && (
                   <div className="flex items-center gap-3">
-                    <Tag className="w-4 h-4 text-[#8898AA]" />
-                    <span className="text-sm text-[#425466] capitalize">{customer.source}</span>
+                    <Globe className="w-4 h-4 text-[#8898AA]" />
+                    <span className="text-sm text-[#425466] capitalize">Source: {customer.source}</span>
                   </div>
                 )}
                 <div className="flex items-center gap-3">
@@ -388,6 +455,15 @@ export function CustomerDetail({
               <CardTitle className="text-sm font-semibold uppercase text-[#8898AA]">
                 Properties
               </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-[#E3E8EE] text-[#425466]"
+                onClick={() => setEditOpen(true)}
+              >
+                <Plus className="w-4 h-4 mr-1.5" />
+                Add Property
+              </Button>
             </CardHeader>
             <CardContent>
               {customer.properties.length === 0 ? (
@@ -691,6 +767,32 @@ export function CustomerDetail({
           </div>
         </TabsContent>
       </Tabs>
+
+      <CustomerForm
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSave={handleSave}
+        title="Edit Customer"
+        initialData={{
+          firstName: customer.firstName,
+          lastName: customer.lastName,
+          email: customer.email || "",
+          phone: customer.phone || "",
+          company: customer.company || "",
+          source: customer.source || "",
+          tags: customer.tags,
+          notes: customer.notes || "",
+          properties: customer.properties.map((p) => ({
+            addressLine1: p.addressLine1,
+            addressLine2: p.addressLine2 || "",
+            city: p.city,
+            state: p.state,
+            zip: p.zip,
+            notes: p.notes || "",
+            isPrimary: p.isPrimary,
+          })),
+        }}
+      />
     </div>
   )
 }

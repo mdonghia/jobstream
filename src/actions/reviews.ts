@@ -61,11 +61,18 @@ export async function getReviews(params: GetReviewsParams = {}) {
       if (dateTo) where.reviewDate.lte = new Date(dateTo)
     }
 
+    // Split on whitespace so multi-word searches like "David Brown" match across fields
     if (search && search.trim()) {
-      where.OR = [
-        { reviewerName: { contains: search, mode: "insensitive" } },
-        { content: { contains: search, mode: "insensitive" } },
-        { responseContent: { contains: search, mode: "insensitive" } },
+      const words = search.trim().split(/\s+/)
+      where.AND = [
+        ...(where.AND || []),
+        ...words.map((word: string) => ({
+          OR: [
+            { reviewerName: { contains: word, mode: "insensitive" } },
+            { content: { contains: word, mode: "insensitive" } },
+            { responseContent: { contains: word, mode: "insensitive" } },
+          ],
+        })),
       ]
     }
 

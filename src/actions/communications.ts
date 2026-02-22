@@ -62,13 +62,20 @@ export async function getCommunications(params: GetCommunicationsParams = {}) {
       if (dateTo) where.createdAt.lte = new Date(dateTo)
     }
 
+    // Split on whitespace so multi-word searches like "David Brown" match across fields
     if (search && search.trim()) {
-      where.OR = [
-        { recipientAddress: { contains: search, mode: "insensitive" } },
-        { subject: { contains: search, mode: "insensitive" } },
-        { content: { contains: search, mode: "insensitive" } },
-        { customer: { firstName: { contains: search, mode: "insensitive" } } },
-        { customer: { lastName: { contains: search, mode: "insensitive" } } },
+      const words = search.trim().split(/\s+/)
+      where.AND = [
+        ...(where.AND || []),
+        ...words.map((word: string) => ({
+          OR: [
+            { recipientAddress: { contains: word, mode: "insensitive" } },
+            { subject: { contains: word, mode: "insensitive" } },
+            { content: { contains: word, mode: "insensitive" } },
+            { customer: { firstName: { contains: word, mode: "insensitive" } } },
+            { customer: { lastName: { contains: word, mode: "insensitive" } } },
+          ],
+        })),
       ]
     }
 
