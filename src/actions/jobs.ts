@@ -473,7 +473,7 @@ export async function getCalendarJobs(params: {
         gte: new Date(params.start),
         lte: new Date(params.end),
       },
-      status: { not: "CANCELLED" },
+      status: { notIn: ["CANCELLED", "COMPLETED"] },
     }
 
     if (params.userIds && params.userIds.length > 0) {
