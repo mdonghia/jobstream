@@ -545,7 +545,7 @@ export async function getUnscheduledJobs() {
         ],
       },
       include: {
-        customer: { select: { firstName: true, lastName: true } },
+        customer: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 20,
@@ -560,7 +560,7 @@ export async function getUnscheduledJobs() {
         quoteId: { not: null },
       },
       include: {
-        customer: { select: { firstName: true, lastName: true } },
+        customer: { select: { id: true, firstName: true, lastName: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 20,
@@ -582,7 +582,45 @@ export async function getUnscheduledJobs() {
       }
     }
 
-    return { jobs: allJobs.slice(0, 20) }
+    const finalJobs = allJobs.slice(0, 20)
+
+    // Look up booking data (preferredDate, preferredTime) for these jobs
+    // Bookings link to jobs via confirmedJobId
+    const jobIds = finalJobs.map((j) => j.id)
+    const bookings = await prisma.booking.findMany({
+      where: {
+        organizationId: user.organizationId,
+        confirmedJobId: { in: jobIds },
+      },
+      select: {
+        confirmedJobId: true,
+        preferredDate: true,
+        preferredTime: true,
+      },
+    })
+
+    // Create a lookup map from jobId -> booking preferences
+    const bookingMap = new Map<string, { preferredDate: Date | null; preferredTime: string | null }>()
+    for (const b of bookings) {
+      if (b.confirmedJobId) {
+        bookingMap.set(b.confirmedJobId, {
+          preferredDate: b.preferredDate,
+          preferredTime: b.preferredTime,
+        })
+      }
+    }
+
+    // Enrich each job with booking preference data
+    const enrichedJobs = finalJobs.map((j) => {
+      const booking = bookingMap.get(j.id)
+      return {
+        ...j,
+        preferredDate: booking?.preferredDate?.toISOString() ?? null,
+        preferredTime: booking?.preferredTime ?? null,
+      }
+    })
+
+    return { jobs: enrichedJobs }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     return { error: "Failed to fetch unscheduled jobs" }
@@ -603,16 +641,100 @@ export async function rescheduleJob(
 
     const job = await prisma.job.findFirst({
       where: { id, organizationId: user.organizationId },
+      include: {
+        customer: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
     })
     if (!job) return { error: "Job not found" }
+
+    const oldStart = job.scheduledStart
+    const newStartDate = new Date(scheduledStart)
+    const newEndDate = new Date(scheduledEnd)
 
     await prisma.job.update({
       where: { id },
       data: {
-        scheduledStart: new Date(scheduledStart),
-        scheduledEnd: new Date(scheduledEnd),
+        scheduledStart: newStartDate,
+        scheduledEnd: newEndDate,
       },
     })
+
+    // Send email notification to the customer (best effort)
+    // Skip if the new date is epoch (undo-to-unscheduled) or if there's no customer email
+    const isUndoToUnscheduled = newStartDate.getTime() < new Date("2000-01-01").getTime()
+    if (job.customer.email && process.env.SENDGRID_API_KEY && !isUndoToUnscheduled) {
+      try {
+        const org = await prisma.organization.findUnique({
+          where: { id: user.organizationId },
+          select: { name: true },
+        })
+
+        // Determine if this is a first-time schedule or a reschedule
+        // First-time: old start was epoch/placeholder (before year 2000) or within 60s of creation
+        const isFirstTimeSchedule =
+          oldStart.getTime() < new Date("2000-01-01").getTime() ||
+          Math.abs(oldStart.getTime() - job.createdAt.getTime()) < 60000
+
+        const formattedDate = newStartDate.toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+        const formattedTime = newStartDate.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
+        })
+
+        const subject = isFirstTimeSchedule
+          ? `Your appointment has been scheduled - ${org?.name}`
+          : `Your appointment has been updated - ${org?.name}`
+
+        const actionText = isFirstTimeSchedule
+          ? `Your appointment has been scheduled for <strong>${formattedDate}</strong> at <strong>${formattedTime}</strong>.`
+          : `Your appointment has been rescheduled to <strong>${formattedDate}</strong> at <strong>${formattedTime}</strong>.`
+
+        const sgMail = await import("@sendgrid/mail")
+        sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+        await sgMail.default.send({
+          to: job.customer.email,
+          from: {
+            email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+            name: org?.name || "JobStream",
+          },
+          subject,
+          html: `
+            <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+              <h2>Hi ${job.customer.firstName},</h2>
+              <p>${actionText}</p>
+              <p>If you have any questions or need to make changes, please don't hesitate to contact us.</p>
+              <p>We look forward to seeing you!</p>
+              <br />
+              <p style="color: #666;">- ${org?.name || "JobStream"}</p>
+            </div>
+          `,
+        })
+
+        await prisma.communicationLog.create({
+          data: {
+            organizationId: user.organizationId,
+            customerId: job.customer.id,
+            type: "EMAIL",
+            direction: "OUTBOUND",
+            recipientAddress: job.customer.email,
+            subject,
+            content: isFirstTimeSchedule
+              ? `Appointment scheduled for ${job.customer.firstName} ${job.customer.lastName} on ${formattedDate} at ${formattedTime}`
+              : `Appointment rescheduled for ${job.customer.firstName} ${job.customer.lastName} to ${formattedDate} at ${formattedTime}`,
+            status: "SENT",
+            triggeredBy: isFirstTimeSchedule ? "job_scheduled" : "job_rescheduled",
+          },
+        })
+      } catch (e) {
+        console.error("Failed to send schedule notification email:", e)
+      }
+    }
 
     return { success: true }
   } catch (error: any) {

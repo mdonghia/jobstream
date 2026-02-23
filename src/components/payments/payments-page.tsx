@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
+import Link from "next/link"
 import {
   CreditCard,
   Search,
@@ -640,8 +641,12 @@ export function PaymentsPage({
                         <td className="px-4 py-3 text-sm font-medium text-[#0A2540]">
                           {payment.customerName}
                         </td>
-                        <td className="px-4 py-3 text-sm text-[#635BFF] font-mono">
-                          {payment.invoiceNumber ?? (
+                        <td className="px-4 py-3 text-sm font-mono">
+                          {payment.invoiceId ? (
+                            <Link href={`/invoices/${payment.invoiceId}`} className="text-[#635BFF] hover:underline">
+                              {payment.invoiceNumber || "--"}
+                            </Link>
+                          ) : (
                             <span className="text-[#8898AA]">--</span>
                           )}
                         </td>

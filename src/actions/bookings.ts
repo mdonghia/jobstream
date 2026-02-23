@@ -228,6 +228,11 @@ export async function confirmBooking(
 
     const booking = await prisma.booking.findFirst({
       where: { id, organizationId: user.organizationId },
+      include: {
+        service: {
+          select: { id: true, name: true, defaultPrice: true },
+        },
+      },
     })
 
     if (!booking) return { error: "Booking not found" }
@@ -279,6 +284,11 @@ export async function confirmBooking(
     })
     const jobNumber = `${org.jobPrefix}-${org.nextJobNum - 1}`
 
+    // Build job title including service name if available
+    const jobTitle = booking.service
+      ? `${booking.service.name} - ${booking.customerName}`
+      : `Booking: ${booking.customerName}`
+
     // Create job and update booking in a transaction
     const result = await prisma.$transaction(async (tx) => {
       const job = await tx.job.create({
@@ -287,7 +297,7 @@ export async function confirmBooking(
           customerId: customerId!,
           propertyId,
           jobNumber,
-          title: `Booking: ${booking.customerName}`,
+          title: jobTitle,
           description: booking.message || null,
           status: "SCHEDULED",
           priority: "MEDIUM",
@@ -295,6 +305,22 @@ export async function confirmBooking(
           scheduledEnd: new Date(0),
         },
       })
+
+      // Create line item for the service if the booking has one
+      if (booking.service) {
+        await tx.jobLineItem.create({
+          data: {
+            jobId: job.id,
+            serviceId: booking.service.id,
+            name: booking.service.name,
+            quantity: 1,
+            unitPrice: booking.service.defaultPrice,
+            total: booking.service.defaultPrice,
+            taxable: true,
+            sortOrder: 0,
+          },
+        })
+      }
 
       // Create assignments
       if (data?.assignedUserIds && data.assignedUserIds.length > 0) {

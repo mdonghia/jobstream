@@ -105,6 +105,7 @@ export function BookingPage({
   const [teamMembers] = useState<TeamMember[]>(initialTeamMembers)
   const [activeTab, setActiveTab] = useState("PENDING")
   const [loading, setLoading] = useState(false)
+  const [statusCounts, setStatusCounts] = useState<Record<string, number>>({})
 
   // Confirm dialog state
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
@@ -134,6 +135,9 @@ export function BookingPage({
             createdAt: b.createdAt instanceof Date ? b.createdAt.toISOString() : b.createdAt,
             preferredDate: b.preferredDate instanceof Date ? b.preferredDate.toISOString() : b.preferredDate,
           })))
+          if (result.statusCounts) {
+            setStatusCounts(result.statusCounts)
+          }
         }
         setLoading(false)
       }
@@ -150,13 +154,11 @@ export function BookingPage({
   // Computed
   // ---------------------------------------------------------------------------
 
-  const pendingCount = bookings.filter((b) => b.status === "PENDING").length
-  const confirmedCount = bookings.filter(
-    (b) => b.status === "CONFIRMED"
-  ).length
-  const declinedCount = bookings.filter((b) => b.status === "DECLINED").length
+  const pendingCount = statusCounts["PENDING"] ?? 0
+  const confirmedCount = statusCounts["CONFIRMED"] ?? 0
+  const declinedCount = statusCounts["DECLINED"] ?? 0
 
-  const filteredBookings = bookings.filter((b) => b.status === activeTab)
+  const filteredBookings = bookings
 
   // ---------------------------------------------------------------------------
   // Handlers

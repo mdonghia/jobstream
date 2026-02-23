@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Eye,
+  DollarSign,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +30,7 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils"
 import { toast } from "sonner"
 import { sendInvoice, voidInvoice, sendInvoiceReminder } from "@/actions/invoices"
 import { RecordPaymentModal } from "./record-payment-modal"
+import { AdjustTotalModal } from "./adjust-total-modal"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -135,6 +137,7 @@ function StatusBadge({ status, large }: { status: string; large?: boolean }) {
 export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
   const router = useRouter()
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [adjustTotalModalOpen, setAdjustTotalModalOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   const customer = invoice.customer
@@ -213,6 +216,15 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           Edit
         </Button>,
         <Button
+          key="adjust"
+          variant="outline"
+          className="border-[#E3E8EE] text-[#425466]"
+          onClick={() => setAdjustTotalModalOpen(true)}
+        >
+          <DollarSign className="w-4 h-4 mr-2" />
+          Adjust Total
+        </Button>,
+        <Button
           key="send"
           className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
           onClick={handleSend}
@@ -235,6 +247,15 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         >
           <Mail className="w-4 h-4 mr-2" />
           {actionLoading === "send" ? "Sending..." : "Resend"}
+        </Button>,
+        <Button
+          key="adjust"
+          variant="outline"
+          className="border-[#E3E8EE] text-[#425466]"
+          onClick={() => setAdjustTotalModalOpen(true)}
+        >
+          <DollarSign className="w-4 h-4 mr-2" />
+          Adjust Total
         </Button>,
         <Button
           key="payment"
@@ -270,6 +291,15 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
           {actionLoading === "send" ? "Sending..." : "Send Reminder"}
         </Button>,
         <Button
+          key="adjust"
+          variant="outline"
+          className="border-[#E3E8EE] text-[#425466]"
+          onClick={() => setAdjustTotalModalOpen(true)}
+        >
+          <DollarSign className="w-4 h-4 mr-2" />
+          Adjust Total
+        </Button>,
+        <Button
           key="payment"
           className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
           onClick={() => setPaymentModalOpen(true)}
@@ -292,6 +322,15 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
 
     if (status === "PARTIALLY_PAID") {
       buttons.push(
+        <Button
+          key="adjust"
+          variant="outline"
+          className="border-[#E3E8EE] text-[#425466]"
+          onClick={() => setAdjustTotalModalOpen(true)}
+        >
+          <DollarSign className="w-4 h-4 mr-2" />
+          Adjust Total
+        </Button>,
         <Button
           key="payment"
           className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
@@ -797,6 +836,13 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         invoice={invoice}
         open={paymentModalOpen}
         onOpenChange={setPaymentModalOpen}
+      />
+
+      {/* Adjust Total Modal */}
+      <AdjustTotalModal
+        invoice={invoice}
+        open={adjustTotalModalOpen}
+        onOpenChange={setAdjustTotalModalOpen}
       />
     </div>
   )

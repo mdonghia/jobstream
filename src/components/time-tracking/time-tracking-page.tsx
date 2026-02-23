@@ -840,6 +840,9 @@ export function TimeTrackingPage({
                           Duration
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
+                          Member
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
                           Job
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
@@ -866,6 +869,9 @@ export function TimeTrackingPage({
                             {entry.durationMinutes != null
                               ? formatMinutesToHM(entry.durationMinutes)
                               : "--"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[#425466]">
+                            {entry.userName || "You"}
                           </td>
                           <td className="px-4 py-3 text-sm text-[#425466]">
                             {entry.jobTitle ?? (

@@ -546,7 +546,69 @@ export async function getInvoiceByToken(token: string) {
 }
 
 // =============================================================================
-// 8. createInvoiceFromJob - Pre-fill invoice from a completed job
+// 8. adjustInvoiceTotal - Adjust the total on an invoice (e.g. agreed discount)
+// =============================================================================
+
+export async function adjustInvoiceTotal(data: {
+  invoiceId: string
+  newTotal: number
+  reason?: string
+}) {
+  try {
+    const user = await requireAuth()
+
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: data.invoiceId, organizationId: user.organizationId },
+    })
+    if (!invoice) return { error: "Invoice not found" }
+
+    if (invoice.status === "VOID") {
+      return { error: "Cannot adjust a voided invoice" }
+    }
+    if (invoice.status === "PAID") {
+      return { error: "Cannot adjust a fully paid invoice" }
+    }
+
+    if (data.newTotal < 0) {
+      return { error: "Total cannot be negative" }
+    }
+
+    const amountPaid = Number(invoice.amountPaid)
+
+    if (data.newTotal < amountPaid) {
+      return {
+        error: `New total cannot be less than the amount already paid (${amountPaid.toFixed(2)})`,
+      }
+    }
+
+    const newAmountDue = data.newTotal - amountPaid
+    const newStatus = newAmountDue <= 0 ? "PAID" : invoice.status
+
+    await prisma.invoice.update({
+      where: { id: data.invoiceId },
+      data: {
+        total: data.newTotal,
+        amountDue: Math.max(0, newAmountDue),
+        status: newStatus,
+        paidAt: newStatus === "PAID" ? new Date() : undefined,
+        internalNote: data.reason
+          ? [invoice.internalNote, `[Total adjusted to $${data.newTotal.toFixed(2)}: ${data.reason}]`]
+              .filter(Boolean)
+              .join("\n")
+          : invoice.internalNote,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("adjustInvoiceTotal error:", error)
+    return { error: "Failed to adjust invoice total" }
+  }
+}
+
+// =============================================================================
+// 9. createInvoiceFromJob - Pre-fill invoice from a completed job
 // =============================================================================
 
 export async function createInvoiceFromJob(jobId: string) {
@@ -594,7 +656,7 @@ export async function createInvoiceFromJob(jobId: string) {
 }
 
 // =============================================================================
-// 9. sendInvoiceReminder - Send a payment reminder for an outstanding invoice
+// 10. sendInvoiceReminder - Send a payment reminder for an outstanding invoice
 // =============================================================================
 
 export async function sendInvoiceReminder(id: string) {

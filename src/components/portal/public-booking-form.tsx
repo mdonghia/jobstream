@@ -34,70 +34,23 @@ interface PublicBookingFormProps {
   slotDuration: number
 }
 
-function generateTimeSlots(
-  businessHours: Record<
-    string,
-    { start: string; end: string; open: boolean }
-  > | null,
-  date: string,
-  slotDuration: number
-): string[] {
-  if (!date || !businessHours) {
-    // Default slots if no business hours set
-    const slots: string[] = []
-    for (let h = 8; h < 18; h++) {
-      slots.push(`${h.toString().padStart(2, "0")}:00`)
-      if (slotDuration <= 30) {
-        slots.push(`${h.toString().padStart(2, "0")}:30`)
-      }
-    }
-    return slots
-  }
+const TIME_PREFERENCES = [
+  { value: "Morning", label: "Morning" },
+  { value: "Afternoon", label: "Afternoon" },
+]
 
-  const dayOfWeek = new Date(date + "T12:00:00").getDay()
-  const dayMap: Record<number, string> = {
-    0: "sun",
-    1: "mon",
-    2: "tue",
-    3: "wed",
-    4: "thu",
-    5: "fri",
-    6: "sat",
-  }
-  const dayKey = dayMap[dayOfWeek]
-  const dayHours = businessHours[dayKey]
-
-  if (!dayHours || !dayHours.open) return []
-
-  const [startH, startM] = dayHours.start.split(":").map(Number)
-  const [endH, endM] = dayHours.end.split(":").map(Number)
-  const startMinutes = startH * 60 + (startM || 0)
-  const endMinutes = endH * 60 + (endM || 0)
-
-  const slots: string[] = []
-  for (let m = startMinutes; m < endMinutes; m += slotDuration) {
-    const h = Math.floor(m / 60)
-    const min = m % 60
-    slots.push(
-      `${h.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}`
-    )
-  }
-  return slots
-}
-
-function formatTime(time: string): string {
-  const [h, m] = time.split(":").map(Number)
-  const ampm = h >= 12 ? "PM" : "AM"
-  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return `${hour12}:${m.toString().padStart(2, "0")} ${ampm}`
-}
+const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC"
+]
 
 export function PublicBookingForm({
   slug,
   orgName,
   services,
-  businessHours,
-  slotDuration,
 }: PublicBookingFormProps) {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -113,8 +66,6 @@ export function PublicBookingForm({
   const [date, setDate] = useState("")
   const [time, setTime] = useState("")
   const [message, setMessage] = useState("")
-
-  const timeSlots = generateTimeSlots(businessHours, date, slotDuration)
 
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0]
@@ -144,7 +95,7 @@ export function PublicBookingForm({
         state: state.trim() || undefined,
         zip: zip.trim() || undefined,
         preferredDate: date || undefined,
-        preferredTime: time ? formatTime(time) : undefined,
+        preferredTime: time || undefined,
         message: message.trim() || undefined,
       })
 
@@ -313,12 +264,16 @@ export function PublicBookingForm({
               <Label className="text-xs font-semibold uppercase text-[#8898AA]">
                 State
               </Label>
-              <Input
-                value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder="State"
-                className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
-              />
+              <Select value={state} onValueChange={setState}>
+                <SelectTrigger className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]">
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {US_STATES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-[#8898AA]">
@@ -355,33 +310,18 @@ export function PublicBookingForm({
             <Label className="text-xs font-semibold uppercase text-[#8898AA]">
               Preferred Time
             </Label>
-            {timeSlots.length > 0 ? (
-              <Select value={time} onValueChange={setTime}>
-                <SelectTrigger className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]">
-                  <SelectValue placeholder="Select a time" />
-                </SelectTrigger>
-                <SelectContent>
-                  {timeSlots.map((slot) => (
-                    <SelectItem key={slot} value={slot}>
-                      {formatTime(slot)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : date ? (
-              <p className="h-10 flex items-center text-sm text-[#8898AA]">
-                No availability on this date
-              </p>
-            ) : (
-              <Select disabled>
-                <SelectTrigger className="h-10 border-[#E3E8EE]">
-                  <SelectValue placeholder="Select a date first" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_">-</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
+            <Select value={time} onValueChange={setTime}>
+              <SelectTrigger className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]">
+                <SelectValue placeholder="Select a time" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_PREFERENCES.map((tp) => (
+                  <SelectItem key={tp.value} value={tp.value}>
+                    {tp.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

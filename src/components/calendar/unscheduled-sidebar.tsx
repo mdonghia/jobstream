@@ -2,7 +2,9 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronRight, ChevronLeft, AlertCircle, GripVertical } from "lucide-react"
+import Link from "next/link"
+import { format, parseISO } from "date-fns"
+import { ChevronRight, ChevronLeft, AlertCircle, GripVertical, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,7 +20,9 @@ export interface UnscheduledJob {
   jobNumber: string
   priority: string
   status: string
-  customer: { firstName: string; lastName: string }
+  customer: { id: string; firstName: string; lastName: string }
+  preferredDate?: string | null
+  preferredTime?: string | null
 }
 
 interface UnscheduledSidebarProps {
@@ -87,6 +91,22 @@ export function UnscheduledSidebar({ jobs }: UnscheduledSidebarProps) {
               jobs.map((job) => {
                 const priority = getPriorityConfig(job.priority)
 
+                // Build preferred date/time display string
+                let preferredStr: string | null = null
+                if (job.preferredDate) {
+                  try {
+                    const dateStr = format(parseISO(job.preferredDate), "EEE, MMM d")
+                    preferredStr = dateStr
+                    if (job.preferredTime) {
+                      preferredStr += ` - ${job.preferredTime}`
+                    }
+                  } catch {
+                    // Ignore invalid date
+                  }
+                } else if (job.preferredTime) {
+                  preferredStr = job.preferredTime
+                }
+
                 const dragData: DragData = {
                   type: "unscheduled",
                   job: {
@@ -123,10 +143,24 @@ export function UnscheduledSidebar({ jobs }: UnscheduledSidebarProps) {
                           {priority.label}
                         </Badge>
                       </div>
-                      <p className="text-xs text-[#425466] mt-1 truncate pl-5">
-                        {job.customer.firstName} {job.customer.lastName}
+                      <p className="text-xs mt-1 truncate pl-5">
+                        <Link
+                          href={`/customers/${job.customer.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[#425466] hover:text-[#635BFF] hover:underline"
+                        >
+                          {job.customer.firstName} {job.customer.lastName}
+                        </Link>
                       </p>
                       <p className="text-[10px] text-[#8898AA] mt-0.5 pl-5">{job.jobNumber}</p>
+                      {preferredStr && (
+                        <div className="flex items-center gap-1 mt-1 pl-5">
+                          <Calendar className="w-3 h-3 text-[#635BFF] shrink-0" />
+                          <p className="text-[10px] text-[#635BFF] truncate">
+                            Preferred: {preferredStr}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </DraggableJob>
                 )

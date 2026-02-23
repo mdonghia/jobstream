@@ -99,6 +99,12 @@ export function ScheduleLayout({ initialJobs, teamMembers, unscheduledJobs }: Sc
   const [activeDragData, setActiveDragData] = useState<DragData | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [localUnscheduledJobs, setLocalUnscheduledJobs] = useState<UnscheduledJob[]>(unscheduledJobs)
+
+  // Sync local state when parent prop changes (e.g. after page navigation)
+  useEffect(() => {
+    setLocalUnscheduledJobs(unscheduledJobs)
+  }, [unscheduledJobs])
 
   // Store a reference to the CalendarView's jobs and refetch function
   const jobsRef = useRef<CalendarJob[]>(initialJobs)
@@ -315,7 +321,12 @@ export function ScheduleLayout({ initialJobs, teamMembers, unscheduledJobs }: Sc
 
         const actionLabel = action.type === "schedule" ? "scheduled" : "rescheduled"
 
-        toast.success(`Job ${actionLabel}. Undo?`, {
+        // Remove from unscheduled sidebar immediately after scheduling
+        if (action.type === "schedule") {
+          setLocalUnscheduledJobs(prev => prev.filter(j => j.id !== action.jobId))
+        }
+
+        toast.success(`Job ${actionLabel}. The customer will be notified. Undo?`, {
           duration: 5000,
           action: {
             label: "Undo",
@@ -342,6 +353,8 @@ export function ScheduleLayout({ initialJobs, teamMembers, unscheduledJobs }: Sc
                   toast.error("Failed to undo")
                 } else {
                   toast.info("Schedule undone")
+                  // Restore the job back to the unscheduled sidebar
+                  setLocalUnscheduledJobs(unscheduledJobs)
                   refetchRef.current?.()
                 }
               }
@@ -416,7 +429,7 @@ export function ScheduleLayout({ initialJobs, teamMembers, unscheduledJobs }: Sc
       case "reschedule":
         return {
           title: `Reschedule ${pendingAction.jobNumber}?`,
-          description: `Move this job to ${dateStr} at ${timeStr}?`,
+          description: `Move this job to ${dateStr} at ${timeStr}? The customer will be notified of the change.`,
           hasConflict: pendingAction.hasConflict,
           conflictInfo: pendingAction.conflictInfo || "",
         }
@@ -430,7 +443,7 @@ export function ScheduleLayout({ initialJobs, teamMembers, unscheduledJobs }: Sc
       case "schedule":
         return {
           title: `Schedule ${pendingAction.jobNumber}?`,
-          description: `Schedule this job for ${dateStr} at ${timeStr}?`,
+          description: `Schedule this job for ${dateStr} at ${timeStr}? The customer will be notified.`,
           hasConflict: pendingAction.hasConflict,
           conflictInfo: pendingAction.conflictInfo || "",
         }
@@ -467,7 +480,7 @@ export function ScheduleLayout({ initialJobs, teamMembers, unscheduledJobs }: Sc
         </div>
 
         {/* Unscheduled sidebar */}
-        <UnscheduledSidebar jobs={unscheduledJobs} />
+        <UnscheduledSidebar jobs={localUnscheduledJobs} />
       </div>
 
       {/* Drag Overlay */}
