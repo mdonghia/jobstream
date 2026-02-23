@@ -481,7 +481,7 @@ export function CalendarView({
           />
         )}
         {view === "list" && (
-          <ListView jobs={jobs} currentDate={currentDate} />
+          <ListView jobs={jobs} currentDate={currentDate} onJobClick={handleJobClick} />
         )}
       </div>
     </div>

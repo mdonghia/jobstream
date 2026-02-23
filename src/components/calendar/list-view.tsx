@@ -17,6 +17,7 @@ import type { CalendarJob } from "./month-view"
 interface ListViewProps {
   jobs: CalendarJob[]
   currentDate: Date
+  onJobClick?: (jobId: string) => void
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ function getJobColor(job: CalendarJob): string {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export function ListView({ jobs, currentDate }: ListViewProps) {
+export function ListView({ jobs, currentDate, onJobClick }: ListViewProps) {
   const groupedJobs = useMemo(() => {
     // Sort chronologically
     const sorted = [...jobs].sort(
@@ -132,6 +133,7 @@ export function ListView({ jobs, currentDate }: ListViewProps) {
                     key={job.id}
                     className="flex items-start gap-4 px-4 py-3 hover:bg-[#F6F8FA]/50 transition-colors cursor-pointer"
                     style={{ borderLeft: `3px solid ${color}` }}
+                    onClick={() => onJobClick?.(job.id)}
                   >
                     {/* Time */}
                     <div className="shrink-0 w-28">

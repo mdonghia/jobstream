@@ -517,6 +517,7 @@ export async function getInvoiceByToken(token: string) {
     return {
       invoice: {
         ...invoice,
+        issueDate: invoice.sentAt || invoice.createdAt,
         total: Number(invoice.total),
         subtotal: Number(invoice.subtotal),
         taxAmount: Number(invoice.taxAmount),
