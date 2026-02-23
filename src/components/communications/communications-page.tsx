@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
+import Link from "next/link"
 import {
   MessageSquare,
   Mail,
@@ -11,6 +12,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { toast } from "sonner"
 import { format } from "date-fns"
 
 // ---------------------------------------------------------------------------
@@ -101,13 +103,22 @@ export function CommunicationsPage({
   const [loading, setLoading] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
+  // Pagination
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+
   // Filters
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
   const [directionFilter, setDirectionFilter] = useState("all")
-  const [statusFilter, setStatusFilter] = useState("all")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [search, typeFilter, directionFilter, dateFrom, dateTo])
 
   // Fetch communications
   const fetchCommunications = useCallback(async () => {
@@ -119,9 +130,9 @@ export function CommunicationsPage({
           search: search || undefined,
           type: typeFilter !== "all" ? typeFilter : undefined,
           direction: directionFilter !== "all" ? directionFilter : undefined,
-          status: statusFilter !== "all" ? statusFilter : undefined,
           dateFrom: dateFrom || undefined,
           dateTo: dateTo || undefined,
+          page,
         })
         if (result && !("error" in result)) {
           setCommunications((result.communications ?? []).map((c: any) => ({
@@ -131,13 +142,15 @@ export function CommunicationsPage({
               : null,
             createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
           })))
+          setTotalPages(result.totalPages ?? 1)
+          setTotal(result.total ?? 0)
         }
         setLoading(false)
       }
     } catch {
       // Server actions not yet available
     }
-  }, [search, typeFilter, directionFilter, statusFilter, dateFrom, dateTo])
+  }, [search, typeFilter, directionFilter, dateFrom, dateTo, page])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -179,7 +192,7 @@ export function CommunicationsPage({
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-end">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="w-[110px] h-9 border-[#E3E8EE] text-sm">
                 <SelectValue placeholder="Type" />
@@ -205,37 +218,26 @@ export function CommunicationsPage({
               </SelectContent>
             </Select>
 
-            <Select
-              value={statusFilter}
-              onValueChange={setStatusFilter}
-            >
-              <SelectTrigger className="w-[130px] h-9 border-[#E3E8EE] text-sm">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="DELIVERED">Delivered</SelectItem>
-                <SelectItem value="SENT">Sent</SelectItem>
-                <SelectItem value="QUEUED">Queued</SelectItem>
-                <SelectItem value="FAILED">Failed</SelectItem>
-                <SelectItem value="BOUNCED">Bounced</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="h-9 w-[140px] border-[#E3E8EE] text-sm"
-              aria-label="Date from"
-            />
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="h-9 w-[140px] border-[#E3E8EE] text-sm"
-              aria-label="Date to"
-            />
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-[#8898AA] mb-1">From</span>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+                aria-label="Date from"
+              />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs font-medium text-[#8898AA] mb-1">To</span>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+                aria-label="Date to"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -254,7 +256,8 @@ export function CommunicationsPage({
               {search ||
               typeFilter !== "all" ||
               directionFilter !== "all" ||
-              statusFilter !== "all"
+              dateFrom ||
+              dateTo
                 ? "Try adjusting your filters."
                 : "SMS and email communications with your customers will appear here."}
             </p>
@@ -308,8 +311,18 @@ export function CommunicationsPage({
                           )}
                         </td>
                         <td className="px-4 py-3 text-sm font-medium text-[#0A2540]">
-                          {comm.customerName ?? (
-                            <span className="text-[#8898AA]">Unknown</span>
+                          {comm.customerId && comm.customerName ? (
+                            <Link
+                              href={`/customers/${comm.customerId}`}
+                              className="text-[#635BFF] hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {comm.customerName}
+                            </Link>
+                          ) : (
+                            <span className="text-[#8898AA]">
+                              {comm.customerName ?? "Unknown"}
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-3">
@@ -404,6 +417,40 @@ export function CommunicationsPage({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-[#E3E8EE]">
+            <p className="text-sm text-[#8898AA]">
+              {total} result{total !== 1 ? "s" : ""}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="h-8 border-[#E3E8EE]"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </Button>
+              <span className="text-sm text-[#425466]">
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="h-8 border-[#E3E8EE]"
+              >
+                Next
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         )}
       </div>

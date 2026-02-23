@@ -398,91 +398,97 @@ export async function sendQuote(id: string, options?: { email?: boolean; sms?: b
     let smsSent = false
     const errors: string[] = []
 
+    const { isNotificationEnabled } = await import("@/lib/notification-check")
+
     // Send email if configured
-    if (options?.email !== false && quote.customer.email && process.env.SENDGRID_API_KEY) {
-      try {
-        const sgMail = await import("@sendgrid/mail")
-        sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
-        await sgMail.default.send({
-          to: quote.customer.email,
-          from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
-            name: org?.name || "JobStream",
-          },
-          subject: `Quote from ${org?.name || "JobStream"}`,
-          html: `
-            <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
-              <h2>Hi ${quote.customer.firstName},</h2>
-              <p>${org?.name} has sent you a quote for <strong>$${Number(quote.total).toFixed(2)}</strong>.</p>
-              <a href="${portalUrl}" style="display: inline-block; background: #635BFF; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">View Quote</a>
-              <p style="color: #8898AA; font-size: 12px; margin-top: 24px;">This quote is valid until ${new Date(quote.validUntil).toLocaleDateString()}.</p>
-            </div>
-          `,
-        })
+    if (await isNotificationEnabled(user.organizationId, "quote_sent", "email")) {
+      if (options?.email !== false && quote.customer.email && process.env.SENDGRID_API_KEY) {
+        try {
+          const sgMail = await import("@sendgrid/mail")
+          sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+          await sgMail.default.send({
+            to: quote.customer.email,
+            from: {
+              email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+              name: org?.name || "JobStream",
+            },
+            subject: `Quote from ${org?.name || "JobStream"}`,
+            html: `
+              <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+                <h2>Hi ${quote.customer.firstName},</h2>
+                <p>${org?.name} has sent you a quote for <strong>$${Number(quote.total).toFixed(2)}</strong>.</p>
+                <a href="${portalUrl}" style="display: inline-block; background: #635BFF; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">View Quote</a>
+                <p style="color: #8898AA; font-size: 12px; margin-top: 24px;">This quote is valid until ${new Date(quote.validUntil).toLocaleDateString()}.</p>
+              </div>
+            `,
+          })
 
-        emailSent = true
+          emailSent = true
 
-        // Log communication
-        await prisma.communicationLog.create({
-          data: {
-            organizationId: user.organizationId,
-            customerId: quote.customerId,
-            type: "EMAIL",
-            direction: "OUTBOUND",
-            recipientAddress: quote.customer.email,
-            subject: `Quote from ${org?.name}`,
-            content: `Quote ${quote.quoteNumber} sent for $${Number(quote.total).toFixed(2)}`,
-            status: "SENT",
-            triggeredBy: "manual",
-          },
-        })
-      } catch (e: any) {
-        console.error("Failed to send quote email:", e)
-        errors.push(`Email failed: ${e?.message || "Unknown error"}`)
+          // Log communication
+          await prisma.communicationLog.create({
+            data: {
+              organizationId: user.organizationId,
+              customerId: quote.customerId,
+              type: "EMAIL",
+              direction: "OUTBOUND",
+              recipientAddress: quote.customer.email,
+              subject: `Quote from ${org?.name}`,
+              content: `Quote ${quote.quoteNumber} sent for $${Number(quote.total).toFixed(2)}`,
+              status: "SENT",
+              triggeredBy: "manual",
+            },
+          })
+        } catch (e: any) {
+          console.error("Failed to send quote email:", e)
+          errors.push(`Email failed: ${e?.message || "Unknown error"}`)
+        }
+      } else if (options?.email !== false && quote.customer.email && !process.env.SENDGRID_API_KEY) {
+        errors.push("Email not configured: SendGrid API key is missing")
       }
-    } else if (options?.email !== false && quote.customer.email && !process.env.SENDGRID_API_KEY) {
-      errors.push("Email not configured: SendGrid API key is missing")
     }
 
     // Send SMS if configured
-    if (options?.sms !== false && quote.customer.phone && process.env.TWILIO_ACCOUNT_SID) {
-      try {
-        const twilio = await import("twilio")
-        const client = twilio.default(
-          process.env.TWILIO_ACCOUNT_SID,
-          process.env.TWILIO_AUTH_TOKEN
-        )
-        // Ensure phone number is in E.164 format (+1XXXXXXXXXX)
-        let toPhone = quote.customer.phone.replace(/\D/g, "")
-        if (toPhone.length === 10) toPhone = "1" + toPhone
-        if (!toPhone.startsWith("+")) toPhone = "+" + toPhone
+    if (await isNotificationEnabled(user.organizationId, "quote_sent", "sms")) {
+      if (options?.sms !== false && quote.customer.phone && process.env.TWILIO_ACCOUNT_SID) {
+        try {
+          const twilio = await import("twilio")
+          const client = twilio.default(
+            process.env.TWILIO_ACCOUNT_SID,
+            process.env.TWILIO_AUTH_TOKEN
+          )
+          // Ensure phone number is in E.164 format (+1XXXXXXXXXX)
+          let toPhone = quote.customer.phone.replace(/\D/g, "")
+          if (toPhone.length === 10) toPhone = "1" + toPhone
+          if (!toPhone.startsWith("+")) toPhone = "+" + toPhone
 
-        await client.messages.create({
-          body: `Hi ${quote.customer.firstName}, ${org?.name} sent you a quote for $${Number(quote.total).toFixed(2)}. View it here: ${portalUrl}`,
-          from: process.env.TWILIO_PHONE_NUMBER,
-          to: toPhone,
-        })
+          await client.messages.create({
+            body: `Hi ${quote.customer.firstName}, ${org?.name} sent you a quote for $${Number(quote.total).toFixed(2)}. View it here: ${portalUrl}`,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: toPhone,
+          })
 
-        smsSent = true
+          smsSent = true
 
-        await prisma.communicationLog.create({
-          data: {
-            organizationId: user.organizationId,
-            customerId: quote.customerId,
-            type: "SMS",
-            direction: "OUTBOUND",
-            recipientAddress: quote.customer.phone,
-            content: `Quote ${quote.quoteNumber} sent for $${Number(quote.total).toFixed(2)}`,
-            status: "SENT",
-            triggeredBy: "manual",
-          },
-        })
-      } catch (e: any) {
-        console.error("Failed to send quote SMS:", e)
-        errors.push(`SMS failed: ${e?.message || "Unknown error"}`)
+          await prisma.communicationLog.create({
+            data: {
+              organizationId: user.organizationId,
+              customerId: quote.customerId,
+              type: "SMS",
+              direction: "OUTBOUND",
+              recipientAddress: quote.customer.phone,
+              content: `Quote ${quote.quoteNumber} sent for $${Number(quote.total).toFixed(2)}`,
+              status: "SENT",
+              triggeredBy: "manual",
+            },
+          })
+        } catch (e: any) {
+          console.error("Failed to send quote SMS:", e)
+          errors.push(`SMS failed: ${e?.message || "Unknown error"}`)
+        }
+      } else if (options?.sms !== false && quote.customer.phone && !process.env.TWILIO_ACCOUNT_SID) {
+        errors.push("SMS not configured: Twilio credentials are missing")
       }
-    } else if (options?.sms !== false && quote.customer.phone && !process.env.TWILIO_ACCOUNT_SID) {
-      errors.push("SMS not configured: Twilio credentials are missing")
     }
 
     return { success: true, emailSent, smsSent, errors }

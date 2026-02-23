@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   Select,
@@ -75,7 +76,7 @@ import type {
 // Types
 // =============================================================================
 
-type DatePreset = "this_week" | "this_month" | "last_month" | "this_quarter" | "this_year" | "last_12_months"
+type DatePreset = "this_week" | "this_month" | "last_month" | "this_quarter" | "this_year" | "last_12_months" | "custom"
 
 type DateRange = {
   dateFrom: string
@@ -86,7 +87,7 @@ type DateRange = {
 // Helpers
 // =============================================================================
 
-function getDateRangeForPreset(preset: DatePreset): DateRange {
+function getDateRangeForPreset(preset: DatePreset, customDateFrom?: string, customDateTo?: string): DateRange {
   const now = new Date()
   switch (preset) {
     case "this_week":
@@ -120,6 +121,11 @@ function getDateRangeForPreset(preset: DatePreset): DateRange {
       return {
         dateFrom: subMonths(now, 12).toISOString(),
         dateTo: now.toISOString(),
+      }
+    case "custom":
+      return {
+        dateFrom: customDateFrom || format(startOfMonth(now), "yyyy-MM-dd"),
+        dateTo: customDateTo || format(endOfMonth(now), "yyyy-MM-dd"),
       }
   }
 }
@@ -922,6 +928,8 @@ export function ReportsPage() {
   const [activeTab, setActiveTab] = useState("revenue")
   const [datePreset, setDatePreset] = useState<DatePreset>("this_month")
   const [loading, setLoading] = useState(false)
+  const [customDateFrom, setCustomDateFrom] = useState("")
+  const [customDateTo, setCustomDateTo] = useState("")
 
   // Report data state
   const [revenueData, setRevenueData] = useState<RevenueReportResult | null>(null)
@@ -932,7 +940,7 @@ export function ReportsPage() {
 
   const fetchData = useCallback(async (tab: string, preset: DatePreset) => {
     setLoading(true)
-    const range = getDateRangeForPreset(preset)
+    const range = getDateRangeForPreset(preset, customDateFrom, customDateTo)
 
     try {
       switch (tab) {
@@ -967,12 +975,12 @@ export function ReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [customDateFrom, customDateTo])
 
   // Fetch on mount and when tab/date changes
   useEffect(() => {
     fetchData(activeTab, datePreset)
-  }, [activeTab, datePreset, fetchData])
+  }, [activeTab, datePreset, fetchData, customDateFrom, customDateTo])
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
@@ -998,7 +1006,7 @@ export function ReportsPage() {
     }
   }
 
-  const dateRange = getDateRangeForPreset(datePreset)
+  const dateRange = getDateRangeForPreset(datePreset, customDateFrom, customDateTo)
   const formattedRange = `${format(new Date(dateRange.dateFrom), "MMM d, yyyy")} - ${format(new Date(dateRange.dateTo), "MMM d, yyyy")}`
 
   return (
@@ -1021,14 +1029,32 @@ export function ReportsPage() {
               <SelectItem value="this_quarter">This Quarter</SelectItem>
               <SelectItem value="this_year">This Year</SelectItem>
               <SelectItem value="last_12_months">Last 12 Months</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
+          {datePreset === "custom" && (
+            <div className="flex items-center gap-2">
+              <Input
+                type="date"
+                value={customDateFrom}
+                onChange={(e) => setCustomDateFrom(e.target.value)}
+                className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+              />
+              <span className="text-sm text-[#8898AA]">to</span>
+              <Input
+                type="date"
+                value={customDateTo}
+                onChange={(e) => setCustomDateTo(e.target.value)}
+                className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+              />
+            </div>
+          )}
         </div>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList variant="line" className="mb-6 overflow-x-auto">
+        <TabsList variant="line" className="mb-6 overflow-x-auto overflow-y-hidden">
           <TabsTrigger value="revenue" className="gap-1.5">
             <DollarSign className="w-4 h-4" />
             Revenue

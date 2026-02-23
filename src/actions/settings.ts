@@ -1049,3 +1049,67 @@ export async function updateReviewSettings(data: {
     return { error: "Failed to update review settings" }
   }
 }
+
+// =============================================================================
+// Notification Preferences
+// =============================================================================
+
+export async function getNotificationPreferences() {
+  try {
+    const user = await requireAuth()
+    if (!["OWNER", "ADMIN"].includes(user.role)) {
+      return { error: "Only owners and admins can manage notification preferences" }
+    }
+
+    const prefs = await prisma.notificationPreference.findMany({
+      where: { organizationId: user.organizationId },
+    })
+
+    return { preferences: prefs }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getNotificationPreferences error:", error)
+    return { error: "Failed to fetch notification preferences" }
+  }
+}
+
+export async function updateNotificationPreferences(
+  updates: Array<{ triggerKey: string; emailEnabled: boolean; smsEnabled: boolean }>
+) {
+  try {
+    const user = await requireAuth()
+    if (!["OWNER", "ADMIN"].includes(user.role)) {
+      return { error: "Only owners and admins can manage notification preferences" }
+    }
+
+    // Upsert each preference
+    await Promise.all(
+      updates.map((u) =>
+        prisma.notificationPreference.upsert({
+          where: {
+            organizationId_triggerKey: {
+              organizationId: user.organizationId,
+              triggerKey: u.triggerKey,
+            },
+          },
+          create: {
+            organizationId: user.organizationId,
+            triggerKey: u.triggerKey,
+            emailEnabled: u.emailEnabled,
+            smsEnabled: u.smsEnabled,
+          },
+          update: {
+            emailEnabled: u.emailEnabled,
+            smsEnabled: u.smsEnabled,
+          },
+        })
+      )
+    )
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateNotificationPreferences error:", error)
+    return { error: "Failed to update notification preferences" }
+  }
+}

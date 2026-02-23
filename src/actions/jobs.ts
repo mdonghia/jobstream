@@ -662,77 +662,85 @@ export async function rescheduleJob(
     // Send email notification to the customer (best effort)
     // Skip if the new date is epoch (undo-to-unscheduled) or if there's no customer email
     const isUndoToUnscheduled = newStartDate.getTime() < new Date("2000-01-01").getTime()
-    if (job.customer.email && process.env.SENDGRID_API_KEY && !isUndoToUnscheduled) {
-      try {
-        const org = await prisma.organization.findUnique({
-          where: { id: user.organizationId },
-          select: { name: true },
-        })
+    if (!isUndoToUnscheduled) {
+      // Determine if this is a first-time schedule or a reschedule
+      // First-time: old start was epoch/placeholder (before year 2000) or within 60s of creation
+      const isFirstTimeSchedule =
+        oldStart.getTime() < new Date("2000-01-01").getTime() ||
+        Math.abs(oldStart.getTime() - job.createdAt.getTime()) < 60000
 
-        // Determine if this is a first-time schedule or a reschedule
-        // First-time: old start was epoch/placeholder (before year 2000) or within 60s of creation
-        const isFirstTimeSchedule =
-          oldStart.getTime() < new Date("2000-01-01").getTime() ||
-          Math.abs(oldStart.getTime() - job.createdAt.getTime()) < 60000
+      const triggerKey = isFirstTimeSchedule ? "job_scheduled" : "job_rescheduled"
 
-        const formattedDate = newStartDate.toLocaleDateString("en-US", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })
-        const formattedTime = newStartDate.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        })
+      const { isNotificationEnabled } = await import("@/lib/notification-check")
 
-        const subject = isFirstTimeSchedule
-          ? `Your appointment has been scheduled - ${org?.name}`
-          : `Your appointment has been updated - ${org?.name}`
+      if (await isNotificationEnabled(user.organizationId, triggerKey, "email")) {
+        if (job.customer.email && process.env.SENDGRID_API_KEY) {
+          try {
+            const org = await prisma.organization.findUnique({
+              where: { id: user.organizationId },
+              select: { name: true },
+            })
 
-        const actionText = isFirstTimeSchedule
-          ? `Your appointment has been scheduled for <strong>${formattedDate}</strong> at <strong>${formattedTime}</strong>.`
-          : `Your appointment has been rescheduled to <strong>${formattedDate}</strong> at <strong>${formattedTime}</strong>.`
+            const formattedDate = newStartDate.toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })
+            const formattedTime = newStartDate.toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })
 
-        const sgMail = await import("@sendgrid/mail")
-        sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
-        await sgMail.default.send({
-          to: job.customer.email,
-          from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
-            name: org?.name || "JobStream",
-          },
-          subject,
-          html: `
-            <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
-              <h2>Hi ${job.customer.firstName},</h2>
-              <p>${actionText}</p>
-              <p>If you have any questions or need to make changes, please don't hesitate to contact us.</p>
-              <p>We look forward to seeing you!</p>
-              <br />
-              <p style="color: #666;">- ${org?.name || "JobStream"}</p>
-            </div>
-          `,
-        })
+            const subject = isFirstTimeSchedule
+              ? `Your appointment has been scheduled - ${org?.name}`
+              : `Your appointment has been updated - ${org?.name}`
 
-        await prisma.communicationLog.create({
-          data: {
-            organizationId: user.organizationId,
-            customerId: job.customer.id,
-            type: "EMAIL",
-            direction: "OUTBOUND",
-            recipientAddress: job.customer.email,
-            subject,
-            content: isFirstTimeSchedule
-              ? `Appointment scheduled for ${job.customer.firstName} ${job.customer.lastName} on ${formattedDate} at ${formattedTime}`
-              : `Appointment rescheduled for ${job.customer.firstName} ${job.customer.lastName} to ${formattedDate} at ${formattedTime}`,
-            status: "SENT",
-            triggeredBy: isFirstTimeSchedule ? "job_scheduled" : "job_rescheduled",
-          },
-        })
-      } catch (e) {
-        console.error("Failed to send schedule notification email:", e)
+            const actionText = isFirstTimeSchedule
+              ? `Your appointment has been scheduled for <strong>${formattedDate}</strong> at <strong>${formattedTime}</strong>.`
+              : `Your appointment has been rescheduled to <strong>${formattedDate}</strong> at <strong>${formattedTime}</strong>.`
+
+            const sgMail = await import("@sendgrid/mail")
+            sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+            await sgMail.default.send({
+              to: job.customer.email,
+              from: {
+                email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+                name: org?.name || "JobStream",
+              },
+              subject,
+              html: `
+                <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+                  <h2>Hi ${job.customer.firstName},</h2>
+                  <p>${actionText}</p>
+                  <p>If you have any questions or need to make changes, please don't hesitate to contact us.</p>
+                  <p>We look forward to seeing you!</p>
+                  <br />
+                  <p style="color: #666;">- ${org?.name || "JobStream"}</p>
+                </div>
+              `,
+            })
+
+            await prisma.communicationLog.create({
+              data: {
+                organizationId: user.organizationId,
+                customerId: job.customer.id,
+                type: "EMAIL",
+                direction: "OUTBOUND",
+                recipientAddress: job.customer.email,
+                subject,
+                content: isFirstTimeSchedule
+                  ? `Appointment scheduled for ${job.customer.firstName} ${job.customer.lastName} on ${formattedDate} at ${formattedTime}`
+                  : `Appointment rescheduled for ${job.customer.firstName} ${job.customer.lastName} to ${formattedDate} at ${formattedTime}`,
+                status: "SENT",
+                triggeredBy: triggerKey,
+              },
+            })
+          } catch (e) {
+            console.error("Failed to send schedule notification email:", e)
+          }
+        }
       }
     }
 

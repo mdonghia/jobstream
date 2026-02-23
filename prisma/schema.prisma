@@ -180,6 +180,7 @@ model Organization {
   activityLogs      ActivityLog[]
   notifications     Notification[]
   portalSessions    PortalSession[]
+  notificationPreferences NotificationPreference[]
 }
 
 // 2. User
@@ -824,4 +825,19 @@ model PortalSession {
   @@index([organizationId])
   @@index([customerId])
   @@index([sessionToken])
+}
+
+// 28. NotificationPreference
+model NotificationPreference {
+  id              String   @id @default(cuid())
+  organizationId  String
+  triggerKey       String
+  emailEnabled    Boolean  @default(true)
+  smsEnabled      Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, triggerKey])
+  @@index([organizationId])
 }

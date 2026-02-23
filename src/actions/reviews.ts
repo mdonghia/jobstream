@@ -292,48 +292,52 @@ export async function sendReviewRequest(jobId: string) {
       select: { name: true, slug: true },
     })
 
-    // Send review request email (best effort)
-    if (process.env.SENDGRID_API_KEY) {
-      try {
-        const sgMail = await import("@sendgrid/mail")
-        sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
-        await sgMail.default.send({
-          to: job.customer.email,
-          from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
-            name: org?.name || "JobStream",
-          },
-          subject: `How did we do? - ${org?.name}`,
-          html: `
-            <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
-              <h2>Hi ${job.customer.firstName},</h2>
-              <p>Thank you for choosing <strong>${org?.name}</strong>!</p>
-              <p>We'd love to hear about your experience. Your feedback helps us improve and helps other customers find us.</p>
-              <p>Would you take a moment to leave us a review?</p>
-            </div>
-          `,
-        })
-      } catch (e) {
-        console.error("Failed to send review request email:", e)
-      }
-    } else {
-      console.log(`[Review Request] Would send email to ${job.customer.email} for job ${job.jobNumber}`)
-    }
+    const { isNotificationEnabled } = await import("@/lib/notification-check")
 
-    // Create communication log entry
-    await prisma.communicationLog.create({
-      data: {
-        organizationId: user.organizationId,
-        customerId: job.customerId,
-        type: "EMAIL",
-        direction: "OUTBOUND",
-        recipientAddress: job.customer.email,
-        subject: `How did we do? - ${org?.name}`,
-        content: `Review request sent for job ${job.jobNumber}`,
-        status: process.env.SENDGRID_API_KEY ? "SENT" : "QUEUED",
-        triggeredBy: "review_request",
-      },
-    })
+    if (await isNotificationEnabled(user.organizationId, "review_request", "email")) {
+      // Send review request email (best effort)
+      if (process.env.SENDGRID_API_KEY) {
+        try {
+          const sgMail = await import("@sendgrid/mail")
+          sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+          await sgMail.default.send({
+            to: job.customer.email,
+            from: {
+              email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+              name: org?.name || "JobStream",
+            },
+            subject: `How did we do? - ${org?.name}`,
+            html: `
+              <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+                <h2>Hi ${job.customer.firstName},</h2>
+                <p>Thank you for choosing <strong>${org?.name}</strong>!</p>
+                <p>We'd love to hear about your experience. Your feedback helps us improve and helps other customers find us.</p>
+                <p>Would you take a moment to leave us a review?</p>
+              </div>
+            `,
+          })
+        } catch (e) {
+          console.error("Failed to send review request email:", e)
+        }
+      } else {
+        console.log(`[Review Request] Would send email to ${job.customer.email} for job ${job.jobNumber}`)
+      }
+
+      // Create communication log entry
+      await prisma.communicationLog.create({
+        data: {
+          organizationId: user.organizationId,
+          customerId: job.customerId,
+          type: "EMAIL",
+          direction: "OUTBOUND",
+          recipientAddress: job.customer.email,
+          subject: `How did we do? - ${org?.name}`,
+          content: `Review request sent for job ${job.jobNumber}`,
+          status: process.env.SENDGRID_API_KEY ? "SENT" : "QUEUED",
+          triggeredBy: "review_request",
+        },
+      })
+    }
 
     // Update the review request tracking
     // Mark that a request was sent for this job

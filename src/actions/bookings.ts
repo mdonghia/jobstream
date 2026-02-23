@@ -347,42 +347,46 @@ export async function confirmBooking(
     })
 
     // Send confirmation email (best effort)
-    if (booking.customerEmail && process.env.SENDGRID_API_KEY) {
-      try {
-        const sgMail = await import("@sendgrid/mail")
-        sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
-        await sgMail.default.send({
-          to: booking.customerEmail,
-          from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
-            name: org.name || "JobStream",
-          },
-          subject: `Booking Confirmed - ${org.name}`,
-          html: `
-            <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
-              <h2>Hi ${booking.customerName},</h2>
-              <p>Your booking with <strong>${org.name}</strong> has been confirmed!</p>
-              <p>We will reach out to schedule your appointment.</p>
-              <p>We look forward to seeing you.</p>
-            </div>
-          `,
-        })
+    const { isNotificationEnabled } = await import("@/lib/notification-check")
 
-        await prisma.communicationLog.create({
-          data: {
-            organizationId: user.organizationId,
-            customerId: customerId,
-            type: "EMAIL",
-            direction: "OUTBOUND",
-            recipientAddress: booking.customerEmail,
+    if (await isNotificationEnabled(user.organizationId, "booking_confirmation", "email")) {
+      if (booking.customerEmail && process.env.SENDGRID_API_KEY) {
+        try {
+          const sgMail = await import("@sendgrid/mail")
+          sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+          await sgMail.default.send({
+            to: booking.customerEmail,
+            from: {
+              email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+              name: org.name || "JobStream",
+            },
             subject: `Booking Confirmed - ${org.name}`,
-            content: `Booking confirmed for ${booking.customerName}`,
-            status: "SENT",
-            triggeredBy: "booking_confirmation",
-          },
-        })
-      } catch (e) {
-        console.error("Failed to send booking confirmation email:", e)
+            html: `
+              <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+                <h2>Hi ${booking.customerName},</h2>
+                <p>Your booking with <strong>${org.name}</strong> has been confirmed!</p>
+                <p>We will reach out to schedule your appointment.</p>
+                <p>We look forward to seeing you.</p>
+              </div>
+            `,
+          })
+
+          await prisma.communicationLog.create({
+            data: {
+              organizationId: user.organizationId,
+              customerId: customerId,
+              type: "EMAIL",
+              direction: "OUTBOUND",
+              recipientAddress: booking.customerEmail,
+              subject: `Booking Confirmed - ${org.name}`,
+              content: `Booking confirmed for ${booking.customerName}`,
+              status: "SENT",
+              triggeredBy: "booking_confirmation",
+            },
+          })
+        } catch (e) {
+          console.error("Failed to send booking confirmation email:", e)
+        }
       }
     }
 
@@ -420,47 +424,51 @@ export async function declineBooking(id: string, reason?: string) {
     })
 
     // Send decline email (best effort)
-    if (booking.customerEmail && process.env.SENDGRID_API_KEY) {
-      try {
-        const org = await prisma.organization.findUnique({
-          where: { id: user.organizationId },
-          select: { name: true },
-        })
+    const { isNotificationEnabled } = await import("@/lib/notification-check")
 
-        const sgMail = await import("@sendgrid/mail")
-        sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
-        await sgMail.default.send({
-          to: booking.customerEmail,
-          from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
-            name: org?.name || "JobStream",
-          },
-          subject: `Booking Update - ${org?.name}`,
-          html: `
-            <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
-              <h2>Hi ${booking.customerName},</h2>
-              <p>Unfortunately, we are unable to accommodate your booking request at this time.</p>
-              ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
-              <p>Please feel free to reach out to us to reschedule.</p>
-            </div>
-          `,
-        })
+    if (await isNotificationEnabled(user.organizationId, "booking_decline", "email")) {
+      if (booking.customerEmail && process.env.SENDGRID_API_KEY) {
+        try {
+          const org = await prisma.organization.findUnique({
+            where: { id: user.organizationId },
+            select: { name: true },
+          })
 
-        await prisma.communicationLog.create({
-          data: {
-            organizationId: user.organizationId,
-            customerId: booking.customerId,
-            type: "EMAIL",
-            direction: "OUTBOUND",
-            recipientAddress: booking.customerEmail,
+          const sgMail = await import("@sendgrid/mail")
+          sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+          await sgMail.default.send({
+            to: booking.customerEmail,
+            from: {
+              email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+              name: org?.name || "JobStream",
+            },
             subject: `Booking Update - ${org?.name}`,
-            content: `Booking declined for ${booking.customerName}${reason ? `: ${reason}` : ""}`,
-            status: "SENT",
-            triggeredBy: "booking_decline",
-          },
-        })
-      } catch (e) {
-        console.error("Failed to send booking decline email:", e)
+            html: `
+              <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+                <h2>Hi ${booking.customerName},</h2>
+                <p>Unfortunately, we are unable to accommodate your booking request at this time.</p>
+                ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ""}
+                <p>Please feel free to reach out to us to reschedule.</p>
+              </div>
+            `,
+          })
+
+          await prisma.communicationLog.create({
+            data: {
+              organizationId: user.organizationId,
+              customerId: booking.customerId,
+              type: "EMAIL",
+              direction: "OUTBOUND",
+              recipientAddress: booking.customerEmail,
+              subject: `Booking Update - ${org?.name}`,
+              content: `Booking declined for ${booking.customerName}${reason ? `: ${reason}` : ""}`,
+              status: "SENT",
+              triggeredBy: "booking_decline",
+            },
+          })
+        } catch (e) {
+          console.error("Failed to send booking decline email:", e)
+        }
       }
     }
 

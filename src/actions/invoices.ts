@@ -343,49 +343,53 @@ export async function sendInvoice(id: string, options?: { email?: boolean; sms?:
     let emailSent = false
     const errors: string[] = []
 
+    const { isNotificationEnabled } = await import("@/lib/notification-check")
+
     // Send email
-    if (options?.email !== false && invoice.customer.email && process.env.SENDGRID_API_KEY) {
-      try {
-        const sgMail = await import("@sendgrid/mail")
-        sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
-        await sgMail.default.send({
-          to: invoice.customer.email,
-          from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
-            name: org?.name || "JobStream",
-          },
-          subject: `Invoice from ${org?.name || "JobStream"}`,
-          html: `
-            <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
-              <h2>Hi ${invoice.customer.firstName},</h2>
-              <p>${org?.name} has sent you an invoice for <strong>$${Number(invoice.total).toFixed(2)}</strong>.</p>
-              <p>Due by ${new Date(invoice.dueDate).toLocaleDateString()}</p>
-              <a href="${portalUrl}" style="display: inline-block; background: #635BFF; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">View & Pay Invoice</a>
-            </div>
-          `,
-        })
+    if (await isNotificationEnabled(user.organizationId, "invoice_sent", "email")) {
+      if (options?.email !== false && invoice.customer.email && process.env.SENDGRID_API_KEY) {
+        try {
+          const sgMail = await import("@sendgrid/mail")
+          sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+          await sgMail.default.send({
+            to: invoice.customer.email,
+            from: {
+              email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+              name: org?.name || "JobStream",
+            },
+            subject: `Invoice from ${org?.name || "JobStream"}`,
+            html: `
+              <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+                <h2>Hi ${invoice.customer.firstName},</h2>
+                <p>${org?.name} has sent you an invoice for <strong>$${Number(invoice.total).toFixed(2)}</strong>.</p>
+                <p>Due by ${new Date(invoice.dueDate).toLocaleDateString()}</p>
+                <a href="${portalUrl}" style="display: inline-block; background: #635BFF; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">View & Pay Invoice</a>
+              </div>
+            `,
+          })
 
-        emailSent = true
+          emailSent = true
 
-        await prisma.communicationLog.create({
-          data: {
-            organizationId: user.organizationId,
-            customerId: invoice.customerId,
-            type: "EMAIL",
-            direction: "OUTBOUND",
-            recipientAddress: invoice.customer.email,
-            subject: `Invoice from ${org?.name}`,
-            content: `Invoice ${invoice.invoiceNumber} sent for $${Number(invoice.total).toFixed(2)}`,
-            status: "SENT",
-            triggeredBy: "manual",
-          },
-        })
-      } catch (e: any) {
-        console.error("Failed to send invoice email:", e)
-        errors.push(`Email failed: ${e?.message || "Unknown error"}`)
+          await prisma.communicationLog.create({
+            data: {
+              organizationId: user.organizationId,
+              customerId: invoice.customerId,
+              type: "EMAIL",
+              direction: "OUTBOUND",
+              recipientAddress: invoice.customer.email,
+              subject: `Invoice from ${org?.name}`,
+              content: `Invoice ${invoice.invoiceNumber} sent for $${Number(invoice.total).toFixed(2)}`,
+              status: "SENT",
+              triggeredBy: "manual",
+            },
+          })
+        } catch (e: any) {
+          console.error("Failed to send invoice email:", e)
+          errors.push(`Email failed: ${e?.message || "Unknown error"}`)
+        }
+      } else if (options?.email !== false && invoice.customer.email && !process.env.SENDGRID_API_KEY) {
+        errors.push("Email not configured: SendGrid API key is missing")
       }
-    } else if (options?.email !== false && invoice.customer.email && !process.env.SENDGRID_API_KEY) {
-      errors.push("Email not configured: SendGrid API key is missing")
     }
 
     return { success: true, emailSent, errors }
@@ -687,48 +691,52 @@ export async function sendInvoiceReminder(id: string) {
       )
     )
 
-    if (
-      invoice.customer.email &&
-      process.env.SENDGRID_API_KEY
-    ) {
-      try {
-        const sgMail = await import("@sendgrid/mail")
-        sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
-        await sgMail.default.send({
-          to: invoice.customer.email,
-          from: {
-            email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
-            name: org?.name || "JobStream",
-          },
-          subject: `Payment Reminder: Invoice ${invoice.invoiceNumber}`,
-          html: `<div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
-            <h2>Hi ${invoice.customer.firstName},</h2>
-            <p>This is a friendly reminder that invoice <strong>${invoice.invoiceNumber}</strong> for <strong>$${Number(invoice.amountDue).toFixed(2)}</strong> is ${daysOverdue > 0 ? `${daysOverdue} days past due` : "due soon"}.</p>
-            <p>Please take a moment to review and submit payment.</p>
-            <a href="${portalUrl}" style="display: inline-block; background: #635BFF; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">View & Pay Invoice</a>
-            <p style="color: #8898AA; font-size: 12px;">If you've already submitted payment, please disregard this message.</p>
-          </div>`,
-        })
-      } catch (e) {
-        console.error("Failed to send reminder email:", e)
-      }
-    } else {
-      console.log(`[DEV] Reminder would be sent to: ${invoice.customer.email}`)
-    }
+    const { isNotificationEnabled } = await import("@/lib/notification-check")
 
-    await prisma.communicationLog.create({
-      data: {
-        organizationId: user.organizationId,
-        customerId: invoice.customerId,
-        type: "EMAIL",
-        direction: "OUTBOUND",
-        recipientAddress: invoice.customer.email || "",
-        subject: `Payment Reminder: Invoice ${invoice.invoiceNumber}`,
-        content: `Payment reminder for $${Number(invoice.amountDue).toFixed(2)}`,
-        status: process.env.SENDGRID_API_KEY ? "SENT" : "QUEUED",
-        triggeredBy: "reminder",
-      },
-    })
+    if (await isNotificationEnabled(user.organizationId, "invoice_reminder", "email")) {
+      if (
+        invoice.customer.email &&
+        process.env.SENDGRID_API_KEY
+      ) {
+        try {
+          const sgMail = await import("@sendgrid/mail")
+          sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+          await sgMail.default.send({
+            to: invoice.customer.email,
+            from: {
+              email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+              name: org?.name || "JobStream",
+            },
+            subject: `Payment Reminder: Invoice ${invoice.invoiceNumber}`,
+            html: `<div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+              <h2>Hi ${invoice.customer.firstName},</h2>
+              <p>This is a friendly reminder that invoice <strong>${invoice.invoiceNumber}</strong> for <strong>$${Number(invoice.amountDue).toFixed(2)}</strong> is ${daysOverdue > 0 ? `${daysOverdue} days past due` : "due soon"}.</p>
+              <p>Please take a moment to review and submit payment.</p>
+              <a href="${portalUrl}" style="display: inline-block; background: #635BFF; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">View & Pay Invoice</a>
+              <p style="color: #8898AA; font-size: 12px;">If you've already submitted payment, please disregard this message.</p>
+            </div>`,
+          })
+        } catch (e) {
+          console.error("Failed to send reminder email:", e)
+        }
+      } else {
+        console.log(`[DEV] Reminder would be sent to: ${invoice.customer.email}`)
+      }
+
+      await prisma.communicationLog.create({
+        data: {
+          organizationId: user.organizationId,
+          customerId: invoice.customerId,
+          type: "EMAIL",
+          direction: "OUTBOUND",
+          recipientAddress: invoice.customer.email || "",
+          subject: `Payment Reminder: Invoice ${invoice.invoiceNumber}`,
+          content: `Payment reminder for $${Number(invoice.amountDue).toFixed(2)}`,
+          status: process.env.SENDGRID_API_KEY ? "SENT" : "QUEUED",
+          triggeredBy: "reminder",
+        },
+      })
+    }
 
     return { success: true }
   } catch (error: any) {
