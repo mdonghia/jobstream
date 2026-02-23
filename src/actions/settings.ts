@@ -729,6 +729,52 @@ export async function disconnectStripeAccount() {
 }
 
 // =============================================================================
+// 16b. verifyStripeConnection - Check Stripe account status live
+// =============================================================================
+
+export async function verifyStripeConnection() {
+  try {
+    const user = await requireAuth()
+
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: { stripeAccountId: true },
+    })
+
+    if (!org) return { error: "Organization not found" }
+    if (!org.stripeAccountId) {
+      return { connected: false, stripeAccountId: null, message: "No Stripe account connected" }
+    }
+
+    const { getStripe } = await import("@/lib/stripe")
+    const stripe = getStripe()
+    if (!stripe) {
+      return { error: "Stripe is not configured on the server" }
+    }
+
+    const account = await stripe.accounts.retrieve(org.stripeAccountId)
+    const isOnboarded = !!(account.charges_enabled && account.payouts_enabled)
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: { stripeOnboarded: isOnboarded },
+    })
+
+    return {
+      connected: isOnboarded,
+      stripeAccountId: org.stripeAccountId,
+      message: isOnboarded
+        ? "Stripe account is connected and active"
+        : "Stripe onboarding is not yet complete. Please finish the setup in the Stripe tab.",
+    }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("verifyStripeConnection error:", error)
+    return { error: "Failed to verify Stripe connection" }
+  }
+}
+
+// =============================================================================
 // 17. getCommunicationSettings - Fetch comms settings + automation rules
 // =============================================================================
 

@@ -40,6 +40,7 @@ export async function GET() {
       )
     )
   } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("Stripe Connect callback error:", error)
     return NextResponse.redirect(
       new URL("/settings/payments", process.env.NEXT_PUBLIC_APP_URL!)

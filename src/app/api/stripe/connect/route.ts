@@ -3,15 +3,13 @@ import { getStripe } from "@/lib/stripe"
 import { requireAuth } from "@/lib/auth-utils"
 import { prisma } from "@/lib/db"
 
-export async function GET() {
+export async function POST() {
   try {
     const stripe = getStripe()
     if (!stripe) {
-      return NextResponse.redirect(
-        new URL(
-          "/settings/payments?error=stripe_not_configured",
-          process.env.NEXT_PUBLIC_APP_URL
-        )
+      return NextResponse.json(
+        { error: "Stripe is not configured. Please contact your administrator." },
+        { status: 503 }
       )
     }
 
@@ -22,7 +20,10 @@ export async function GET() {
     })
 
     if (!org) {
-      return NextResponse.json({ error: "Organization not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Organization not found" },
+        { status: 404 }
+      )
     }
 
     let accountId = org.stripeAccountId
@@ -41,22 +42,44 @@ export async function GET() {
       })
     }
 
-    // Create account link for onboarding
-    const accountLink = await stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect`,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`,
-      type: "account_onboarding",
-    })
-
-    return NextResponse.redirect(accountLink.url)
+    // Create account link for onboarding, with stale account recovery
+    try {
+      const accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`,
+        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`,
+        type: "account_onboarding",
+      })
+      return NextResponse.json({ url: accountLink.url })
+    } catch (linkError: any) {
+      // If the saved account is invalid/deleted on Stripe's side, create a fresh one
+      if (linkError?.type === "StripeInvalidRequestError") {
+        const newAccount = await stripe.accounts.create({
+          type: "standard",
+          email: org.email,
+          business_profile: { name: org.name },
+        })
+        accountId = newAccount.id
+        await prisma.organization.update({
+          where: { id: user.organizationId },
+          data: { stripeAccountId: accountId, stripeOnboarded: false },
+        })
+        const accountLink = await stripe.accountLinks.create({
+          account: accountId,
+          refresh_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`,
+          return_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`,
+          type: "account_onboarding",
+        })
+        return NextResponse.json({ url: accountLink.url })
+      }
+      throw linkError
+    }
   } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("Stripe Connect error:", error)
-    return NextResponse.redirect(
-      new URL(
-        "/settings/payments?error=connect_failed",
-        process.env.NEXT_PUBLIC_APP_URL
-      )
+    return NextResponse.json(
+      { error: "Failed to start Stripe onboarding. Please try again." },
+      { status: 500 }
     )
   }
 }

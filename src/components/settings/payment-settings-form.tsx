@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Loader2, CreditCard, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, CreditCard, CheckCircle2, XCircle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -21,6 +21,7 @@ import {
 import {
   updatePaymentSettings,
   disconnectStripeAccount,
+  verifyStripeConnection,
 } from "@/actions/settings"
 
 // ============================================================================
@@ -42,6 +43,9 @@ interface PaymentSettingsFormProps {
 export function PaymentSettingsForm({ settings }: PaymentSettingsFormProps) {
   const [saving, setSaving] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
+  const [connecting, setConnecting] = useState(false)
+  const [pendingVerify, setPendingVerify] = useState(false)
+  const [verifying, setVerifying] = useState(false)
 
   // Stripe connection state
   const [stripeConnected, setStripeConnected] = useState(
@@ -64,6 +68,58 @@ export function PaymentSettingsForm({ settings }: PaymentSettingsFormProps) {
     if (!id) return ""
     if (id.length <= 8) return id
     return id.slice(0, 4) + "****" + id.slice(-4)
+  }
+
+  // -----------------------------------------------------------------------
+  // Connect Stripe (opens in new tab)
+  // -----------------------------------------------------------------------
+
+  async function handleConnect() {
+    setConnecting(true)
+    try {
+      const res = await fetch("/api/stripe/connect", { method: "POST" })
+      const data = await res.json()
+      if (data.error) {
+        toast.error(data.error)
+        return
+      }
+      if (data.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer")
+        setPendingVerify(true)
+      }
+    } catch {
+      toast.error("Failed to connect to Stripe. Please try again.")
+    } finally {
+      setConnecting(false)
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Verify Stripe Connection
+  // -----------------------------------------------------------------------
+
+  async function handleVerify() {
+    setVerifying(true)
+    try {
+      const result = await verifyStripeConnection()
+      if ("error" in result) {
+        toast.error(result.error)
+      } else if (result.connected) {
+        toast.success("Stripe account verified and connected!")
+        setStripeConnected(true)
+        setStripeAccountId(result.stripeAccountId ?? null)
+        setPendingVerify(false)
+      } else {
+        toast.info(
+          result.message ||
+            "Onboarding not yet complete. Please finish the Stripe setup in the other tab."
+        )
+      }
+    } catch {
+      toast.error("Failed to verify connection")
+    } finally {
+      setVerifying(false)
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -124,7 +180,7 @@ export function PaymentSettingsForm({ settings }: PaymentSettingsFormProps) {
       {/* ----------------------------------------------------------------- */}
       <section>
         <h2 className="text-lg font-semibold text-[#0A2540]">
-          Stripe Connect
+          Stripe Connection
         </h2>
         <p className="mt-1 text-sm text-[#425466]">
           Connect your Stripe account to accept online payments from customers.
@@ -132,6 +188,7 @@ export function PaymentSettingsForm({ settings }: PaymentSettingsFormProps) {
 
         <div className="mt-4 rounded-lg border border-[#E3E8EE] p-6">
           {stripeConnected ? (
+            /* ---- Connected state ---- */
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="h-8 w-8 text-green-500" />
@@ -183,7 +240,42 @@ export function PaymentSettingsForm({ settings }: PaymentSettingsFormProps) {
                 </AlertDialogContent>
               </AlertDialog>
             </div>
+          ) : pendingVerify ? (
+            /* ---- Pending verification state ---- */
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <Clock className="h-8 w-8 text-amber-500" />
+                <div>
+                  <p className="text-sm font-medium text-[#0A2540]">
+                    Stripe onboarding in progress
+                  </p>
+                  <p className="mt-0.5 text-sm text-[#425466]">
+                    Complete the setup in the new tab, then verify your
+                    connection here.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setPendingVerify(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleVerify}
+                  disabled={verifying}
+                  className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+                >
+                  {verifying && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Verify Connection
+                </Button>
+              </div>
+            </div>
           ) : (
+            /* ---- Not connected state ---- */
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <XCircle className="h-8 w-8 text-[#8898AA]" />
@@ -199,13 +291,15 @@ export function PaymentSettingsForm({ settings }: PaymentSettingsFormProps) {
               </div>
 
               <Button
-                asChild
+                onClick={handleConnect}
+                disabled={connecting}
                 className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
               >
-                <a href="/api/stripe/connect">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Connect with Stripe
-                </a>
+                {connecting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                <CreditCard className="mr-2 h-4 w-4" />
+                Connect with Stripe
               </Button>
             </div>
           )}
