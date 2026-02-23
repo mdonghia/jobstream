@@ -656,7 +656,7 @@ export function CustomerDetail({
                             Unscheduled
                           </span>
                         ) : (
-                          formatDate(job.scheduledStart)
+                          formatDate(job.scheduledStart!)
                         )}
                       </td>
                     </tr>

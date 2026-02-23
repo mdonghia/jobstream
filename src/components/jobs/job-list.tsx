@@ -510,9 +510,9 @@ export function JobList({
                   <td className="px-4 py-3 text-sm text-[#425466]">
                     {!isJobUnscheduled(job.scheduledStart) ? (
                       <div>
-                        <span>{formatDate(job.scheduledStart)}</span>
+                        <span>{formatDate(job.scheduledStart!)}</span>
                         <span className="block text-xs text-[#8898AA]">
-                          {formatTime(job.scheduledStart)}
+                          {formatTime(job.scheduledStart!)}
                         </span>
                       </div>
                     ) : (
