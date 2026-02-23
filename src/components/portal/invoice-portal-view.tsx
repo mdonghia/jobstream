@@ -108,12 +108,16 @@ const STATUS_CONFIG: Record<
 export function InvoicePortalView({ invoice }: { invoice: InvoiceData }) {
   const [paying, setPaying] = useState(false)
   const status = STATUS_CONFIG[invoice.status] || STATUS_CONFIG.SENT
-  const canPay =
-    invoice.amountDue > 0 &&
-    invoice.organization.stripeAccountId &&
+  const stripeReady =
+    !!invoice.organization.stripeAccountId &&
     invoice.organization.stripeOnboarded
+  const showPayButton = invoice.amountDue > 0 && invoice.status !== "PAID"
 
   async function handlePayOnline() {
+    if (!stripeReady) {
+      toast.error("Online payments are not yet set up. Please contact the business directly to arrange payment.")
+      return
+    }
     setPaying(true)
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -351,7 +355,7 @@ export function InvoicePortalView({ invoice }: { invoice: InvoiceData }) {
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3">
-        {canPay && invoice.status !== "PAID" && (
+        {showPayButton && (
           <Button
             onClick={handlePayOnline}
             disabled={paying}
