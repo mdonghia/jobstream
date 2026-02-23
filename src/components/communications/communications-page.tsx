@@ -221,26 +221,20 @@ export function CommunicationsPage({
             <div className="flex flex-col">
               <span className="text-xs font-medium text-[#8898AA] mb-1">From</span>
               <Input
-                type="text"
-                placeholder="mm/dd/yyyy"
+                type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                onFocus={(e) => { e.target.type = 'date' }}
-                onBlur={(e) => { if (!e.target.value) e.target.type = 'text' }}
-                className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+                className={`h-9 w-[150px] border-[#E3E8EE] text-sm ${!dateFrom ? "text-[#8898AA]" : ""}`}
                 aria-label="Date from"
               />
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-medium text-[#8898AA] mb-1">To</span>
               <Input
-                type="text"
-                placeholder="mm/dd/yyyy"
+                type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                onFocus={(e) => { e.target.type = 'date' }}
-                onBlur={(e) => { if (!e.target.value) e.target.type = 'text' }}
-                className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+                className={`h-9 w-[150px] border-[#E3E8EE] text-sm ${!dateTo ? "text-[#8898AA]" : ""}`}
                 aria-label="Date to"
               />
             </div>

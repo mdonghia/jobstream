@@ -1007,7 +1007,8 @@ export function ReportsPage() {
   }
 
   const dateRange = getDateRangeForPreset(datePreset, customDateFrom, customDateTo)
-  const formattedRange = `${format(new Date(dateRange.dateFrom + "T00:00:00"), "MMM d, yyyy")} - ${format(new Date(dateRange.dateTo + "T00:00:00"), "MMM d, yyyy")}`
+  const parseLocalDate = (s: string) => s.length === 10 ? new Date(s + "T00:00:00") : new Date(s)
+  const formattedRange = `${format(parseLocalDate(dateRange.dateFrom), "MMM d, yyyy")} - ${format(parseLocalDate(dateRange.dateTo), "MMM d, yyyy")}`
 
   return (
     <div>
