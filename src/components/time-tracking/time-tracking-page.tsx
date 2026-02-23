@@ -122,9 +122,13 @@ export function TimeTrackingPage({
   const [teamMembers] = useState<TeamMember[]>(initialTeamMembers)
 
   // View state
-  const [viewMode, setViewMode] = useState<"day" | "week">("day")
+  const [viewMode, setViewMode] = useState<"day" | "week" | "all">("day")
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [datePickerOpen, setDatePickerOpen] = useState(false)
+  const [teamMemberFilter, setTeamMemberFilter] = useState("all")
+  const [allPage, setAllPage] = useState(1)
+  const [allTotal, setAllTotal] = useState(0)
+  const [allTotalPages, setAllTotalPages] = useState(1)
 
   // Add entry dialog
   const [addDialogOpen, setAddDialogOpen] = useState(false)
@@ -144,19 +148,27 @@ export function TimeTrackingPage({
       const mod = await import("@/actions/time-entries").catch(() => null)
       if (mod?.getTimeEntries) {
         setLoading(true)
-        let dateFrom: string
-        let dateTo: string
-        if (viewMode === "day") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const params: any = {}
+        if (viewMode === "all") {
+          params.perPage = 25
+          params.page = allPage
+        } else if (viewMode === "day") {
           const d = selectedDate
-          dateFrom = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString()
-          dateTo = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59).toISOString()
+          params.dateFrom = new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString()
+          params.dateTo = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59).toISOString()
+          params.perPage = 500
         } else {
           const ws = startOfWeek(selectedDate, { weekStartsOn: 1 })
           const we = endOfWeek(selectedDate, { weekStartsOn: 1 })
-          dateFrom = ws.toISOString()
-          dateTo = we.toISOString()
+          params.dateFrom = ws.toISOString()
+          params.dateTo = we.toISOString()
+          params.perPage = 500
         }
-        const result = await mod.getTimeEntries({ dateFrom, dateTo, perPage: 500 })
+        if (teamMemberFilter !== "all") {
+          params.userId = teamMemberFilter
+        }
+        const result = await mod.getTimeEntries(params)
         if (result && !("error" in result)) {
           setEntries((result.entries ?? []).map((e: any) => ({
             ...e,
@@ -165,13 +177,17 @@ export function TimeTrackingPage({
             clockIn: e.clockIn instanceof Date ? e.clockIn.toISOString() : e.clockIn,
             clockOut: e.clockOut instanceof Date ? e.clockOut.toISOString() : e.clockOut,
           })))
+          if (viewMode === "all") {
+            setAllTotal(result.total ?? 0)
+            setAllTotalPages(result.totalPages ?? 1)
+          }
         }
         setLoading(false)
       }
     } catch {
       // Server actions not yet available
     }
-  }, [selectedDate, viewMode])
+  }, [selectedDate, viewMode, teamMemberFilter, allPage])
 
   useEffect(() => {
     fetchEntries()
@@ -708,10 +724,34 @@ export function TimeTrackingPage({
               >
                 Week
               </button>
+              <button
+                onClick={() => { setViewMode("all"); setAllPage(1); }}
+                className={`px-3 py-1.5 text-sm font-medium rounded-r-lg transition-colors border-l border-[#E3E8EE] ${
+                  viewMode === "all"
+                    ? "bg-[#635BFF] text-white"
+                    : "bg-white text-[#425466] hover:bg-[#F6F8FA]"
+                }`}
+              >
+                All
+              </button>
             </div>
+            {teamMembers.length > 0 && (
+              <Select value={teamMemberFilter} onValueChange={(v) => { setTeamMemberFilter(v); if (viewMode === "all") setAllPage(1); }}>
+                <SelectTrigger className="w-[180px] h-9 border-[#E3E8EE] text-sm">
+                  <SelectValue placeholder="All Members" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Members</SelectItem>
+                  {teamMembers.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* Date navigator */}
+          {viewMode !== "all" && (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -768,6 +808,7 @@ export function TimeTrackingPage({
               Today
             </Button>
           </div>
+          )}
         </div>
 
         {/* Day View */}
@@ -956,6 +997,109 @@ export function TimeTrackingPage({
                   })}
                 </tbody>
               </table>
+            )}
+          </div>
+        )}
+
+        {/* All View */}
+        {viewMode === "all" && (
+          <div className={loading ? "opacity-50" : ""}>
+            {entries.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Clock className="w-12 h-12 text-[#8898AA] mb-3" />
+                <h3 className="text-sm font-semibold text-[#0A2540] mb-1">No time entries</h3>
+                <p className="text-sm text-[#8898AA]">No time entries found.</p>
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Start</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">End</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Duration</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Team Member</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Job</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Notes</th>
+                        <th className="px-4 py-3 w-20"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {entries.map((entry) => (
+                        <tr key={entry.id} className="border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50">
+                          <td className="px-4 py-3 text-sm text-[#425466]">
+                            {format(new Date(entry.clockIn), "MMM d, yyyy")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[#0A2540]">
+                            {format(new Date(entry.clockIn), "h:mm a")}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[#0A2540]">
+                            {entry.clockOut ? format(new Date(entry.clockOut), "h:mm a") : "Running..."}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-[#0A2540]">
+                            {entry.durationMinutes != null
+                              ? `${Math.floor(entry.durationMinutes / 60)}h ${entry.durationMinutes % 60}m`
+                              : "--"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[#425466]">
+                            {entry.userName || "Unknown"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[#425466]">
+                            {entry.jobTitle || <span className="text-[#8898AA]">--</span>}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[#425466] max-w-[200px] truncate">
+                            {entry.notes || <span className="text-[#8898AA]">--</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8"
+                                onClick={() => openEditDialog(entry)} aria-label="Edit">
+                                <Pencil className="w-3.5 h-3.5 text-[#8898AA]" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8"
+                                onClick={() => handleDeleteEntry(entry.id)} aria-label="Delete">
+                                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {allTotalPages > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-[#E3E8EE]">
+                    <p className="text-sm text-[#8898AA]">
+                      Page {allPage} of {allTotalPages} ({allTotal} entries)
+                    </p>
+                    <div className="flex gap-1">
+                      <Button variant="outline" size="sm" disabled={allPage <= 1}
+                        onClick={() => setAllPage(allPage - 1)} className="h-8 border-[#E3E8EE]">
+                        Previous
+                      </Button>
+                      <Button variant="outline" size="sm" disabled={allPage >= allTotalPages}
+                        onClick={() => setAllPage(allPage + 1)} className="h-8 border-[#E3E8EE]">
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Total for current page */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-[#E3E8EE] bg-[#F6F8FA]">
+                  <span className="text-sm font-semibold text-[#0A2540]">Page Total</span>
+                  <span className="text-sm font-semibold text-[#0A2540]">
+                    {(() => {
+                      const totalMins = entries.reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0)
+                      return `${Math.floor(totalMins / 60)}h ${totalMins % 60}m`
+                    })()}
+                  </span>
+                </div>
+              </>
             )}
           </div>
         )}

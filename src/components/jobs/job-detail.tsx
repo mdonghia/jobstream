@@ -809,11 +809,9 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
               </TabsTrigger>
               <TabsTrigger value="notes" className="text-sm">
                 Notes
-                {notes.length > 0 && (
-                  <span className="ml-1.5 text-xs text-[#8898AA]">
-                    ({notes.length})
-                  </span>
-                )}
+                <span className="ml-1.5 text-xs text-[#8898AA]">
+                  ({notes.length})
+                </span>
               </TabsTrigger>
               <TabsTrigger value="attachments" className="text-sm">
                 Attachments

@@ -608,6 +608,10 @@ model Booking {
   customerEmail  String
   customerPhone  String?
   address        String?
+  addressLine1   String?
+  city           String?
+  state          String?
+  zip            String?
   preferredDate  DateTime?
   preferredTime  String?
   message        String?

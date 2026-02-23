@@ -7,8 +7,10 @@ import {
   DollarSign,
   AlertTriangle,
   TrendingUp,
-  TrendingDown,
   Download,
+  Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +24,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { format } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
@@ -39,15 +50,25 @@ interface Payment {
   method: "CARD" | "ACH" | "CASH" | "CHECK" | "OTHER"
   status: "PENDING" | "COMPLETED" | "FAILED" | "REFUNDED"
   reference: string | null
+  notes: string | null
+  stripePaymentId: string | null
   processedAt: string | null
   createdAt: string
 }
 
 interface PaymentSummary {
   receivedThisMonth: number
-  receivedLastMonth: number
   outstanding: number
   overdue: number
+}
+
+interface OutstandingInvoice {
+  id: string
+  invoiceNumber: string
+  total: number
+  amountPaid: number
+  amountDue: number
+  customerName: string
 }
 
 interface PaymentsPageProps {
@@ -118,7 +139,6 @@ const statusConfig: Record<
 
 const defaultSummary: PaymentSummary = {
   receivedThisMonth: 0,
-  receivedLastMonth: 0,
   outstanding: 0,
   overdue: 0,
 }
@@ -144,6 +164,28 @@ export function PaymentsPage({
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
 
+  // Add Payment dialog state
+  const [addPaymentOpen, setAddPaymentOpen] = useState(false)
+  const [addPaymentStep, setAddPaymentStep] = useState<1 | 2>(1)
+  const [addPaymentLoading, setAddPaymentLoading] = useState(false)
+  const [outstandingInvoices, setOutstandingInvoices] = useState<OutstandingInvoice[]>([])
+  const [selectedInvoice, setSelectedInvoice] = useState<OutstandingInvoice | null>(null)
+  const [invoiceSearch, setInvoiceSearch] = useState("")
+  const [paymentAmount, setPaymentAmount] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("CASH")
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10))
+  const [paymentReference, setPaymentReference] = useState("")
+  const [paymentNotes, setPaymentNotes] = useState("")
+
+  // Edit Payment dialog state
+  const [editPaymentOpen, setEditPaymentOpen] = useState(false)
+  const [editPaymentLoading, setEditPaymentLoading] = useState(false)
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null)
+  const [editAmount, setEditAmount] = useState("")
+  const [editMethod, setEditMethod] = useState("")
+  const [editReference, setEditReference] = useState("")
+  const [editNotes, setEditNotes] = useState("")
+
   // Fetch payments
   const fetchPayments = useCallback(async () => {
     try {
@@ -166,6 +208,8 @@ export function PaymentsPage({
               : "Unknown",
             createdAt: p.createdAt instanceof Date ? p.createdAt.toISOString() : p.createdAt,
             processedAt: p.processedAt instanceof Date ? p.processedAt.toISOString() : p.processedAt,
+            stripePaymentId: p.stripePaymentId ?? null,
+            notes: p.notes ?? null,
           })))
           if (result.summary) setSummary(result.summary)
         }
@@ -183,6 +227,151 @@ export function PaymentsPage({
     return () => clearTimeout(timer)
   }, [fetchPayments])
 
+  // Open Add Payment dialog: fetch outstanding invoices
+  const handleOpenAddPayment = async () => {
+    setAddPaymentOpen(true)
+    setAddPaymentStep(1)
+    setSelectedInvoice(null)
+    setInvoiceSearch("")
+    setPaymentAmount("")
+    setPaymentMethod("CASH")
+    setPaymentDate(new Date().toISOString().slice(0, 10))
+    setPaymentReference("")
+    setPaymentNotes("")
+    try {
+      const mod = await import("@/actions/payments").catch(() => null)
+      if (mod?.getOutstandingInvoices) {
+        const result = await mod.getOutstandingInvoices()
+        if (result && "invoices" in result && result.invoices) {
+          setOutstandingInvoices(result.invoices)
+        }
+      }
+    } catch {
+      toast.error("Failed to load outstanding invoices")
+    }
+  }
+
+  // Select an invoice and go to step 2
+  const handleSelectInvoice = (inv: OutstandingInvoice) => {
+    setSelectedInvoice(inv)
+    setPaymentAmount(inv.amountDue.toFixed(2))
+    setAddPaymentStep(2)
+  }
+
+  // Submit the payment
+  const handleSubmitPayment = async () => {
+    if (!selectedInvoice) return
+    const amount = parseFloat(paymentAmount)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid amount")
+      return
+    }
+    if (amount > selectedInvoice.amountDue) {
+      toast.error("Amount exceeds the remaining balance")
+      return
+    }
+    setAddPaymentLoading(true)
+    try {
+      const mod = await import("@/actions/invoices").catch(() => null)
+      if (mod?.recordPayment) {
+        const result = await mod.recordPayment({
+          invoiceId: selectedInvoice.id,
+          amount,
+          method: paymentMethod,
+          reference: paymentReference || undefined,
+          notes: paymentNotes || undefined,
+          date: paymentDate,
+        })
+        if (result && "error" in result) {
+          toast.error(result.error as string)
+        } else {
+          toast.success("Payment recorded successfully")
+          setAddPaymentOpen(false)
+          fetchPayments()
+        }
+      }
+    } catch {
+      toast.error("Failed to record payment")
+    } finally {
+      setAddPaymentLoading(false)
+    }
+  }
+
+  // Open Edit Payment dialog
+  const handleOpenEditPayment = (payment: Payment) => {
+    setEditingPayment(payment)
+    setEditAmount(String(payment.amount))
+    setEditMethod(payment.method)
+    setEditReference(payment.reference ?? "")
+    setEditNotes(payment.notes ?? "")
+    setEditPaymentOpen(true)
+  }
+
+  // Submit edit
+  const handleSubmitEditPayment = async () => {
+    if (!editingPayment) return
+    const amount = parseFloat(editAmount)
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid amount")
+      return
+    }
+    setEditPaymentLoading(true)
+    try {
+      const mod = await import("@/actions/payments").catch(() => null)
+      if (mod?.updatePayment) {
+        const result = await mod.updatePayment(editingPayment.id, {
+          amount,
+          method: editMethod,
+          reference: editReference || null,
+          notes: editNotes || null,
+        })
+        if (result && "error" in result) {
+          toast.error(result.error as string)
+        } else {
+          toast.success("Payment updated successfully")
+          setEditPaymentOpen(false)
+          setEditingPayment(null)
+          fetchPayments()
+        }
+      }
+    } catch {
+      toast.error("Failed to update payment")
+    } finally {
+      setEditPaymentLoading(false)
+    }
+  }
+
+  // Delete payment
+  const handleDeletePayment = async (payment: Payment) => {
+    if (!window.confirm(`Are you sure you want to delete this ${formatCurrency(payment.amount)} payment?`)) {
+      return
+    }
+    try {
+      const mod = await import("@/actions/payments").catch(() => null)
+      if (mod?.deletePayment) {
+        const result = await mod.deletePayment(payment.id)
+        if (result && "error" in result) {
+          toast.error(result.error as string)
+        } else {
+          toast.success("Payment deleted successfully")
+          fetchPayments()
+        }
+      }
+    } catch {
+      toast.error("Failed to delete payment")
+    }
+  }
+
+  // Filter outstanding invoices by search
+  const filteredInvoices = outstandingInvoices.filter((inv) => {
+    if (!invoiceSearch.trim()) return true
+    const q = invoiceSearch.toLowerCase()
+    return (
+      inv.invoiceNumber.toLowerCase().includes(q) ||
+      inv.customerName.toLowerCase().includes(q)
+    )
+  })
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -197,61 +386,71 @@ export function PaymentsPage({
             Track payment history and outstanding balances
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-[#E3E8EE] text-[#425466]"
-          onClick={async () => {
-            try {
-              if (payments.length === 0) {
-                toast.error("No payments to export")
-                return
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="bg-[#635BFF] hover:bg-[#5851DB] text-white"
+            onClick={handleOpenAddPayment}
+          >
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add Payment
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-[#E3E8EE] text-[#425466]"
+            onClick={async () => {
+              try {
+                if (payments.length === 0) {
+                  toast.error("No payments to export")
+                  return
+                }
+                const csvRows = payments.map((p) => ({
+                  Date: p.processedAt
+                    ? new Date(p.processedAt).toLocaleDateString()
+                    : new Date(p.createdAt).toLocaleDateString(),
+                  "Invoice #": p.invoiceNumber ?? "",
+                  Customer: p.customerName,
+                  Amount: Number(p.amount).toFixed(2),
+                  Method: (methodConfig[p.method]?.label ?? p.method),
+                  Status: (statusConfig[p.status]?.label ?? p.status),
+                  Reference: p.reference ?? "",
+                }))
+                const headers = Object.keys(csvRows[0])
+                const rows = csvRows.map((row) =>
+                  headers
+                    .map((h) => {
+                      const val = String((row as any)[h] ?? "")
+                      return val.includes(",") || val.includes('"')
+                        ? `"${val.replace(/"/g, '""')}"`
+                        : val
+                    })
+                    .join(",")
+                )
+                const csv = [headers.join(","), ...rows].join("\n")
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+                const url = URL.createObjectURL(blob)
+                const link = document.createElement("a")
+                link.href = url
+                link.download = `payments-export-${new Date().toISOString().slice(0, 10)}.csv`
+                document.body.appendChild(link)
+                link.click()
+                document.body.removeChild(link)
+                URL.revokeObjectURL(url)
+                toast.success("Payments exported")
+              } catch {
+                toast.error("Failed to export payments")
               }
-              const csvRows = payments.map((p) => ({
-                Date: p.processedAt
-                  ? new Date(p.processedAt).toLocaleDateString()
-                  : new Date(p.createdAt).toLocaleDateString(),
-                "Invoice #": p.invoiceNumber ?? "",
-                Customer: p.customerName,
-                Amount: Number(p.amount).toFixed(2),
-                Method: (methodConfig[p.method]?.label ?? p.method),
-                Status: (statusConfig[p.status]?.label ?? p.status),
-                Reference: p.reference ?? "",
-              }))
-              const headers = Object.keys(csvRows[0])
-              const rows = csvRows.map((row) =>
-                headers
-                  .map((h) => {
-                    const val = String((row as any)[h] ?? "")
-                    return val.includes(",") || val.includes('"')
-                      ? `"${val.replace(/"/g, '""')}"`
-                      : val
-                  })
-                  .join(",")
-              )
-              const csv = [headers.join(","), ...rows].join("\n")
-              const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
-              const url = URL.createObjectURL(blob)
-              const link = document.createElement("a")
-              link.href = url
-              link.download = `payments-export-${new Date().toISOString().slice(0, 10)}.csv`
-              document.body.appendChild(link)
-              link.click()
-              document.body.removeChild(link)
-              URL.revokeObjectURL(url)
-              toast.success("Payments exported")
-            } catch {
-              toast.error("Failed to export payments")
-            }
-          }}
-        >
-          <Download className="w-4 h-4 mr-1.5" />
-          Export
-        </Button>
+            }}
+          >
+            <Download className="w-4 h-4 mr-1.5" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         <Card className="border-[#E3E8EE]">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
@@ -265,24 +464,6 @@ export function PaymentsPage({
               </div>
               <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center">
                 <TrendingUp className="w-5 h-5 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-[#E3E8EE]">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-medium text-[#8898AA] uppercase tracking-wider">
-                  Received Last Month
-                </p>
-                <p className="text-2xl font-semibold text-[#0A2540] mt-1">
-                  {formatCurrency(summary.receivedLastMonth)}
-                </p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-[#F6F8FA] flex items-center justify-center">
-                <TrendingDown className="w-5 h-5 text-[#8898AA]" />
               </div>
             </div>
           </CardContent>
@@ -430,12 +611,16 @@ export function PaymentsPage({
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
                       Status
                     </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-[#8898AA]">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map((payment) => {
                     const method = methodConfig[payment.method]
                     const status = statusConfig[payment.status]
+                    const isManual = !payment.stripePaymentId
                     return (
                       <tr
                         key={payment.id}
@@ -479,6 +664,32 @@ export function PaymentsPage({
                             {status.label}
                           </Badge>
                         </td>
+                        <td className="px-4 py-3 text-right">
+                          {isManual ? (
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-[#8898AA] hover:text-[#0A2540]"
+                                onClick={() => handleOpenEditPayment(payment)}
+                                title="Edit payment"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-[#8898AA] hover:text-red-600"
+                                onClick={() => handleDeletePayment(payment)}
+                                title="Delete payment"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-[#8898AA]">--</span>
+                          )}
+                        </td>
                       </tr>
                     )
                   })}
@@ -488,6 +699,243 @@ export function PaymentsPage({
           )}
         </div>
       </div>
+
+      {/* Add Payment Dialog */}
+      <Dialog open={addPaymentOpen} onOpenChange={setAddPaymentOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {addPaymentStep === 1 ? "Select Invoice" : "Record Payment"}
+            </DialogTitle>
+            <DialogDescription>
+              {addPaymentStep === 1
+                ? "Choose an outstanding invoice to apply a payment to."
+                : `Recording payment for Invoice #${selectedInvoice?.invoiceNumber}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {addPaymentStep === 1 ? (
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8898AA]" />
+                <Input
+                  value={invoiceSearch}
+                  onChange={(e) => setInvoiceSearch(e.target.value)}
+                  placeholder="Search invoices..."
+                  className="pl-10 h-9 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                />
+              </div>
+              <div className="max-h-[300px] overflow-y-auto border border-[#E3E8EE] rounded-md">
+                {filteredInvoices.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-[#8898AA]">
+                    No outstanding invoices found.
+                  </div>
+                ) : (
+                  filteredInvoices.map((inv) => (
+                    <button
+                      key={inv.id}
+                      type="button"
+                      className="w-full text-left px-4 py-3 border-b border-[#E3E8EE] last:border-b-0 hover:bg-[#F6F8FA] transition-colors"
+                      onClick={() => handleSelectInvoice(inv)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-sm font-mono text-[#635BFF]">
+                            #{inv.invoiceNumber}
+                          </span>
+                          <span className="text-sm text-[#425466] ml-3">
+                            {inv.customerName}
+                          </span>
+                        </div>
+                        <span className="text-sm font-semibold text-[#0A2540]">
+                          {formatCurrency(inv.amountDue)} due
+                        </span>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-[#F6F8FA] rounded-md p-3 border border-[#E3E8EE]">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#425466]">
+                    Invoice #{selectedInvoice?.invoiceNumber} -- {selectedInvoice?.customerName}
+                  </span>
+                  <span className="font-semibold text-[#0A2540]">
+                    {formatCurrency(selectedInvoice?.amountDue ?? 0)} due
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="payment-amount">Amount</Label>
+                <Input
+                  id="payment-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  max={selectedInvoice?.amountDue}
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  className="border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="payment-method">Method</Label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger id="payment-method" className="border-[#E3E8EE]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CASH">Cash</SelectItem>
+                    <SelectItem value="CHECK">Check</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="payment-date">Date</Label>
+                <Input
+                  id="payment-date"
+                  type="date"
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                  className="border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="payment-reference">Reference (optional)</Label>
+                <Input
+                  id="payment-reference"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  className="border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                  placeholder='e.g. Check #1234'
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="payment-notes">Notes (optional)</Label>
+                <Textarea
+                  id="payment-notes"
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  className="border-[#E3E8EE] focus-visible:ring-[#635BFF] min-h-[60px]"
+                  placeholder="Any additional notes..."
+                />
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setAddPaymentStep(1)}
+                  disabled={addPaymentLoading}
+                  className="border-[#E3E8EE] text-[#425466]"
+                >
+                  Back
+                </Button>
+                <Button
+                  onClick={handleSubmitPayment}
+                  disabled={addPaymentLoading}
+                  className="bg-[#635BFF] hover:bg-[#5851DB] text-white"
+                >
+                  {addPaymentLoading ? "Recording..." : "Record Payment"}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Payment Dialog */}
+      <Dialog open={editPaymentOpen} onOpenChange={setEditPaymentOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Payment</DialogTitle>
+            <DialogDescription>
+              Update the details of this manual payment.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-amount">Amount</Label>
+              <Input
+                id="edit-amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={editAmount}
+                onChange={(e) => setEditAmount(e.target.value)}
+                className="border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                placeholder="0.00"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-method">Method</Label>
+              <Select value={editMethod} onValueChange={setEditMethod}>
+                <SelectTrigger id="edit-method" className="border-[#E3E8EE]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="CHECK">Check</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                  <SelectItem value="CARD">Card</SelectItem>
+                  <SelectItem value="ACH">ACH</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-reference">Reference (optional)</Label>
+              <Input
+                id="edit-reference"
+                value={editReference}
+                onChange={(e) => setEditReference(e.target.value)}
+                className="border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                placeholder='e.g. Check #1234'
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-notes">Notes (optional)</Label>
+              <Textarea
+                id="edit-notes"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                className="border-[#E3E8EE] focus-visible:ring-[#635BFF] min-h-[60px]"
+                placeholder="Any additional notes..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditPaymentOpen(false)}
+              disabled={editPaymentLoading}
+              className="border-[#E3E8EE] text-[#425466]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitEditPayment}
+              disabled={editPaymentLoading}
+              className="bg-[#635BFF] hover:bg-[#5851DB] text-white"
+            >
+              {editPaymentLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -138,7 +138,10 @@ export async function createPublicBooking(data: {
   customerName: string
   customerEmail: string
   customerPhone?: string
-  address?: string
+  addressLine1?: string
+  city?: string
+  state?: string
+  zip?: string
   preferredDate?: string | Date
   preferredTime?: string
   message?: string
@@ -191,7 +194,11 @@ export async function createPublicBooking(data: {
         customerName: data.customerName,
         customerEmail: data.customerEmail,
         customerPhone: data.customerPhone || null,
-        address: data.address || null,
+        addressLine1: data.addressLine1 || null,
+        city: data.city || null,
+        state: data.state || null,
+        zip: data.zip || null,
+        address: [data.addressLine1, data.city, data.state, data.zip].filter(Boolean).join(", ") || null,
         preferredDate: data.preferredDate ? new Date(data.preferredDate) : null,
         preferredTime: data.preferredTime || null,
         message: data.message || null,
@@ -212,9 +219,7 @@ export async function createPublicBooking(data: {
 
 export async function confirmBooking(
   id: string,
-  data: {
-    scheduledStart: string | Date
-    scheduledEnd: string | Date
+  data?: {
     assignedUserIds?: string[]
   }
 ) {
@@ -228,10 +233,6 @@ export async function confirmBooking(
     if (!booking) return { error: "Booking not found" }
     if (booking.status !== "PENDING") {
       return { error: "Booking is not in a pending status" }
-    }
-
-    if (!data.scheduledStart || !data.scheduledEnd) {
-      return { error: "Scheduled start and end times are required" }
     }
 
     // Create or find customer
@@ -254,6 +255,22 @@ export async function confirmBooking(
       customerId = newCustomer.id
     }
 
+    // If booking has structured address, create a Property record
+    let propertyId: string | null = null
+    if (booking.addressLine1) {
+      const property = await prisma.property.create({
+        data: {
+          customerId: customerId!,
+          addressLine1: booking.addressLine1,
+          city: booking.city || "",
+          state: booking.state || "",
+          zip: booking.zip || "",
+          isPrimary: true,
+        },
+      })
+      propertyId = property.id
+    }
+
     // Get next job number
     const org = await prisma.organization.update({
       where: { id: user.organizationId },
@@ -268,18 +285,19 @@ export async function confirmBooking(
         data: {
           organizationId: user.organizationId,
           customerId: customerId!,
+          propertyId,
           jobNumber,
           title: `Booking: ${booking.customerName}`,
           description: booking.message || null,
           status: "SCHEDULED",
           priority: "MEDIUM",
-          scheduledStart: new Date(data.scheduledStart),
-          scheduledEnd: new Date(data.scheduledEnd),
+          scheduledStart: new Date(0),
+          scheduledEnd: new Date(0),
         },
       })
 
       // Create assignments
-      if (data.assignedUserIds && data.assignedUserIds.length > 0) {
+      if (data?.assignedUserIds && data.assignedUserIds.length > 0) {
         await tx.jobAssignment.createMany({
           data: data.assignedUserIds.map((userId) => ({
             jobId: job.id,
@@ -318,7 +336,7 @@ export async function confirmBooking(
             <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
               <h2>Hi ${booking.customerName},</h2>
               <p>Your booking with <strong>${org.name}</strong> has been confirmed!</p>
-              <p><strong>Scheduled:</strong> ${new Date(data.scheduledStart).toLocaleString()}</p>
+              <p>We will reach out to schedule your appointment.</p>
               <p>We look forward to seeing you.</p>
             </div>
           `,

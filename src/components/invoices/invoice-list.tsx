@@ -14,7 +14,6 @@ import {
   DollarSign,
   AlertTriangle,
   CheckCircle2,
-  Clock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -279,7 +278,7 @@ export function InvoiceList({
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         {/* Outstanding */}
         <div className="bg-white rounded-lg border border-[#E3E8EE] p-4">
           <div className="flex items-center gap-2 mb-1">
@@ -335,49 +334,31 @@ export function InvoiceList({
           </p>
         </div>
 
-        {/* Average Days to Pay */}
-        <div className="bg-white rounded-lg border border-[#E3E8EE] p-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="w-4 h-4 text-[#8898AA]" />
-            <span className="text-xs font-medium text-[#8898AA] uppercase tracking-wide">
-              Avg Days to Pay
-            </span>
-          </div>
-          <p className="text-xl font-semibold text-[#0A2540]">--</p>
-          <p className="text-xs text-[#8898AA] mt-0.5">Based on paid invoices</p>
-        </div>
       </div>
 
       {/* Status Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-4">
         <TabsList className="bg-[#F6F8FA] border border-[#E3E8EE] h-9 overflow-x-auto overflow-y-hidden w-full justify-start">
           <TabsTrigger value="ALL" className="text-xs data-[state=active]:bg-white">
-            All {allCount > 0 && <span className="ml-1 text-[#8898AA]">({allCount})</span>}
+            All <span className="ml-1 text-[#8898AA]">({allCount})</span>
           </TabsTrigger>
           <TabsTrigger value="DRAFT" className="text-xs data-[state=active]:bg-white">
-            Draft {(statusCounts.DRAFT ?? 0) > 0 && (
-              <span className="ml-1 text-[#8898AA]">({statusCounts.DRAFT})</span>
-            )}
+            Draft <span className="ml-1 text-[#8898AA]">({statusCounts.DRAFT ?? 0})</span>
           </TabsTrigger>
-          <TabsTrigger value="SENT" className="text-xs data-[state=active]:bg-white">
-            Sent {(statusCounts.SENT ?? 0) > 0 && (
-              <span className="ml-1 text-[#8898AA]">({statusCounts.SENT})</span>
-            )}
+          <TabsTrigger value="OUTSTANDING" className="text-xs data-[state=active]:bg-white">
+            Outstanding
+            <span className="ml-1 text-[#8898AA]">
+              ({(statusCounts.SENT ?? 0) + (statusCounts.VIEWED ?? 0) + (statusCounts.PARTIALLY_PAID ?? 0) + (statusCounts.OVERDUE ?? 0)})
+            </span>
           </TabsTrigger>
           <TabsTrigger value="OVERDUE" className="text-xs data-[state=active]:bg-white">
-            Overdue {(statusCounts.OVERDUE ?? 0) > 0 && (
-              <span className="ml-1 text-red-500">({statusCounts.OVERDUE})</span>
-            )}
+            Overdue <span className="ml-1 text-red-500">({statusCounts.OVERDUE ?? 0})</span>
           </TabsTrigger>
           <TabsTrigger value="PAID" className="text-xs data-[state=active]:bg-white">
-            Paid {(statusCounts.PAID ?? 0) > 0 && (
-              <span className="ml-1 text-[#8898AA]">({statusCounts.PAID})</span>
-            )}
+            Paid <span className="ml-1 text-[#8898AA]">({statusCounts.PAID ?? 0})</span>
           </TabsTrigger>
           <TabsTrigger value="VOID" className="text-xs data-[state=active]:bg-white">
-            Void {(statusCounts.VOID ?? 0) > 0 && (
-              <span className="ml-1 text-[#8898AA]">({statusCounts.VOID})</span>
-            )}
+            Void <span className="ml-1 text-[#8898AA]">({statusCounts.VOID ?? 0})</span>
           </TabsTrigger>
         </TabsList>
       </Tabs>

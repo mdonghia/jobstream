@@ -106,7 +106,10 @@ export function PublicBookingForm({
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
-  const [address, setAddress] = useState("")
+  const [addressLine1, setAddressLine1] = useState("")
+  const [city, setCity] = useState("")
+  const [state, setState] = useState("")
+  const [zip, setZip] = useState("")
   const [date, setDate] = useState("")
   const [time, setTime] = useState("")
   const [message, setMessage] = useState("")
@@ -136,7 +139,10 @@ export function PublicBookingForm({
         customerName: name.trim(),
         customerEmail: email.trim(),
         customerPhone: phone.trim() || undefined,
-        address: address.trim() || undefined,
+        addressLine1: addressLine1.trim() || undefined,
+        city: city.trim() || undefined,
+        state: state.trim() || undefined,
+        zip: zip.trim() || undefined,
         preferredDate: date || undefined,
         preferredTime: time ? formatTime(time) : undefined,
         message: message.trim() || undefined,
@@ -174,7 +180,10 @@ export function PublicBookingForm({
             setName("")
             setEmail("")
             setPhone("")
-            setAddress("")
+            setAddressLine1("")
+            setCity("")
+            setState("")
+            setZip("")
             setDate("")
             setTime("")
             setMessage("")
@@ -276,16 +285,53 @@ export function PublicBookingForm({
         </div>
 
         {/* Address */}
-        <div className="space-y-1.5">
-          <Label className="text-xs font-semibold uppercase text-[#8898AA]">
-            Service Address
-          </Label>
-          <Input
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="123 Main St, City, State"
-            className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
-          />
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+              Street Address
+            </Label>
+            <Input
+              value={addressLine1}
+              onChange={(e) => setAddressLine1(e.target.value)}
+              placeholder="123 Main St"
+              className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+                City
+              </Label>
+              <Input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="City"
+                className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+                State
+              </Label>
+              <Input
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                placeholder="State"
+                className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+                ZIP
+              </Label>
+              <Input
+                value={zip}
+                onChange={(e) => setZip(e.target.value)}
+                placeholder="ZIP"
+                className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Date & Time */}

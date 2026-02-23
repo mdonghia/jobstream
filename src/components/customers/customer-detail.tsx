@@ -373,7 +373,7 @@ export function CustomerDetail({
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#635BFF] data-[state=active]:text-[#635BFF] data-[state=active]:shadow-none px-4 py-2.5 text-sm text-[#8898AA] hover:text-[#425466]"
             >
               {tab.label}
-              {tab.count !== undefined && tab.count > 0 && (
+              {tab.count !== undefined && (
                 <span className="ml-1.5 text-xs bg-gray-100 px-1.5 py-0.5 rounded-full">
                   {tab.count}
                 </span>

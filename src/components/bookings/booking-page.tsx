@@ -48,6 +48,10 @@ interface Booking {
   preferredDate: string | null
   preferredTime: string | null
   address: string | null
+  addressLine1: string | null
+  city: string | null
+  state: string | null
+  zip: string | null
   message: string | null
   status: "PENDING" | "CONFIRMED" | "DECLINED"
   declineReason: string | null
@@ -178,23 +182,11 @@ export function BookingPage({
 
   async function handleConfirm() {
     if (!confirmingBooking) return
-    if (!confirmDate || !confirmTime) {
-      toast.error("Please provide a date and time")
-      return
-    }
 
     try {
       const mod = await import("@/actions/bookings").catch(() => null)
       if (mod?.confirmBooking) {
-        const scheduledStart = new Date(`${confirmDate}T${confirmTime}:00`)
-        const scheduledEnd = new Date(scheduledStart.getTime() + 2 * 60 * 60 * 1000) // Default 2 hours
-        const result = await mod.confirmBooking(confirmingBooking.id, {
-          scheduledStart: scheduledStart.toISOString(),
-          scheduledEnd: scheduledEnd.toISOString(),
-          assignedUserIds: confirmTeamMemberId && confirmTeamMemberId !== "unassigned"
-            ? [confirmTeamMemberId]
-            : undefined,
-        })
+        const result = await mod.confirmBooking(confirmingBooking.id)
         if (result && "error" in result) {
           toast.error(result.error as string)
           return
@@ -277,27 +269,21 @@ export function BookingPage({
         <TabsList className="mb-6">
           <TabsTrigger value="PENDING">
             Pending
-            {pendingCount > 0 && (
-              <Badge className="ml-1.5 bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0">
-                {pendingCount}
-              </Badge>
-            )}
+            <Badge className="ml-1.5 bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0">
+              {pendingCount}
+            </Badge>
           </TabsTrigger>
           <TabsTrigger value="CONFIRMED">
             Confirmed
-            {confirmedCount > 0 && (
-              <Badge className="ml-1.5 bg-green-100 text-green-700 border-green-200 text-[10px] px-1.5 py-0">
-                {confirmedCount}
-              </Badge>
-            )}
+            <Badge className="ml-1.5 bg-green-100 text-green-700 border-green-200 text-[10px] px-1.5 py-0">
+              {confirmedCount}
+            </Badge>
           </TabsTrigger>
           <TabsTrigger value="DECLINED">
             Declined
-            {declinedCount > 0 && (
-              <Badge className="ml-1.5 bg-red-100 text-red-700 border-red-200 text-[10px] px-1.5 py-0">
-                {declinedCount}
-              </Badge>
-            )}
+            <Badge className="ml-1.5 bg-red-100 text-red-700 border-red-200 text-[10px] px-1.5 py-0">
+              {declinedCount}
+            </Badge>
           </TabsTrigger>
         </TabsList>
 
@@ -460,7 +446,7 @@ export function BookingPage({
               Confirm Booking
             </DialogTitle>
             <DialogDescription className="text-[#8898AA]">
-              Schedule a date/time and assign a team member to create a job.
+              Confirm this booking request and create an unscheduled job.
             </DialogDescription>
           </DialogHeader>
 
@@ -480,55 +466,6 @@ export function BookingPage({
                     &ldquo;{confirmingBooking.message}&rdquo;
                   </p>
                 )}
-              </div>
-
-              <div>
-                <Label className="text-sm text-[#425466]">
-                  <CalendarIcon className="w-3.5 h-3.5 inline mr-1.5" />
-                  Scheduled Date
-                </Label>
-                <Input
-                  type="date"
-                  value={confirmDate}
-                  onChange={(e) => setConfirmDate(e.target.value)}
-                  className="mt-1.5 h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
-                />
-              </div>
-
-              <div>
-                <Label className="text-sm text-[#425466]">
-                  <Clock className="w-3.5 h-3.5 inline mr-1.5" />
-                  Scheduled Time
-                </Label>
-                <Input
-                  type="time"
-                  value={confirmTime}
-                  onChange={(e) => setConfirmTime(e.target.value)}
-                  className="mt-1.5 h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
-                />
-              </div>
-
-              <div>
-                <Label className="text-sm text-[#425466]">
-                  <User className="w-3.5 h-3.5 inline mr-1.5" />
-                  Assign Team Member (optional)
-                </Label>
-                <Select
-                  value={confirmTeamMemberId}
-                  onValueChange={setConfirmTeamMemberId}
-                >
-                  <SelectTrigger className="mt-1.5 h-10 border-[#E3E8EE]">
-                    <SelectValue placeholder="Select team member..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">Unassigned</SelectItem>
-                    {teamMembers.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           )}

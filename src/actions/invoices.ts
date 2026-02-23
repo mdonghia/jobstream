@@ -35,7 +35,9 @@ export async function getInvoices(params: GetInvoicesParams = {}) {
 
     const where: any = { organizationId: user.organizationId }
 
-    if (status && status !== "ALL") {
+    if (status === "OUTSTANDING") {
+      where.status = { in: ["SENT", "VIEWED", "PARTIALLY_PAID", "OVERDUE"] }
+    } else if (status && status !== "ALL") {
       where.status = status
     }
 

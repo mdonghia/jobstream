@@ -45,7 +45,10 @@ export async function getJobs(params: GetJobsParams = {}) {
       organizationId: user.organizationId,
     }
 
-    if (status && status !== "ALL") {
+    if (status === "UNSCHEDULED") {
+      where.status = "SCHEDULED"
+      where.scheduledStart = { lte: new Date("2000-01-01") }
+    } else if (status && status !== "ALL") {
       where.status = status
     }
 
@@ -84,7 +87,7 @@ export async function getJobs(params: GetJobsParams = {}) {
 
     const skip = (page - 1) * perPage
 
-    const [total, jobs, statusCounts] = await Promise.all([
+    const [total, jobs, statusCounts, unscheduledCount] = await Promise.all([
       prisma.job.count({ where }),
       prisma.job.findMany({
         where,
@@ -109,12 +112,23 @@ export async function getJobs(params: GetJobsParams = {}) {
         where: { organizationId: user.organizationId },
         _count: true,
       }),
+      prisma.job.count({
+        where: {
+          organizationId: user.organizationId,
+          status: "SCHEDULED",
+          scheduledStart: { lte: new Date("2000-01-01") },
+        },
+      }),
     ])
 
     const counts: Record<string, number> = {}
     statusCounts.forEach((s) => {
       counts[s.status] = s._count
     })
+    counts["UNSCHEDULED"] = unscheduledCount
+    if (counts["SCHEDULED"]) {
+      counts["SCHEDULED"] = counts["SCHEDULED"] - unscheduledCount
+    }
 
     return {
       jobs,

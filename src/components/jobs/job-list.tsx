@@ -85,6 +85,7 @@ interface JobListProps {
 
 const STATUS_TABS = [
   { value: "ALL", label: "All" },
+  { value: "UNSCHEDULED", label: "Unscheduled" },
   { value: "SCHEDULED", label: "Scheduled" },
   { value: "IN_PROGRESS", label: "In Progress" },
   { value: "COMPLETED", label: "Completed" },
@@ -225,7 +226,10 @@ export function JobList({
 
   function getTabCount(tab: string): number {
     if (tab === "ALL") {
-      return Object.values(statusCounts).reduce((sum, c) => sum + c, 0)
+      // Exclude UNSCHEDULED from the sum since those jobs are already counted under SCHEDULED
+      return Object.entries(statusCounts)
+        .filter(([key]) => key !== "UNSCHEDULED")
+        .reduce((sum, [, c]) => sum + c, 0)
     }
     return statusCounts[tab] || 0
   }
@@ -504,7 +508,7 @@ export function JobList({
 
                   {/* Scheduled */}
                   <td className="px-4 py-3 text-sm text-[#425466]">
-                    {job.scheduledStart ? (
+                    {job.scheduledStart && new Date(job.scheduledStart).getFullYear() > 2000 ? (
                       <div>
                         <span>{formatDate(job.scheduledStart)}</span>
                         <span className="block text-xs text-[#8898AA]">
@@ -512,7 +516,7 @@ export function JobList({
                         </span>
                       </div>
                     ) : (
-                      <span className="text-[#8898AA]">Not scheduled</span>
+                      <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs px-2 py-0.5">Unscheduled</span>
                     )}
                   </td>
 
