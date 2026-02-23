@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -132,6 +132,32 @@ export function CustomerDetail({
   const [noteSaving, setNoteSaving] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [allTags, setAllTags] = useState<string[]>([])
+
+  // Build a lookup of document numbers -> detail page URLs
+  const docLinks = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const q of quotes) if (q.quoteNumber) map.set(q.quoteNumber, `/quotes/${q.id}`)
+    for (const j of jobs) if (j.jobNumber) map.set(j.jobNumber, `/jobs/${j.id}`)
+    for (const inv of invoices) if (inv.invoiceNumber) map.set(inv.invoiceNumber, `/invoices/${inv.id}`)
+    return map
+  }, [quotes, jobs, invoices])
+
+  // Replace QTE-XXXX / JOB-XXXX / INV-XXXX in text with clickable links
+  function linkifyContent(text: string) {
+    const pattern = /((?:QTE|JOB|INV)-\d+)/g
+    const parts = text.split(pattern)
+    return parts.map((part, i) => {
+      const href = docLinks.get(part)
+      if (href) {
+        return (
+          <Link key={i} href={href} className="text-[#635BFF] hover:underline font-medium">
+            {part}
+          </Link>
+        )
+      }
+      return part
+    })
+  }
 
   useEffect(() => {
     getAllTags().then((tags) => {
@@ -770,10 +796,10 @@ export function CustomerDetail({
                       </span>
                     </div>
                     {comm.subject && (
-                      <p className="text-sm text-[#0A2540] mt-1">{comm.subject}</p>
+                      <p className="text-sm text-[#0A2540] mt-1">{linkifyContent(comm.subject)}</p>
                     )}
                     {comm.content && (
-                      <p className="text-sm text-[#425466] mt-0.5 line-clamp-2">{comm.content}</p>
+                      <p className="text-sm text-[#425466] mt-0.5 line-clamp-2">{linkifyContent(comm.content)}</p>
                     )}
                     {comm.recipientAddress && (
                       <p className="text-xs text-[#8898AA] mt-1">
