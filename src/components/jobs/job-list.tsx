@@ -38,7 +38,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { StatusBadge } from "@/components/shared/status-badge"
-import { formatDate, formatTime, getInitials } from "@/lib/utils"
+import { formatDate, formatTime, getInitials, isJobUnscheduled } from "@/lib/utils"
 import { toast } from "sonner"
 import { getJobs } from "@/actions/jobs"
 
@@ -508,7 +508,7 @@ export function JobList({
 
                   {/* Scheduled */}
                   <td className="px-4 py-3 text-sm text-[#425466]">
-                    {job.scheduledStart && new Date(job.scheduledStart).getFullYear() > 2000 ? (
+                    {!isJobUnscheduled(job.scheduledStart) ? (
                       <div>
                         <span>{formatDate(job.scheduledStart)}</span>
                         <span className="block text-xs text-[#8898AA]">

@@ -221,9 +221,12 @@ export function CommunicationsPage({
             <div className="flex flex-col">
               <span className="text-xs font-medium text-[#8898AA] mb-1">From</span>
               <Input
-                type="date"
+                type="text"
+                placeholder="mm/dd/yyyy"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
+                onFocus={(e) => { e.target.type = 'date' }}
+                onBlur={(e) => { if (!e.target.value) e.target.type = 'text' }}
                 className="h-9 w-[150px] border-[#E3E8EE] text-sm"
                 aria-label="Date from"
               />
@@ -231,9 +234,12 @@ export function CommunicationsPage({
             <div className="flex flex-col">
               <span className="text-xs font-medium text-[#8898AA] mb-1">To</span>
               <Input
-                type="date"
+                type="text"
+                placeholder="mm/dd/yyyy"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
+                onFocus={(e) => { e.target.type = 'date' }}
+                onBlur={(e) => { if (!e.target.value) e.target.type = 'text' }}
                 className="h-9 w-[150px] border-[#E3E8EE] text-sm"
                 aria-label="Date to"
               />

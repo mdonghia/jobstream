@@ -63,3 +63,14 @@ export function formatDuration(minutes: number): string {
 export function getInitials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
 }
+
+export function isJobUnscheduled(scheduledStart: Date | string | null | undefined): boolean {
+  if (!scheduledStart) return true
+  const d = typeof scheduledStart === "string" ? new Date(scheduledStart) : scheduledStart
+  return d.getFullYear() <= 2000
+}
+
+export function formatScheduledDate(scheduledStart: Date | string | null | undefined): string | null {
+  if (isJobUnscheduled(scheduledStart)) return null
+  return formatDate(scheduledStart as Date | string)
+}

@@ -37,7 +37,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
-import { formatCurrency, formatDate, formatPhone, formatRelativeTime } from "@/lib/utils"
+import { formatCurrency, formatDate, formatPhone, formatRelativeTime, isJobUnscheduled } from "@/lib/utils"
 import { toast } from "sonner"
 import {
   archiveCustomer,
@@ -648,9 +648,17 @@ export function CustomerDetail({
                       <td className="px-4 py-3 text-sm font-mono text-[#635BFF]">{job.jobNumber}</td>
                       <td className="px-4 py-3 text-sm text-[#0A2540]">{job.title}</td>
                       <td className="px-4 py-3">
-                        <StatusBadge status={job.status} />
+                        <StatusBadge status={isJobUnscheduled(job.scheduledStart) && job.status === "SCHEDULED" ? "UNSCHEDULED" : job.status} />
                       </td>
-                      <td className="px-4 py-3 text-sm text-[#425466]">{formatDate(job.scheduledStart)}</td>
+                      <td className="px-4 py-3 text-sm text-[#425466]">
+                        {isJobUnscheduled(job.scheduledStart) ? (
+                          <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs px-2 py-0.5">
+                            Unscheduled
+                          </span>
+                        ) : (
+                          formatDate(job.scheduledStart)
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

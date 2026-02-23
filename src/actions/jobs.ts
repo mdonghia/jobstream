@@ -62,8 +62,8 @@ export async function getJobs(params: GetJobsParams = {}) {
 
     if (dateFrom || dateTo) {
       where.scheduledStart = {}
-      if (dateFrom) where.scheduledStart.gte = new Date(dateFrom)
-      if (dateTo) where.scheduledStart.lte = new Date(dateTo)
+      if (dateFrom) where.scheduledStart.gte = new Date(dateFrom + "T00:00:00")
+      if (dateTo) where.scheduledStart.lte = new Date(dateTo + "T00:00:00")
     }
 
     // Split on whitespace so multi-word searches like "David Brown" match across fields

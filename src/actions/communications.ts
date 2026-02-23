@@ -58,8 +58,8 @@ export async function getCommunications(params: GetCommunicationsParams = {}) {
 
     if (dateFrom || dateTo) {
       where.createdAt = {}
-      if (dateFrom) where.createdAt.gte = new Date(dateFrom)
-      if (dateTo) where.createdAt.lte = new Date(dateTo)
+      if (dateFrom) where.createdAt.gte = new Date(dateFrom + "T00:00:00")
+      if (dateTo) where.createdAt.lte = new Date(dateTo + "T00:00:00")
     }
 
     // Split on whitespace so multi-word searches like "David Brown" match across fields

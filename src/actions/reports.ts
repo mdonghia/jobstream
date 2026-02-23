@@ -87,8 +87,8 @@ type DateRange = {
 
 function parseDateRange(params: DateRange) {
   return {
-    from: new Date(params.dateFrom),
-    to: new Date(params.dateTo),
+    from: new Date(params.dateFrom + "T00:00:00"),
+    to: new Date(params.dateTo + "T00:00:00"),
   }
 }
 
