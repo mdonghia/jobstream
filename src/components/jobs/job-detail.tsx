@@ -487,7 +487,7 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
               <h1 className="text-2xl font-semibold text-[#0A2540]">
                 {job.title}
               </h1>
-              <StatusBadge status={job.status} />
+              <StatusBadge status={job.status === "SCHEDULED" && job.scheduledStart && new Date(job.scheduledStart).getFullYear() <= 2000 ? "UNSCHEDULED" : job.status} />
             </div>
             <p className="text-sm text-[#8898AA] mt-0.5 font-mono">
               {job.jobNumber}
@@ -650,7 +650,7 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
                   <p className="text-xs uppercase font-semibold text-[#8898AA] mb-2">
                     Scheduled
                   </p>
-                  {job.scheduledStart ? (
+                  {job.scheduledStart && new Date(job.scheduledStart).getFullYear() > 2000 ? (
                     <div className="flex items-start gap-1.5">
                       <CalendarIcon className="w-3.5 h-3.5 text-[#8898AA] mt-0.5" />
                       <div className="text-sm text-[#425466]">
@@ -663,7 +663,7 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-[#8898AA]">Not scheduled</p>
+                    <p className="text-sm text-amber-600 font-medium">Unscheduled</p>
                   )}
                 </div>
 

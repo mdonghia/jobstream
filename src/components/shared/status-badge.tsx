@@ -25,6 +25,7 @@ const statusVariantMap: Record<string, BadgeVariant> = {
   PENDING: "default",
   DRAFT: "default",
   SCHEDULED: "default",
+  UNSCHEDULED: "warning",
   OVERDUE: "danger",
   URGENT: "danger",
   DECLINED: "danger",
