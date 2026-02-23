@@ -77,9 +77,8 @@ export async function POST() {
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("Stripe Connect error:", error)
-    return NextResponse.json(
-      { error: "Failed to start Stripe onboarding. Please try again." },
-      { status: 500 }
-    )
+    const message =
+      error?.message || "Failed to start Stripe onboarding. Please try again."
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
