@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 import { DraggableJob, DroppableSlot, ResizeHandle } from "./dnd-wrappers"
 import type { DragData, DropData } from "./dnd-wrappers"
 import type { CalendarJob } from "./month-view"
+import { computeOverlapLayout } from "./overlap-layout"
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -266,7 +267,9 @@ export function DayView({ jobs, currentDate, onJobClick, onSlotClick, teamMember
               )}
 
               {/* Job blocks */}
-              {col.jobs.map((job) => {
+              {(() => {
+                const overlapLayout = computeOverlapLayout(col.jobs)
+                return col.jobs.map((job) => {
                 const { top, height, durationMinutes } = getJobPosition(job)
                 const color = getJobColor(job)
                 const dragData: DragData = {
@@ -275,16 +278,21 @@ export function DayView({ jobs, currentDate, onJobClick, onSlotClick, teamMember
                   sourceDate: dateKey,
                   sourceMemberId: job.assignments.length > 0 ? job.assignments[0].user.id : undefined,
                 }
+                const layout = overlapLayout.get(job.id)
+                const colIndex = layout?.colIndex ?? 0
+                const totalCols = layout?.totalCols ?? 1
 
                 return (
                   <DraggableJob
                     key={job.id}
                     id={`${job.id}-${col.key}`}
                     data={dragData}
-                    className="absolute left-1 right-1 z-10 rounded-md text-left overflow-hidden transition-shadow hover:shadow-md"
+                    className="absolute z-10 rounded-md text-left overflow-hidden transition-shadow hover:shadow-md"
                     style={{
                       top,
                       height: Math.max(height, 28),
+                      left: `calc(${(colIndex / totalCols) * 100}% + 4px)`,
+                      width: `calc(${(1 / totalCols) * 100}% - 8px)`,
                       backgroundColor: `${color}18`,
                       borderLeft: `3px solid ${color}`,
                       position: "absolute",
@@ -336,7 +344,8 @@ export function DayView({ jobs, currentDate, onJobClick, onSlotClick, teamMember
                     )}
                   </DraggableJob>
                 )
-              })}
+              })
+              })()}
             </div>
           ))}
         </div>

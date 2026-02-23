@@ -8,7 +8,7 @@ import { InvoiceBuilder } from "@/components/invoices/invoice-builder"
 export default async function NewInvoicePage({
   searchParams,
 }: {
-  searchParams: Promise<{ fromJob?: string; duplicate?: string }>
+  searchParams: Promise<{ jobId?: string; duplicate?: string }>
 }) {
   const user = await requireAuth()
   const params = await searchParams
@@ -50,13 +50,13 @@ export default async function NewInvoicePage({
     invoiceDueDays: org?.invoiceDueDays || 30,
   }
 
-  // Pre-fill from a job if ?fromJob=xxx is in the URL
+  // Pre-fill from a job if ?jobId=xxx is in the URL
   let initialData: any = undefined
-  if (params.fromJob) {
-    const prefillResult = await createInvoiceFromJob(params.fromJob)
+  if (params.jobId) {
+    const prefillResult = await createInvoiceFromJob(params.jobId)
     if (prefillResult && "prefill" in prefillResult) {
       const job = await prisma.job.findFirst({
-        where: { id: params.fromJob, organizationId: user.organizationId },
+        where: { id: params.jobId, organizationId: user.organizationId },
         select: { jobNumber: true },
       })
       initialData = {

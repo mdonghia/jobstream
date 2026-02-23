@@ -80,6 +80,18 @@ interface CustomerStats {
   openInvoicesAmount: number
 }
 
+interface CommunicationEntry {
+  id: string
+  type: string
+  direction: string
+  recipientAddress: string | null
+  subject: string | null
+  content: string | null
+  status: string
+  triggeredBy: string | null
+  createdAt: Date | string
+}
+
 interface CustomerDetailProps {
   customer: {
     id: string
@@ -96,6 +108,7 @@ interface CustomerDetailProps {
     properties: Property[]
   }
   customerNotes: CustomerNote[]
+  communications: CommunicationEntry[]
   stats: CustomerStats
   quotes: any[]
   jobs: any[]
@@ -106,6 +119,7 @@ interface CustomerDetailProps {
 export function CustomerDetail({
   customer,
   customerNotes: initialNotes,
+  communications,
   stats,
   quotes,
   jobs,
@@ -711,13 +725,66 @@ export function CustomerDetail({
 
         {/* Communications Tab */}
         <TabsContent value="communications" className="mt-6">
-          <div className="py-12 text-center">
-            <MessageSquare className="w-12 h-12 text-[#8898AA] mx-auto mb-3" />
-            <p className="text-sm text-[#8898AA]">Communication history will appear here</p>
-            <p className="text-xs text-[#8898AA] mt-1">
-              Set up Twilio and SendGrid to start sending messages
-            </p>
-          </div>
+          {communications.length === 0 ? (
+            <div className="py-12 text-center">
+              <MessageSquare className="w-12 h-12 text-[#8898AA] mx-auto mb-3" />
+              <p className="text-sm text-[#8898AA]">No communications yet</p>
+              <p className="text-xs text-[#8898AA] mt-1">
+                Communications will appear here when you send quotes, invoices, or messages
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {communications.map((comm) => (
+                <div
+                  key={comm.id}
+                  className="p-3 rounded-lg border border-[#E3E8EE] flex items-start gap-3"
+                >
+                  <div className="mt-0.5">
+                    {comm.type === "EMAIL" ? (
+                      <Mail className="w-4 h-4 text-[#635BFF]" />
+                    ) : (
+                      <Phone className="w-4 h-4 text-[#635BFF]" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-[#0A2540]">
+                        {comm.type === "EMAIL" ? "Email" : "SMS"}{" "}
+                        {comm.direction === "OUTBOUND" ? "sent" : "received"}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={
+                          comm.status === "SENT"
+                            ? "border-green-200 bg-green-50 text-green-700 text-[10px]"
+                            : comm.status === "FAILED"
+                            ? "border-red-200 bg-red-50 text-red-700 text-[10px]"
+                            : "border-yellow-200 bg-yellow-50 text-yellow-700 text-[10px]"
+                        }
+                      >
+                        {comm.status}
+                      </Badge>
+                      <span className="text-xs text-[#8898AA]">
+                        {formatRelativeTime(comm.createdAt)}
+                      </span>
+                    </div>
+                    {comm.subject && (
+                      <p className="text-sm text-[#0A2540] mt-1">{comm.subject}</p>
+                    )}
+                    {comm.content && (
+                      <p className="text-sm text-[#425466] mt-0.5 line-clamp-2">{comm.content}</p>
+                    )}
+                    {comm.recipientAddress && (
+                      <p className="text-xs text-[#8898AA] mt-1">
+                        To: {comm.recipientAddress}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* Notes Tab */}

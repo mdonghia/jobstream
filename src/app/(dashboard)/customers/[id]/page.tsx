@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation"
 import { requireAuth } from "@/lib/auth-utils"
 import { getCustomer, getCustomerNotes, getCustomerStats } from "@/actions/customers"
+import { getCommunications } from "@/actions/communications"
 import { prisma } from "@/lib/db"
 import { CustomerDetail } from "@/components/customers/customer-detail"
 
@@ -19,9 +20,10 @@ export default async function CustomerDetailPage({
 
   const cust = (result as any).customer
 
-  const [notesResult, statsResult, quotes, jobs, invoices, payments] = await Promise.all([
+  const [notesResult, statsResult, commsResult, quotes, jobs, invoices, payments] = await Promise.all([
     getCustomerNotes(id),
     getCustomerStats(id),
+    getCommunications({ customerId: id, perPage: 50 }),
     prisma.quote.findMany({
       where: { customerId: id, organizationId: user.organizationId },
       orderBy: { createdAt: "desc" },
@@ -71,7 +73,8 @@ export default async function CustomerDetailPage({
     }),
   ])
 
-  const notes = Array.isArray(notesResult) ? notesResult : []
+  const notes = notesResult && "notes" in notesResult ? notesResult.notes : []
+  const communications = commsResult && "communications" in commsResult ? commsResult.communications : []
   const stats = statsResult && !("error" in statsResult)
     ? statsResult
     : { totalRevenue: 0, totalJobs: 0, totalQuotes: 0, openInvoicesCount: 0, openInvoicesAmount: 0 }
@@ -98,6 +101,7 @@ export default async function CustomerDetailPage({
         properties: cust.properties,
       })}
       customerNotes={serialize(notes)}
+      communications={serialize(communications)}
       stats={serialize(stats)}
       quotes={serialize(quotes)}
       jobs={serialize(jobs)}
