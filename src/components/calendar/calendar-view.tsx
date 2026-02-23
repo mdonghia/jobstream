@@ -452,7 +452,7 @@ export function CalendarView({
       </div>
 
       {/* Calendar content */}
-      <div className={cn("flex-1 min-h-0", loading && "opacity-60 pointer-events-none transition-opacity")}>
+      <div className={cn("flex-1 min-h-0", view === "list" && "overflow-y-auto", loading && "opacity-60 pointer-events-none transition-opacity")}>
         {view === "month" && (
           <MonthView
             jobs={jobs}
