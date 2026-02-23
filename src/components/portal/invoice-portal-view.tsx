@@ -44,7 +44,7 @@ interface InvoiceData {
   amountPaid: number
   amountDue: number
   accessToken: string
-  notes: string | null
+  customerNote: string | null
   lineItems: LineItem[]
   payments: Payment[]
   customer: {
@@ -299,13 +299,13 @@ export function InvoicePortalView({ invoice }: { invoice: InvoiceData }) {
         </div>
 
         {/* Notes */}
-        {invoice.notes && (
+        {invoice.customerNote && (
           <div className="px-6 py-4 border-t border-[#E3E8EE]">
             <p className="text-xs font-semibold uppercase text-[#8898AA] mb-1">
               Notes
             </p>
             <p className="text-sm text-[#425466] whitespace-pre-wrap">
-              {invoice.notes}
+              {invoice.customerNote}
             </p>
           </div>
         )}
