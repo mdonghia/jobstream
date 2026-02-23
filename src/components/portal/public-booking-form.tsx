@@ -300,7 +300,6 @@ export function PublicBookingForm({
               value={date}
               onChange={(e) => {
                 setDate(e.target.value)
-                setTime("")
               }}
               min={today}
               className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
