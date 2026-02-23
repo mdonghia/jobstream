@@ -140,10 +140,15 @@ export async function sendManualSMS(data: { customerId: string; content: string 
           process.env.TWILIO_AUTH_TOKEN
         )
 
+        // Ensure phone number is in E.164 format (+1XXXXXXXXXX)
+        let toPhone = customer.phone.replace(/\D/g, "")
+        if (toPhone.length === 10) toPhone = "1" + toPhone
+        if (!toPhone.startsWith("+")) toPhone = "+" + toPhone
+
         const message = await client.messages.create({
           body: data.content.trim(),
           from: process.env.TWILIO_PHONE_NUMBER,
-          to: customer.phone,
+          to: toPhone,
         })
 
         twilioMessageSid = message.sid

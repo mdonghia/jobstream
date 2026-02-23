@@ -452,10 +452,15 @@ export async function sendQuote(id: string, options?: { email?: boolean; sms?: b
           process.env.TWILIO_ACCOUNT_SID,
           process.env.TWILIO_AUTH_TOKEN
         )
+        // Ensure phone number is in E.164 format (+1XXXXXXXXXX)
+        let toPhone = quote.customer.phone.replace(/\D/g, "")
+        if (toPhone.length === 10) toPhone = "1" + toPhone
+        if (!toPhone.startsWith("+")) toPhone = "+" + toPhone
+
         await client.messages.create({
           body: `Hi ${quote.customer.firstName}, ${org?.name} sent you a quote for $${Number(quote.total).toFixed(2)}. View it here: ${portalUrl}`,
           from: process.env.TWILIO_PHONE_NUMBER,
-          to: quote.customer.phone,
+          to: toPhone,
         })
 
         smsSent = true
