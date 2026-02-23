@@ -86,9 +86,11 @@ type DateRange = {
 // =============================================================================
 
 function parseDateRange(params: DateRange) {
+  const parseLocalStart = (s: string) => s.length === 10 ? new Date(s + "T00:00:00") : new Date(s)
+  const parseLocalEnd = (s: string) => s.length === 10 ? new Date(s + "T23:59:59") : new Date(s)
   return {
-    from: new Date(params.dateFrom + "T00:00:00"),
-    to: new Date(params.dateTo + "T00:00:00"),
+    from: parseLocalStart(params.dateFrom),
+    to: parseLocalEnd(params.dateTo),
   }
 }
 

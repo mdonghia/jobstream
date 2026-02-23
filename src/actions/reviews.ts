@@ -58,7 +58,7 @@ export async function getReviews(params: GetReviewsParams = {}) {
     if (dateFrom || dateTo) {
       where.reviewDate = {}
       if (dateFrom) where.reviewDate.gte = new Date(dateFrom + "T00:00:00")
-      if (dateTo) where.reviewDate.lte = new Date(dateTo + "T00:00:00")
+      if (dateTo) where.reviewDate.lte = new Date(dateTo + "T23:59:59")
     }
 
     // Split on whitespace so multi-word searches like "David Brown" match across fields

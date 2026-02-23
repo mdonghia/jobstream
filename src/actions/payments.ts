@@ -39,7 +39,7 @@ export async function getPayments(params: GetPaymentsParams = {}) {
     if (dateFrom || dateTo) {
       where.createdAt = {}
       if (dateFrom) where.createdAt.gte = new Date(dateFrom + "T00:00:00")
-      if (dateTo) where.createdAt.lte = new Date(dateTo + "T00:00:00")
+      if (dateTo) where.createdAt.lte = new Date(dateTo + "T23:59:59")
     }
 
     if (method && method !== "ALL") {

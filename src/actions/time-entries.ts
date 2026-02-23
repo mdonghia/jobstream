@@ -45,7 +45,7 @@ export async function getTimeEntries(params: GetTimeEntriesParams = {}) {
     if (dateFrom || dateTo) {
       where.clockIn = {}
       if (dateFrom) where.clockIn.gte = new Date(dateFrom + "T00:00:00")
-      if (dateTo) where.clockIn.lte = new Date(dateTo + "T00:00:00")
+      if (dateTo) where.clockIn.lte = new Date(dateTo + "T23:59:59")
     }
 
     const skip = (page - 1) * perPage
@@ -455,7 +455,7 @@ export async function exportTimeEntries(params: {
     if (params.dateFrom || params.dateTo) {
       where.clockIn = {}
       if (params.dateFrom) where.clockIn.gte = new Date(params.dateFrom + "T00:00:00")
-      if (params.dateTo) where.clockIn.lte = new Date(params.dateTo + "T00:00:00")
+      if (params.dateTo) where.clockIn.lte = new Date(params.dateTo + "T23:59:59")
     }
 
     const entries = await prisma.timeEntry.findMany({

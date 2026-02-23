@@ -25,7 +25,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { format } from "date-fns"
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  startOfQuarter,
+  endOfQuarter,
+  startOfYear,
+  endOfYear,
+} from "date-fns"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -91,6 +102,51 @@ const statusConfig: Record<
   },
 }
 
+type DatePreset = "this_week" | "this_month" | "last_month" | "this_quarter" | "this_year" | "last_12_months" | "custom"
+
+function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string): { dateFrom: string; dateTo: string } {
+  const now = new Date()
+  switch (preset) {
+    case "this_week":
+      return {
+        dateFrom: format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+        dateTo: format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+      }
+    case "this_month":
+      return {
+        dateFrom: format(startOfMonth(now), "yyyy-MM-dd"),
+        dateTo: format(endOfMonth(now), "yyyy-MM-dd"),
+      }
+    case "last_month": {
+      const last = subMonths(now, 1)
+      return {
+        dateFrom: format(startOfMonth(last), "yyyy-MM-dd"),
+        dateTo: format(endOfMonth(last), "yyyy-MM-dd"),
+      }
+    }
+    case "this_quarter":
+      return {
+        dateFrom: format(startOfQuarter(now), "yyyy-MM-dd"),
+        dateTo: format(endOfQuarter(now), "yyyy-MM-dd"),
+      }
+    case "this_year":
+      return {
+        dateFrom: format(startOfYear(now), "yyyy-MM-dd"),
+        dateTo: format(endOfYear(now), "yyyy-MM-dd"),
+      }
+    case "last_12_months":
+      return {
+        dateFrom: format(subMonths(now, 12), "yyyy-MM-dd"),
+        dateTo: format(now, "yyyy-MM-dd"),
+      }
+    case "custom":
+      return {
+        dateFrom: customFrom || format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+        dateTo: customTo || format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+      }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -112,13 +168,16 @@ export function CommunicationsPage({
   const [search, setSearch] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
   const [directionFilter, setDirectionFilter] = useState("all")
-  const [dateFrom, setDateFrom] = useState("")
-  const [dateTo, setDateTo] = useState("")
+  const [datePreset, setDatePreset] = useState<DatePreset>("this_week")
+  const [customDateFrom, setCustomDateFrom] = useState("")
+  const [customDateTo, setCustomDateTo] = useState("")
+
+  const dateRange = getDateRange(datePreset, customDateFrom, customDateTo)
 
   // Reset page when filters change
   useEffect(() => {
     setPage(1)
-  }, [search, typeFilter, directionFilter, dateFrom, dateTo])
+  }, [search, typeFilter, directionFilter, datePreset, customDateFrom, customDateTo])
 
   // Fetch communications
   const fetchCommunications = useCallback(async () => {
@@ -130,8 +189,8 @@ export function CommunicationsPage({
           search: search || undefined,
           type: typeFilter !== "all" ? typeFilter : undefined,
           direction: directionFilter !== "all" ? directionFilter : undefined,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined,
+          dateFrom: dateRange.dateFrom,
+          dateTo: dateRange.dateTo,
           page,
         })
         if (result && !("error" in result)) {
@@ -150,7 +209,7 @@ export function CommunicationsPage({
     } catch {
       // Server actions not yet available
     }
-  }, [search, typeFilter, directionFilter, dateFrom, dateTo, page])
+  }, [search, typeFilter, directionFilter, dateRange.dateFrom, dateRange.dateTo, page])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -175,7 +234,7 @@ export function CommunicationsPage({
           Communications
         </h1>
         <p className="text-sm text-[#8898AA] mt-0.5">
-          SMS and email communication history
+          {format(new Date(dateRange.dateFrom + "T00:00:00"), "MMM d, yyyy")} - {format(new Date(dateRange.dateTo + "T00:00:00"), "MMM d, yyyy")}
         </p>
       </div>
 
@@ -218,26 +277,39 @@ export function CommunicationsPage({
               </SelectContent>
             </Select>
 
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-[#8898AA] mb-1">From</span>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className={`h-9 w-[150px] border-[#E3E8EE] text-sm ${!dateFrom ? "text-[#8898AA]" : ""}`}
-                aria-label="Date from"
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-[#8898AA] mb-1">To</span>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className={`h-9 w-[150px] border-[#E3E8EE] text-sm ${!dateTo ? "text-[#8898AA]" : ""}`}
-                aria-label="Date to"
-              />
-            </div>
+            <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+              <SelectTrigger className="w-[160px] h-9 border-[#E3E8EE] text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="this_week">This Week</SelectItem>
+                <SelectItem value="this_month">This Month</SelectItem>
+                <SelectItem value="last_month">Last Month</SelectItem>
+                <SelectItem value="this_quarter">This Quarter</SelectItem>
+                <SelectItem value="this_year">This Year</SelectItem>
+                <SelectItem value="last_12_months">Last 12 Months</SelectItem>
+                <SelectItem value="custom">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+            {datePreset === "custom" && (
+              <>
+                <Input
+                  type="date"
+                  value={customDateFrom}
+                  onChange={(e) => setCustomDateFrom(e.target.value)}
+                  className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+                  aria-label="Date from"
+                />
+                <span className="text-sm text-[#8898AA]">to</span>
+                <Input
+                  type="date"
+                  value={customDateTo}
+                  onChange={(e) => setCustomDateTo(e.target.value)}
+                  className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+                  aria-label="Date to"
+                />
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -255,11 +327,9 @@ export function CommunicationsPage({
             <p className="text-sm text-[#8898AA]">
               {search ||
               typeFilter !== "all" ||
-              directionFilter !== "all" ||
-              dateFrom ||
-              dateTo
-                ? "Try adjusting your filters."
-                : "SMS and email communications with your customers will appear here."}
+              directionFilter !== "all"
+                ? "Try adjusting your filters or date range."
+                : "No communications found for this time period."}
             </p>
           </div>
         ) : (
