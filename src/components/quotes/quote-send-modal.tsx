@@ -64,7 +64,13 @@ export function QuoteSendModal({ quote, open, onOpenChange }: QuoteSendModalProp
       return
     }
 
-    toast.success("Quote sent successfully")
+    // Show delivery results
+    if (result.errors && result.errors.length > 0) {
+      const warnings = result.errors.join(". ")
+      toast.warning(`Quote status updated to Sent, but delivery had issues: ${warnings}`)
+    } else {
+      toast.success("Quote sent successfully")
+    }
     setSending(false)
     onOpenChange(false)
     router.refresh()

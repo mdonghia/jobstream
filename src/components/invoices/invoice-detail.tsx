@@ -147,7 +147,12 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
         toast.error(result.error)
         return
       }
-      toast.success("Invoice sent successfully")
+      if (result.errors && result.errors.length > 0) {
+        const warnings = result.errors.join(". ")
+        toast.warning(`Invoice status updated to Sent, but delivery had issues: ${warnings}`)
+      } else {
+        toast.success("Invoice sent successfully")
+      }
       window.location.reload()
     } catch {
       toast.error("Failed to send invoice")
@@ -410,8 +415,8 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
       })
     }
 
-    // Sort by date descending
-    events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    // Sort by date ascending (oldest first)
+    events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
     return events
   }
@@ -765,7 +770,7 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-[#0A2540] flex items-center gap-2">
                 <Clock className="w-4 h-4 text-[#8898AA]" />
-                Activity
+                Timeline
               </CardTitle>
             </CardHeader>
             <CardContent>

@@ -338,6 +338,9 @@ export async function sendInvoice(id: string, options?: { email?: boolean; sms?:
 
     const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/${org?.slug}/invoices/${invoice.accessToken}`
 
+    let emailSent = false
+    const errors: string[] = []
+
     // Send email
     if (options?.email !== false && invoice.customer.email && process.env.SENDGRID_API_KEY) {
       try {
@@ -360,6 +363,8 @@ export async function sendInvoice(id: string, options?: { email?: boolean; sms?:
           `,
         })
 
+        emailSent = true
+
         await prisma.communicationLog.create({
           data: {
             organizationId: user.organizationId,
@@ -373,12 +378,15 @@ export async function sendInvoice(id: string, options?: { email?: boolean; sms?:
             triggeredBy: "manual",
           },
         })
-      } catch (e) {
+      } catch (e: any) {
         console.error("Failed to send invoice email:", e)
+        errors.push(`Email failed: ${e?.message || "Unknown error"}`)
       }
+    } else if (options?.email !== false && invoice.customer.email && !process.env.SENDGRID_API_KEY) {
+      errors.push("Email not configured: SendGrid API key is missing")
     }
 
-    return { success: true }
+    return { success: true, emailSent, errors }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("sendInvoice error:", error)

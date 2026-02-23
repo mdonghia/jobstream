@@ -465,9 +465,9 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
     })
   })
 
-  // Sort by timestamp descending
+  // Sort by timestamp ascending (oldest first)
   activityItems.sort(
-    (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   )
 
   // ---- Render ----
@@ -1192,12 +1192,12 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
           )}
         </div>
 
-        {/* Right Column - Activity Timeline */}
+        {/* Right Column - Timeline */}
         <div className="lg:col-span-1">
           <Card className="border-[#E3E8EE] sticky top-6">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold text-[#0A2540]">
-                Activity
+                Timeline
               </CardTitle>
             </CardHeader>
             <CardContent>

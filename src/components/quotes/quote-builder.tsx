@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import {
+  ArrowLeft,
   Loader2,
   Plus,
   Trash2,
@@ -248,8 +250,7 @@ export function QuoteBuilder({
     (sum, li) => (li.taxable ? sum + li.quantity * li.unitPrice : sum),
     0
   )
-  const taxRate = orgSettings.taxRate / 100
-  const taxAmount = taxableAmount * taxRate
+  const taxAmount = taxableAmount * orgSettings.taxRate
   const totalAmount = subtotal + taxAmount
 
   // ── Validation ───────────────────────────────────────────────────────────
@@ -326,15 +327,28 @@ export function QuoteBuilder({
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-[#0A2540]">
-          {mode === "edit" ? "Edit Quote" : "New Quote"}
-        </h1>
-        <p className="text-sm text-[#8898AA] mt-0.5">
-          {mode === "edit"
-            ? "Update the details for this quote"
-            : "Create a quote to send to your customer"}
-        </p>
+      <div className="flex items-center gap-3 mb-6">
+        <Button
+          variant="ghost"
+          size="icon"
+          asChild
+          className="h-8 w-8"
+          aria-label="Go back"
+        >
+          <Link href="/quotes">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-2xl font-semibold text-[#0A2540]">
+            {mode === "edit" ? "Edit Quote" : "New Quote"}
+          </h1>
+          <p className="text-sm text-[#8898AA] mt-0.5">
+            {mode === "edit"
+              ? "Update the details for this quote"
+              : "Create a quote to send to your customer"}
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">

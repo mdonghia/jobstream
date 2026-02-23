@@ -350,7 +350,7 @@ export function InvoiceList({
 
       {/* Status Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-4">
-        <TabsList className="bg-[#F6F8FA] border border-[#E3E8EE] h-9 overflow-x-auto w-full justify-start">
+        <TabsList className="bg-[#F6F8FA] border border-[#E3E8EE] h-9 overflow-x-auto overflow-y-hidden w-full justify-start">
           <TabsTrigger value="ALL" className="text-xs data-[state=active]:bg-white">
             All {allCount > 0 && <span className="ml-1 text-[#8898AA]">({allCount})</span>}
           </TabsTrigger>

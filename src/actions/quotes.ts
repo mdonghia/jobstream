@@ -394,6 +394,10 @@ export async function sendQuote(id: string, options?: { email?: boolean; sms?: b
 
     const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/${org?.slug}/quotes/${quote.accessToken}`
 
+    let emailSent = false
+    let smsSent = false
+    const errors: string[] = []
+
     // Send email if configured
     if (options?.email !== false && quote.customer.email && process.env.SENDGRID_API_KEY) {
       try {
@@ -416,6 +420,8 @@ export async function sendQuote(id: string, options?: { email?: boolean; sms?: b
           `,
         })
 
+        emailSent = true
+
         // Log communication
         await prisma.communicationLog.create({
           data: {
@@ -430,12 +436,12 @@ export async function sendQuote(id: string, options?: { email?: boolean; sms?: b
             triggeredBy: "manual",
           },
         })
-      } catch (e) {
+      } catch (e: any) {
         console.error("Failed to send quote email:", e)
+        errors.push(`Email failed: ${e?.message || "Unknown error"}`)
       }
-    } else if (quote.customer.email) {
-      console.log(`[DEV] Quote email would be sent to: ${quote.customer.email}`)
-      console.log(`[DEV] Portal URL: ${portalUrl}`)
+    } else if (options?.email !== false && quote.customer.email && !process.env.SENDGRID_API_KEY) {
+      errors.push("Email not configured: SendGrid API key is missing")
     }
 
     // Send SMS if configured
@@ -452,6 +458,8 @@ export async function sendQuote(id: string, options?: { email?: boolean; sms?: b
           to: quote.customer.phone,
         })
 
+        smsSent = true
+
         await prisma.communicationLog.create({
           data: {
             organizationId: user.organizationId,
@@ -464,12 +472,15 @@ export async function sendQuote(id: string, options?: { email?: boolean; sms?: b
             triggeredBy: "manual",
           },
         })
-      } catch (e) {
+      } catch (e: any) {
         console.error("Failed to send quote SMS:", e)
+        errors.push(`SMS failed: ${e?.message || "Unknown error"}`)
       }
+    } else if (options?.sms !== false && quote.customer.phone && !process.env.TWILIO_ACCOUNT_SID) {
+      errors.push("SMS not configured: Twilio credentials are missing")
     }
 
-    return { success: true }
+    return { success: true, emailSent, smsSent, errors }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("sendQuote error:", error)

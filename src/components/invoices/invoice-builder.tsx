@@ -185,7 +185,7 @@ export function InvoiceBuilder({
 
     const afterDiscount = subtotal - discountAmount
     const taxableAfterDiscount = Math.max(0, taxableAmount - discountAmount)
-    const taxAmount = taxableAfterDiscount * (orgSettings.taxRate / 100)
+    const taxAmount = taxableAfterDiscount * orgSettings.taxRate
     const total = afterDiscount + taxAmount
 
     return { subtotal, discountAmount, taxableAfterDiscount, taxAmount, total }

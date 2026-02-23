@@ -281,7 +281,7 @@ export function QuoteList({
 
       {/* Status tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-4">
-        <TabsList className="bg-transparent border-b border-[#E3E8EE] rounded-none w-full justify-start h-auto p-0 gap-0 overflow-x-auto">
+        <TabsList className="bg-transparent border-b border-[#E3E8EE] rounded-none w-full justify-start h-10 p-0 gap-0 overflow-x-auto overflow-y-hidden">
           {STATUS_TABS.map((tab) => (
             <TabsTrigger
               key={tab.value}
