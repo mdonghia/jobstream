@@ -655,9 +655,9 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
                     <div className="flex items-start gap-1.5">
                       <CalendarIcon className="w-3.5 h-3.5 text-[#8898AA] mt-0.5" />
                       <div className="text-sm text-[#425466]">
-                        <p>{formatDate(job.scheduledStart)}</p>
+                        <p>{formatDate(job.scheduledStart!)}</p>
                         <p className="text-xs text-[#8898AA]">
-                          {formatTime(job.scheduledStart)}
+                          {formatTime(job.scheduledStart!)}
                           {job.scheduledEnd &&
                             ` - ${formatTime(job.scheduledEnd)}`}
                         </p>
