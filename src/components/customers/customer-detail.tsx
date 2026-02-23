@@ -170,10 +170,10 @@ export function CustomerDetail({
     const result = await addCustomerNote(customer.id, noteInput.trim())
     if (result && "error" in result) {
       toast.error(result.error as string)
-    } else {
+    } else if (result && "note" in result) {
+      setNotes((prev) => [result.note as CustomerNote, ...prev])
       setNoteInput("")
       toast.success("Note added")
-      router.refresh()
     }
     setNoteSaving(false)
   }
