@@ -37,15 +37,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import {
   format,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
+  subDays,
   subMonths,
-  startOfQuarter,
-  endOfQuarter,
-  startOfYear,
-  endOfYear,
 } from "date-fns"
 import { formatCurrency } from "@/lib/utils"
 
@@ -155,37 +148,30 @@ const defaultSummary: PaymentSummary = {
   overdue: 0,
 }
 
-type DatePreset = "this_week" | "this_month" | "last_month" | "this_quarter" | "this_year" | "last_12_months" | "custom"
+type DatePreset = "last_7_days" | "last_30_days" | "last_3_months" | "last_6_months" | "last_12_months" | "custom"
 
 function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string): { dateFrom: string; dateTo: string } {
   const now = new Date()
   switch (preset) {
-    case "this_week":
+    case "last_7_days":
       return {
-        dateFrom: format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
-        dateTo: format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+        dateFrom: format(subDays(now, 6), "yyyy-MM-dd"),
+        dateTo: format(now, "yyyy-MM-dd"),
       }
-    case "this_month":
+    case "last_30_days":
       return {
-        dateFrom: format(startOfMonth(now), "yyyy-MM-dd"),
-        dateTo: format(endOfMonth(now), "yyyy-MM-dd"),
+        dateFrom: format(subDays(now, 29), "yyyy-MM-dd"),
+        dateTo: format(now, "yyyy-MM-dd"),
       }
-    case "last_month": {
-      const last = subMonths(now, 1)
+    case "last_3_months":
       return {
-        dateFrom: format(startOfMonth(last), "yyyy-MM-dd"),
-        dateTo: format(endOfMonth(last), "yyyy-MM-dd"),
+        dateFrom: format(subMonths(now, 3), "yyyy-MM-dd"),
+        dateTo: format(now, "yyyy-MM-dd"),
       }
-    }
-    case "this_quarter":
+    case "last_6_months":
       return {
-        dateFrom: format(startOfQuarter(now), "yyyy-MM-dd"),
-        dateTo: format(endOfQuarter(now), "yyyy-MM-dd"),
-      }
-    case "this_year":
-      return {
-        dateFrom: format(startOfYear(now), "yyyy-MM-dd"),
-        dateTo: format(endOfYear(now), "yyyy-MM-dd"),
+        dateFrom: format(subMonths(now, 6), "yyyy-MM-dd"),
+        dateTo: format(now, "yyyy-MM-dd"),
       }
     case "last_12_months":
       return {
@@ -194,8 +180,8 @@ function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string
       }
     case "custom":
       return {
-        dateFrom: customFrom || format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
-        dateTo: customTo || format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+        dateFrom: customFrom || format(subDays(now, 6), "yyyy-MM-dd"),
+        dateTo: customTo || format(now, "yyyy-MM-dd"),
       }
   }
 }
@@ -218,7 +204,7 @@ export function PaymentsPage({
   const [search, setSearch] = useState("")
   const [methodFilter, setMethodFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [datePreset, setDatePreset] = useState<DatePreset>("this_month")
+  const [datePreset, setDatePreset] = useState<DatePreset>("last_7_days")
   const [customDateFrom, setCustomDateFrom] = useState("")
   const [customDateTo, setCustomDateTo] = useState("")
 
@@ -586,11 +572,10 @@ export function PaymentsPage({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="this_week">This Week</SelectItem>
-                  <SelectItem value="this_month">This Month</SelectItem>
-                  <SelectItem value="last_month">Last Month</SelectItem>
-                  <SelectItem value="this_quarter">This Quarter</SelectItem>
-                  <SelectItem value="this_year">This Year</SelectItem>
+                  <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+                  <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+                  <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+                  <SelectItem value="last_6_months">Last 6 Months</SelectItem>
                   <SelectItem value="last_12_months">Last 12 Months</SelectItem>
                   <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>

@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Mail, MousePointerClick, Percent, ChevronLeft, ChevronRight } from "lucide-react"
 
-type DateRange = "this_month" | "last_month" | "this_quarter" | "all_time"
+type DateRange = "last_7_days" | "last_30_days" | "last_3_months" | "last_6_months" | "last_12_months" | "custom"
 
 type ReviewRequestItem = {
   id: string
@@ -38,14 +38,16 @@ type Props = {
 }
 
 const DATE_RANGE_LABELS: Record<DateRange, string> = {
-  this_month: "This Month",
-  last_month: "Last Month",
-  this_quarter: "This Quarter",
-  all_time: "All Time",
+  last_7_days: "Last 7 Days",
+  last_30_days: "Last 30 Days",
+  last_3_months: "Last 3 Months",
+  last_6_months: "Last 6 Months",
+  last_12_months: "Last 12 Months",
+  custom: "Custom Range",
 }
 
 export function ReviewRequestsTab({ initialStats, initialRequests, initialTotal }: Props) {
-  const [dateRange, setDateRange] = useState<DateRange>("this_month")
+  const [dateRange, setDateRange] = useState<DateRange>("last_7_days")
   const [stats, setStats] = useState(initialStats || { totalSent: 0, uniqueClicked: 0, conversionRate: 0 })
   const [requests, setRequests] = useState<ReviewRequestItem[]>(initialRequests || [])
   const [total, setTotal] = useState(initialTotal || 0)

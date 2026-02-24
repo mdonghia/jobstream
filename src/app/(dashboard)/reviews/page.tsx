@@ -19,8 +19,8 @@ export default async function ReviewsRoute() {
       const [googleStats, googleReviews, requestStats, requests] = await Promise.all([
         mod.getGoogleReviewStats?.() || null,
         mod.getGoogleReviews?.("all", 1, 25) || null,
-        mod.getReviewRequestStats?.("this_month") || null,
-        mod.getReviewRequests?.("this_month", 1, 25) || null,
+        mod.getReviewRequestStats?.("last_7_days") || null,
+        mod.getReviewRequests?.("last_7_days", 1, 25) || null,
       ])
 
       if (googleStats && !("error" in googleStats)) {

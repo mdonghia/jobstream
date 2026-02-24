@@ -46,14 +46,7 @@ import {
   Legend,
 } from "recharts"
 import {
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  startOfQuarter,
-  endOfQuarter,
-  startOfYear,
-  endOfYear,
+  subDays,
   subMonths,
   format,
 } from "date-fns"
@@ -76,7 +69,7 @@ import type {
 // Types
 // =============================================================================
 
-type DatePreset = "this_week" | "this_month" | "last_month" | "this_quarter" | "this_year" | "last_12_months" | "custom"
+type DatePreset = "last_7_days" | "last_30_days" | "last_3_months" | "last_6_months" | "last_12_months" | "custom"
 
 type DateRange = {
   dateFrom: string
@@ -90,32 +83,25 @@ type DateRange = {
 function getDateRangeForPreset(preset: DatePreset, customDateFrom?: string, customDateTo?: string): DateRange {
   const now = new Date()
   switch (preset) {
-    case "this_week":
+    case "last_7_days":
       return {
-        dateFrom: startOfWeek(now, { weekStartsOn: 1 }).toISOString(),
-        dateTo: endOfWeek(now, { weekStartsOn: 1 }).toISOString(),
+        dateFrom: subDays(now, 6).toISOString(),
+        dateTo: now.toISOString(),
       }
-    case "this_month":
+    case "last_30_days":
       return {
-        dateFrom: startOfMonth(now).toISOString(),
-        dateTo: endOfMonth(now).toISOString(),
+        dateFrom: subDays(now, 29).toISOString(),
+        dateTo: now.toISOString(),
       }
-    case "last_month": {
-      const lastMonth = subMonths(now, 1)
+    case "last_3_months":
       return {
-        dateFrom: startOfMonth(lastMonth).toISOString(),
-        dateTo: endOfMonth(lastMonth).toISOString(),
+        dateFrom: subMonths(now, 3).toISOString(),
+        dateTo: now.toISOString(),
       }
-    }
-    case "this_quarter":
+    case "last_6_months":
       return {
-        dateFrom: startOfQuarter(now).toISOString(),
-        dateTo: endOfQuarter(now).toISOString(),
-      }
-    case "this_year":
-      return {
-        dateFrom: startOfYear(now).toISOString(),
-        dateTo: endOfYear(now).toISOString(),
+        dateFrom: subMonths(now, 6).toISOString(),
+        dateTo: now.toISOString(),
       }
     case "last_12_months":
       return {
@@ -124,8 +110,8 @@ function getDateRangeForPreset(preset: DatePreset, customDateFrom?: string, cust
       }
     case "custom":
       return {
-        dateFrom: customDateFrom || format(startOfMonth(now), "yyyy-MM-dd"),
-        dateTo: customDateTo || format(endOfMonth(now), "yyyy-MM-dd"),
+        dateFrom: customDateFrom || format(subDays(now, 6), "yyyy-MM-dd"),
+        dateTo: customDateTo || format(now, "yyyy-MM-dd"),
       }
   }
 }
@@ -926,7 +912,7 @@ function CustomersTab({ data }: { data: CustomersReportResult | null }) {
 
 export function ReportsPage() {
   const [activeTab, setActiveTab] = useState("revenue")
-  const [datePreset, setDatePreset] = useState<DatePreset>("this_month")
+  const [datePreset, setDatePreset] = useState<DatePreset>("last_7_days")
   const [loading, setLoading] = useState(false)
   const [customDateFrom, setCustomDateFrom] = useState("")
   const [customDateTo, setCustomDateTo] = useState("")
@@ -1024,11 +1010,10 @@ export function ReportsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="this_week">This Week</SelectItem>
-              <SelectItem value="this_month">This Month</SelectItem>
-              <SelectItem value="last_month">Last Month</SelectItem>
-              <SelectItem value="this_quarter">This Quarter</SelectItem>
-              <SelectItem value="this_year">This Year</SelectItem>
+              <SelectItem value="last_7_days">Last 7 Days</SelectItem>
+              <SelectItem value="last_30_days">Last 30 Days</SelectItem>
+              <SelectItem value="last_3_months">Last 3 Months</SelectItem>
+              <SelectItem value="last_6_months">Last 6 Months</SelectItem>
               <SelectItem value="last_12_months">Last 12 Months</SelectItem>
               <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>

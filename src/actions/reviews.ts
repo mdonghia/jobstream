@@ -7,7 +7,7 @@ import { requireAuth } from "@/lib/auth-utils"
 // Types
 // =============================================================================
 
-type DateRange = "this_month" | "last_month" | "this_quarter" | "all_time"
+type DateRange = "last_7_days" | "last_30_days" | "last_3_months" | "last_6_months" | "last_12_months" | "custom"
 
 type ReviewFilter = "all" | "new" | "reviewed" | "responded"
 
@@ -16,29 +16,38 @@ type ReviewFilter = "all" | "new" | "reviewed" | "responded"
 // =============================================================================
 
 function getDateRangeBounds(range: DateRange): { from: Date; to: Date } | null {
-  if (range === "all_time") return null
-
   const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth()
 
   switch (range) {
-    case "this_month":
-      return {
-        from: new Date(year, month, 1),
-        to: new Date(year, month + 1, 0, 23, 59, 59),
-      }
-    case "last_month":
-      return {
-        from: new Date(year, month - 1, 1),
-        to: new Date(year, month, 0, 23, 59, 59),
-      }
-    case "this_quarter": {
-      const qStart = Math.floor(month / 3) * 3
-      return {
-        from: new Date(year, qStart, 1),
-        to: new Date(year, qStart + 3, 0, 23, 59, 59),
-      }
+    case "last_7_days": {
+      const from = new Date(now)
+      from.setDate(from.getDate() - 6)
+      from.setHours(0, 0, 0, 0)
+      return { from, to: now }
+    }
+    case "last_30_days": {
+      const from = new Date(now)
+      from.setDate(from.getDate() - 29)
+      from.setHours(0, 0, 0, 0)
+      return { from, to: now }
+    }
+    case "last_3_months": {
+      const from = new Date(now)
+      from.setMonth(from.getMonth() - 3)
+      from.setHours(0, 0, 0, 0)
+      return { from, to: now }
+    }
+    case "last_6_months": {
+      const from = new Date(now)
+      from.setMonth(from.getMonth() - 6)
+      from.setHours(0, 0, 0, 0)
+      return { from, to: now }
+    }
+    case "last_12_months": {
+      const from = new Date(now)
+      from.setMonth(from.getMonth() - 12)
+      from.setHours(0, 0, 0, 0)
+      return { from, to: now }
     }
     default:
       return null
@@ -49,7 +58,7 @@ function getDateRangeBounds(range: DateRange): { from: Date; to: Date } | null {
 // 1. getReviewRequestStats - Summary stats for the review requests tab
 // =============================================================================
 
-export async function getReviewRequestStats(dateRange: DateRange = "this_month") {
+export async function getReviewRequestStats(dateRange: DateRange = "last_7_days") {
   try {
     const user = await requireAuth()
     const bounds = getDateRangeBounds(dateRange)
@@ -83,7 +92,7 @@ export async function getReviewRequestStats(dateRange: DateRange = "this_month")
 // =============================================================================
 
 export async function getReviewRequests(
-  dateRange: DateRange = "this_month",
+  dateRange: DateRange = "last_7_days",
   page: number = 1,
   perPage: number = 25,
 ) {

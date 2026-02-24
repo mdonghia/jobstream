@@ -2141,7 +2141,7 @@ Use the filter controls to narrow down your view:
 
 - **Type** -- Filter by message type: SMS or Email.
 - **Direction** -- Filter by direction: Sent or Received.
-- **Date Range** -- Select a preset time period (This Week, This Month, Last Month, This Quarter, This Year, Last 12 Months) or choose Custom Range to enter specific dates. The default view is This Week.
+- **Date Range** -- Select a preset time period (Last 7 Days, Last 30 Days, Last 3 Months, Last 6 Months, Last 12 Months) or choose Custom Range to enter specific dates. The default view is Last 7 Days.
 
 ## Customer-Level History
 
@@ -2181,7 +2181,7 @@ Two-way SMS means that when your customer receives a text message from JobStream
 
 ## Viewing Inbound Messages
 
-Inbound messages appear in the Communications log with an inbound arrow icon. The log uses a paginated table with date range presets (defaulting to This Week) and can be filtered by type and direction. Inbound messages show:
+Inbound messages appear in the Communications log with an inbound arrow icon. The log uses a paginated table with date range presets (defaulting to Last 7 Days) and can be filtered by type and direction. Inbound messages show:
 
 - The customer's name (matched by phone number), displayed as a clickable link to the customer's detail page.
 - The message content.
@@ -2339,7 +2339,7 @@ This tab tracks the review request emails you send to customers after completing
 
 Below the stats is a table listing each request with the customer name, job number, sent date, and whether they clicked.
 
-Use the date range filter to view stats for This Month, Last Month, This Quarter, or All Time.
+Use the date range filter to view stats for Last 7 Days, Last 30 Days, Last 3 Months, Last 6 Months, Last 12 Months, or Custom Range.
 
 ## Handling Negative Reviews
 
@@ -2474,11 +2474,10 @@ Identifies your highest-value customers by total spend. Useful for understanding
 
 The reports page uses a date preset filter to narrow the time period. Available presets include:
 
-- **This Week** -- Current week's data.
-- **This Month** -- Current month's data.
-- **Last Month** -- Previous month's data.
-- **This Quarter** -- Current quarter's data.
-- **This Year** -- Year-to-date data.
+- **Last 7 Days** -- Data from the past 7 days.
+- **Last 30 Days** -- Data from the past 30 days.
+- **Last 3 Months** -- Data from the past 3 months.
+- **Last 6 Months** -- Data from the past 6 months.
 - **Last 12 Months** -- Data from the past 12 months.
 - **Custom Range** -- Enter specific start and end dates using date pickers.
 
@@ -2555,7 +2554,7 @@ Access this from **Reports > Customers**. Understand your customer base:
 
 ## Report Tabs Summary
 
-The Reports page has five tabs: **Revenue**, **Jobs**, **Quotes**, **Team**, and **Customers**. Each tab uses the same date preset filter (This Week, This Month, Last Month, This Quarter, This Year, Last 12 Months, or Custom Range) to control the time period.
+The Reports page has five tabs: **Revenue**, **Jobs**, **Quotes**, **Team**, and **Customers**. Each tab uses the same date preset filter (Last 7 Days, Last 30 Days, Last 3 Months, Last 6 Months, Last 12 Months, or Custom Range) to control the time period.
 
 ### Tips
 
