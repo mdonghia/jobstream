@@ -7,10 +7,12 @@ const settingsLinks = [
   { href: "/settings/general", label: "General" },
   { href: "/settings/team", label: "Team Members" },
   { href: "/settings/services", label: "Services" },
+  { href: "/settings/checklists", label: "Checklists" },
   { href: "/settings/payments", label: "Payments" },
   { href: "/settings/communications", label: "Communications" },
   { href: "/settings/booking", label: "Booking Widget" },
   { href: "/settings/reviews", label: "Reviews" },
+  { href: "/settings/service-plans", label: "Service Plans" },
   { href: "/settings/billing", label: "Billing" },
   { href: "/settings/report-issue", label: "Report Issue" },
 ]

@@ -764,6 +764,176 @@ export async function createInvoiceFromJob(jobId: string) {
 // 10. sendInvoiceReminder - Send a payment reminder for an outstanding invoice
 // =============================================================================
 
+export async function createAndSendInvoiceFromJob(
+  jobId: string,
+  organizationId: string
+): Promise<{ invoiceId?: string; skipped?: boolean; error?: string }> {
+  try {
+    // Check if an invoice already exists for this job (prevent duplicates)
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: { jobId, organizationId },
+    })
+    if (existingInvoice) {
+      return { invoiceId: existingInvoice.id }
+    }
+
+    // Look up the job with line items and customer
+    const job = await prisma.job.findFirst({
+      where: { id: jobId, organizationId },
+      include: {
+        lineItems: { orderBy: { sortOrder: "asc" } },
+        customer: true,
+      },
+    })
+    if (!job) return { error: "Job not found" }
+
+    // Check if job has line items with total > 0
+    if (!job.lineItems.length) return { skipped: true }
+    const lineItemsTotal = job.lineItems.reduce(
+      (sum, li) => sum + Number(li.quantity) * Number(li.unitPrice),
+      0
+    )
+    if (lineItemsTotal <= 0) return { skipped: true }
+
+    // Get org settings
+    const org = await prisma.organization.update({
+      where: { id: organizationId },
+      data: { nextInvoiceNum: { increment: 1 } },
+      select: {
+        nextInvoiceNum: true,
+        invoicePrefix: true,
+        taxRate: true,
+        invoiceDueDays: true,
+        name: true,
+        slug: true,
+      },
+    })
+    const invoiceNumber = `${org.invoicePrefix}-${org.nextInvoiceNum - 1}`
+    const taxRate = Number(org.taxRate)
+
+    // Calculate totals (same pattern as createInvoice)
+    let subtotal = 0
+    let taxableAmount = 0
+    const lineItemsData = job.lineItems.map((li, index) => {
+      const total = Number(li.quantity) * Number(li.unitPrice)
+      subtotal += total
+      if (li.taxable) taxableAmount += total
+      return {
+        serviceId: li.serviceId || null,
+        name: li.name,
+        description: li.description || null,
+        quantity: Number(li.quantity),
+        unitPrice: Number(li.unitPrice),
+        total: total,
+        taxable: li.taxable,
+        sortOrder: index,
+      }
+    })
+
+    const taxAmount = taxableAmount * taxRate
+    const total = subtotal + taxAmount
+
+    // Calculate due date
+    const dueDate = new Date()
+    dueDate.setDate(dueDate.getDate() + (org.invoiceDueDays || 30))
+
+    // Create the invoice with status SENT (not DRAFT) since it's auto-generated
+    const invoice = await prisma.invoice.create({
+      data: {
+        organizationId,
+        customerId: job.customerId,
+        jobId: job.id,
+        invoiceNumber,
+        status: "SENT",
+        subtotal,
+        taxAmount,
+        total,
+        amountPaid: 0,
+        amountDue: total,
+        dueDate,
+        sentAt: new Date(),
+        internalNote: `Auto-created from job ${job.jobNumber} on completion`,
+        lineItems: { create: lineItemsData },
+      },
+    })
+
+    // Send email via SendGrid if customer has email and SENDGRID_API_KEY is set
+    const { isNotificationEnabled } = await import("@/lib/notification-check")
+
+    if (await isNotificationEnabled(organizationId, "invoice_sent", "email")) {
+      if (job.customer.email && process.env.SENDGRID_API_KEY) {
+        try {
+          const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/${org.slug}/invoices/${invoice.accessToken}`
+
+          const sgMail = await import("@sendgrid/mail")
+          sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+          await sgMail.default.send({
+            to: job.customer.email,
+            from: {
+              email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+              name: org.name || "JobStream",
+            },
+            subject: `Invoice from ${org.name || "JobStream"}`,
+            html: `
+              <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+                <h2>Hi ${job.customer.firstName},</h2>
+                <p>${org.name} has sent you an invoice for <strong>$${total.toFixed(2)}</strong>.</p>
+                <p>Due by ${dueDate.toLocaleDateString()}</p>
+                <a href="${portalUrl}" style="display: inline-block; background: #635BFF; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin: 16px 0;">View & Pay Invoice</a>
+              </div>
+            `,
+          })
+
+          // Log the communication
+          await prisma.communicationLog.create({
+            data: {
+              organizationId,
+              customerId: job.customerId,
+              type: "EMAIL",
+              direction: "OUTBOUND",
+              recipientAddress: job.customer.email,
+              subject: `Invoice from ${org.name}`,
+              content: `Auto-invoice ${invoiceNumber} sent for $${total.toFixed(2)} (Job ${job.jobNumber} completed)`,
+              status: "SENT",
+              triggeredBy: "auto_invoice",
+            },
+          })
+        } catch (e: any) {
+          console.error("Failed to send auto-invoice email:", e)
+          // Don't fail the whole operation if email fails
+        }
+      }
+    }
+
+    // Create notification for org owner
+    const orgOwner = await prisma.user.findFirst({
+      where: { organizationId, role: "OWNER" },
+      select: { id: true },
+    })
+
+    if (orgOwner) {
+      await prisma.notification.create({
+        data: {
+          organizationId,
+          userId: orgOwner.id,
+          title: "Invoice Auto-Created",
+          message: `Invoice #${invoiceNumber} auto-created for Job #${job.jobNumber}`,
+          linkUrl: `/invoices/${invoice.id}`,
+        },
+      })
+    }
+
+    return { invoiceId: invoice.id }
+  } catch (error: any) {
+    console.error("createAndSendInvoiceFromJob error:", error)
+    return { error: "Failed to auto-create invoice from job" }
+  }
+}
+
+// =============================================================================
+// 10. sendInvoiceReminder - Send a payment reminder for an outstanding invoice
+// =============================================================================
+
 export async function sendInvoiceReminder(id: string) {
   try {
     const user = await requireAuth()

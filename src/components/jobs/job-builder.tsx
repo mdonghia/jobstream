@@ -192,6 +192,11 @@ export function JobBuilder({
   )
   const [startTime, setStartTime] = useState(initialData?.startTime || "09:00")
   const [duration, setDuration] = useState(initialData?.duration || "60")
+  const [arrivalWindow, setArrivalWindow] = useState<string>(
+    initialData?.arrivalWindowMinutes !== undefined && initialData?.arrivalWindowMinutes !== null
+      ? String(initialData.arrivalWindowMinutes)
+      : ""
+  )
 
   // Assignment
   const [assignedUserIds, setAssignedUserIds] = useState<string[]>(
@@ -359,6 +364,7 @@ export function JobBuilder({
           isRecurring && recurrenceEnd === "date" && recurrenceEndDate
             ? recurrenceEndDate.toISOString()
             : undefined,
+        arrivalWindowMinutes: arrivalWindow !== "" ? parseInt(arrivalWindow, 10) : undefined,
       }
 
       if (isEditing && initialData?.id) {
@@ -738,6 +744,29 @@ export function JobBuilder({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              {/* Arrival Window */}
+              <div className="space-y-1.5">
+                <Label className="text-sm text-[#425466]">Arrival Window</Label>
+                <Select value={arrivalWindow || "default"} onValueChange={(v) => setArrivalWindow(v === "default" ? "" : v)}>
+                  <SelectTrigger className="w-[220px] h-10 border-[#E3E8EE] text-sm">
+                    <SelectValue placeholder="Default (org setting)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Default (org setting)</SelectItem>
+                    <SelectItem value="0">Exact time</SelectItem>
+                    <SelectItem value="15">15 min window</SelectItem>
+                    <SelectItem value="30">30 min window</SelectItem>
+                    <SelectItem value="60">1 hour window</SelectItem>
+                    <SelectItem value="120">2 hour window</SelectItem>
+                    <SelectItem value="180">3 hour window</SelectItem>
+                    <SelectItem value="240">4 hour window</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-[#8898AA]">
+                  How much flexibility to give your tech for arrival time
+                </p>
               </div>
             </CardContent>
           </Card>

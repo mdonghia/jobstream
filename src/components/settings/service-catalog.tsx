@@ -13,6 +13,9 @@ import {
   Pencil,
   Trash2,
   X,
+  Clock,
+  Wrench,
+  BoxIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -52,6 +55,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { SERVICE_UNITS } from "@/lib/constants"
 import { formatCurrency } from "@/lib/utils"
 import {
@@ -78,6 +83,10 @@ interface ServiceItem {
   isActive: boolean
   sortOrder: number
   createdAt: Date | string
+  costPrice: number | string | null
+  type: string
+  estimatedMinutes: number | null
+  sku: string | null
 }
 
 interface ServiceCatalogProps {
@@ -104,6 +113,9 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
   const [editingService, setEditingService] = useState<ServiceItem | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
+  // Tab filter state
+  const [activeTab, setActiveTab] = useState<"all" | "service" | "material">("all")
+
   // Form state
   const [formName, setFormName] = useState("")
   const [formDescription, setFormDescription] = useState("")
@@ -112,6 +124,10 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
   const [formUnit, setFormUnit] = useState("flat")
   const [formTaxable, setFormTaxable] = useState(true)
   const [formActive, setFormActive] = useState(true)
+  const [formType, setFormType] = useState<"service" | "material">("service")
+  const [formCostPrice, setFormCostPrice] = useState("")
+  const [formEstimatedMinutes, setFormEstimatedMinutes] = useState("")
+  const [formSku, setFormSku] = useState("")
 
   // Manage Categories dialog state
   const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false)
@@ -148,6 +164,22 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
     return counts
   }, [services])
 
+  // Count services by type
+  const serviceCount = useMemo(
+    () => services.filter((s) => s.type === "service").length,
+    [services]
+  )
+  const materialCount = useMemo(
+    () => services.filter((s) => s.type === "material").length,
+    [services]
+  )
+
+  // Filtered services based on active tab
+  const filteredServices = useMemo(() => {
+    if (activeTab === "all") return services
+    return services.filter((s) => s.type === activeTab)
+  }, [services, activeTab])
+
   // -----------------------------------------------------------------------
   // Refresh
   // -----------------------------------------------------------------------
@@ -159,6 +191,10 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
         result.services.map((s) => ({
           ...s,
           defaultPrice: Number(s.defaultPrice),
+          costPrice: s.costPrice != null ? Number(s.costPrice) : null,
+          type: s.type ?? "service",
+          estimatedMinutes: s.estimatedMinutes ?? null,
+          sku: s.sku ?? null,
         }))
       )
     }
@@ -183,6 +219,10 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
     setFormUnit(service.unit)
     setFormTaxable(service.taxable)
     setFormActive(service.isActive)
+    setFormType((service.type as "service" | "material") || "service")
+    setFormCostPrice(service.costPrice != null ? String(Number(service.costPrice)) : "")
+    setFormEstimatedMinutes(service.estimatedMinutes != null ? String(service.estimatedMinutes) : "")
+    setFormSku(service.sku || "")
     setDialogOpen(true)
   }
 
@@ -194,6 +234,10 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
     setFormUnit("flat")
     setFormTaxable(true)
     setFormActive(true)
+    setFormType("service")
+    setFormCostPrice("")
+    setFormEstimatedMinutes("")
+    setFormSku("")
   }
 
   // -----------------------------------------------------------------------
@@ -220,6 +264,10 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
         unit: formUnit as "flat" | "hourly" | "per_sqft" | "per_unit",
         taxable: formTaxable,
         isActive: formActive,
+        type: formType as "service" | "material",
+        costPrice: formCostPrice ? Number(formCostPrice) : null,
+        estimatedMinutes: formEstimatedMinutes ? Number(formEstimatedMinutes) : null,
+        sku: formSku.trim() || null,
       }
 
       if (editingService) {
@@ -416,7 +464,7 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
         <div>
           <h2 className="text-lg font-semibold text-[#0A2540]">Services</h2>
           <p className="mt-1 text-sm text-[#425466]">
-            {services.length} service{services.length !== 1 ? "s" : ""} in your
+            {services.length} item{services.length !== 1 ? "s" : ""} in your
             catalog.
           </p>
         </div>
@@ -439,8 +487,36 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
         </div>
       </div>
 
+      {/* Tabs */}
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as "all" | "service" | "material")}
+        className="mt-4"
+      >
+        <TabsList className="bg-[#F6F8FA] border border-[#E3E8EE]">
+          <TabsTrigger
+            value="all"
+            className="rounded-md px-3 py-1.5 text-sm data-[state=active]:bg-white data-[state=active]:text-[#0A2540] data-[state=active]:shadow-sm text-[#425466]"
+          >
+            All ({services.length})
+          </TabsTrigger>
+          <TabsTrigger
+            value="service"
+            className="rounded-md px-3 py-1.5 text-sm data-[state=active]:bg-white data-[state=active]:text-[#0A2540] data-[state=active]:shadow-sm text-[#425466]"
+          >
+            Services ({serviceCount})
+          </TabsTrigger>
+          <TabsTrigger
+            value="material"
+            className="rounded-md px-3 py-1.5 text-sm data-[state=active]:bg-white data-[state=active]:text-[#0A2540] data-[state=active]:shadow-sm text-[#425466]"
+          >
+            Materials ({materialCount})
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
       {/* Table */}
-      <div className="mt-6 overflow-hidden rounded-lg border border-[#E3E8EE] bg-white">
+      <div className="mt-4 overflow-hidden rounded-lg border border-[#E3E8EE] bg-white">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -449,10 +525,16 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
                   Service
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
+                  Type
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
                   Category
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
                   Price
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
+                  Duration
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
                   Taxable
@@ -464,7 +546,7 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
               </tr>
             </thead>
             <tbody>
-              {services.map((service) => (
+              {filteredServices.map((service) => (
                 <tr
                   key={service.id}
                   className="border-b border-[#E3E8EE] last:border-b-0"
@@ -481,6 +563,25 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
                         </p>
                       )}
                     </div>
+                  </td>
+
+                  {/* Type */}
+                  <td className="px-4 py-3">
+                    {service.type === "material" ? (
+                      <Badge
+                        variant="secondary"
+                        className="bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200"
+                      >
+                        Material
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="secondary"
+                        className="bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200"
+                      >
+                        Service
+                      </Badge>
+                    )}
                   </td>
 
                   {/* Category */}
@@ -505,6 +606,18 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
                     <span className="ml-1 text-xs text-[#8898AA]">
                       / {getUnitLabel(service.unit)}
                     </span>
+                  </td>
+
+                  {/* Duration */}
+                  <td className="px-4 py-3">
+                    {service.type === "service" && service.estimatedMinutes ? (
+                      <span className="text-sm text-[#425466] flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5 text-[#8898AA]" />
+                        {service.estimatedMinutes} min
+                      </span>
+                    ) : (
+                      <span className="text-sm text-[#8898AA]">&mdash;</span>
+                    )}
                   </td>
 
                   {/* Taxable */}
@@ -827,6 +940,33 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
+            {/* Type selector */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+                Type *
+              </Label>
+              <RadioGroup
+                value={formType}
+                onValueChange={(v) => setFormType(v as "service" | "material")}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="service" id="type-service" />
+                  <Label htmlFor="type-service" className="flex items-center gap-1.5 text-sm text-[#425466] cursor-pointer">
+                    <Wrench className="h-3.5 w-3.5" />
+                    Service
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="material" id="type-material" />
+                  <Label htmlFor="type-material" className="flex items-center gap-1.5 text-sm text-[#425466] cursor-pointer">
+                    <BoxIcon className="h-3.5 w-3.5" />
+                    Material
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
             {/* Name */}
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase text-[#8898AA]">
@@ -835,7 +975,7 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
               <Input
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                placeholder="e.g. Lawn Mowing"
+                placeholder={formType === "material" ? "e.g. PVC Pipe 1/2 inch" : "e.g. Lawn Mowing"}
                 className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
               />
             </div>
@@ -848,7 +988,7 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
               <Textarea
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="Brief description of the service..."
+                placeholder={formType === "material" ? "Material specifications..." : "Brief description of the service..."}
                 className="min-h-[80px] border-[#E3E8EE] focus-visible:ring-[#635BFF]"
               />
             </div>
@@ -913,6 +1053,84 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
                 </Select>
               </div>
             </div>
+
+            {/* Cost Price + Margin */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+                Cost Price
+              </Label>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#8898AA]">
+                    $
+                  </span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formCostPrice}
+                    onChange={(e) => setFormCostPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="h-10 pl-7 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                  />
+                </div>
+                {formCostPrice && formPrice && Number(formPrice) > 0 && (
+                  <span
+                    className={`text-sm font-medium whitespace-nowrap ${
+                      Number(formPrice) > Number(formCostPrice)
+                        ? "text-green-600"
+                        : Number(formPrice) < Number(formCostPrice)
+                        ? "text-red-600"
+                        : "text-[#8898AA]"
+                    }`}
+                  >
+                    Margin:{" "}
+                    {Math.round(
+                      ((Number(formPrice) - Number(formCostPrice)) /
+                        Number(formPrice)) *
+                        100
+                    )}
+                    %
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Estimated Duration (only for services) */}
+            {formType === "service" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+                  Estimated Duration (minutes)
+                </Label>
+                <div className="relative">
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8898AA]" />
+                  <Input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={formEstimatedMinutes}
+                    onChange={(e) => setFormEstimatedMinutes(e.target.value)}
+                    placeholder="e.g. 60"
+                    className="h-10 pl-9 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* SKU (only for materials) */}
+            {formType === "material" && (
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+                  SKU
+                </Label>
+                <Input
+                  value={formSku}
+                  onChange={(e) => setFormSku(e.target.value)}
+                  placeholder="e.g. MAT-PVC-050"
+                  className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                />
+              </div>
+            )}
 
             {/* Taxable + Active toggles */}
             <div className="flex items-center gap-8 pt-2">

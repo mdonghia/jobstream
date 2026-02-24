@@ -57,6 +57,10 @@ export const serviceSchema = z.object({
   unit: z.enum(["flat", "hourly", "per_sqft", "per_unit"]),
   taxable: z.boolean().default(true),
   isActive: z.boolean().default(true),
+  costPrice: z.coerce.number().min(0).optional().nullable(),
+  type: z.enum(["service", "material"]).default("service"),
+  estimatedMinutes: z.coerce.number().int().min(0).optional().nullable(),
+  sku: z.string().optional().nullable(),
 })
 
 export const lineItemSchema = z.object({
@@ -90,6 +94,8 @@ export const jobSchema = z.object({
   isRecurring: z.boolean().default(false),
   recurrenceRule: z.string().optional(),
   recurrenceEndDate: z.coerce.date().optional(),
+  recurrenceCount: z.coerce.number().int().min(1).optional(),
+  arrivalWindowMinutes: z.coerce.number().int().min(0).optional(),
   internalNote: z.string().optional(),
 })
 

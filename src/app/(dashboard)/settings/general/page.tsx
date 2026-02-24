@@ -41,6 +41,7 @@ export default async function SettingsGeneralPage() {
       string,
       { start: string; end: string; open: boolean }
     > | null,
+    autoConvertQuoteToJob: org.autoConvertQuoteToJob,
   }
 
   return <GeneralSettingsForm organization={settings} />

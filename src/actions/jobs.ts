@@ -244,6 +244,7 @@ export async function createJob(data: {
   isRecurring?: boolean
   recurrenceRule?: string
   recurrenceEndDate?: string | Date
+  arrivalWindowMinutes?: number
 }) {
   try {
     const user = await requireAuth()
@@ -284,6 +285,7 @@ export async function createJob(data: {
           isRecurring: data.isRecurring || false,
           recurrenceRule: data.recurrenceRule || null,
           recurrenceEndDate: data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null,
+          arrivalWindowMinutes: data.arrivalWindowMinutes ?? null,
         },
       })
 
@@ -415,6 +417,61 @@ export async function updateJobStatus(
       } catch (e) {
         // Don't fail the job status update if review request fails
         console.error("Review auto-request check failed:", e)
+      }
+
+      // Auto-create invoice when job is completed (if enabled)
+      try {
+        const orgSettings = await prisma.organization.findUnique({
+          where: { id: user.organizationId },
+          select: { autoInvoiceOnJobComplete: true },
+        })
+
+        if (orgSettings?.autoInvoiceOnJobComplete) {
+          const { createAndSendInvoiceFromJob } = await import("@/actions/invoices")
+          const result = await createAndSendInvoiceFromJob(id, user.organizationId)
+          if (result.error) {
+            console.error("Auto-invoicing returned error:", result.error)
+            // Create notification so user knows to invoice manually
+            const orgOwner = await prisma.user.findFirst({
+              where: { organizationId: user.organizationId, role: "OWNER" },
+              select: { id: true },
+            })
+            if (orgOwner) {
+              await prisma.notification.create({
+                data: {
+                  organizationId: user.organizationId,
+                  userId: orgOwner.id,
+                  title: "Auto-Invoicing Failed",
+                  message: `Auto-invoicing failed for Job #${job.jobNumber} - please create an invoice manually`,
+                  linkUrl: `/jobs/${id}`,
+                },
+              })
+            }
+          }
+        }
+      } catch (e) {
+        // Don't fail the job status update if auto-invoicing fails
+        console.error("Auto-invoicing failed:", e)
+        try {
+          const orgOwner = await prisma.user.findFirst({
+            where: { organizationId: user.organizationId, role: "OWNER" },
+            select: { id: true },
+          })
+          if (orgOwner) {
+            await prisma.notification.create({
+              data: {
+                organizationId: user.organizationId,
+                userId: orgOwner.id,
+                title: "Auto-Invoicing Failed",
+                message: `Auto-invoicing failed for Job #${job.jobNumber} - please create an invoice manually`,
+                linkUrl: `/jobs/${id}`,
+              },
+            })
+          }
+        } catch {
+          // Last resort: just log it
+          console.error("Failed to create auto-invoicing failure notification")
+        }
       }
     }
 
@@ -699,7 +756,7 @@ export async function rescheduleJob(
           try {
             const org = await prisma.organization.findUnique({
               where: { id: user.organizationId },
-              select: { name: true },
+              select: { name: true, defaultArrivalWindow: true },
             })
 
             const formattedDate = newStartDate.toLocaleDateString("en-US", {
@@ -714,13 +771,20 @@ export async function rescheduleJob(
               hour12: true,
             })
 
+            // Use arrival window for display if configured
+            const { formatArrivalTime } = await import("@/lib/format-helpers")
+            const arrivalWindow = job.arrivalWindowMinutes ?? org?.defaultArrivalWindow ?? 0
+            const arrivalTimeText = arrivalWindow > 0
+              ? formatArrivalTime(newStartDate, arrivalWindow)
+              : `at ${formattedTime}`
+
             const subject = isFirstTimeSchedule
               ? `Your appointment has been scheduled - ${org?.name}`
               : `Your appointment has been updated - ${org?.name}`
 
             const actionText = isFirstTimeSchedule
-              ? `Your appointment has been scheduled for <strong>${formattedDate}</strong> at <strong>${formattedTime}</strong>.`
-              : `Your appointment has been rescheduled to <strong>${formattedDate}</strong> at <strong>${formattedTime}</strong>.`
+              ? `Your appointment has been scheduled for <strong>${formattedDate}</strong> <strong>${arrivalTimeText}</strong>.`
+              : `Your appointment has been rescheduled to <strong>${formattedDate}</strong> <strong>${arrivalTimeText}</strong>.`
 
             const sgMail = await import("@sendgrid/mail")
             sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
@@ -752,8 +816,8 @@ export async function rescheduleJob(
                 recipientAddress: job.customer.email,
                 subject,
                 content: isFirstTimeSchedule
-                  ? `Appointment scheduled for ${job.customer.firstName} ${job.customer.lastName} on ${formattedDate} at ${formattedTime}`
-                  : `Appointment rescheduled for ${job.customer.firstName} ${job.customer.lastName} to ${formattedDate} at ${formattedTime}`,
+                  ? `Appointment scheduled for ${job.customer.firstName} ${job.customer.lastName} on ${formattedDate} ${arrivalTimeText}`
+                  : `Appointment rescheduled for ${job.customer.firstName} ${job.customer.lastName} to ${formattedDate} ${arrivalTimeText}`,
                 status: "SENT",
                 triggeredBy: triggerKey,
               },
@@ -827,6 +891,7 @@ export async function updateJob(
     isRecurring?: boolean
     recurrenceRule?: string
     recurrenceEndDate?: string | Date
+    arrivalWindowMinutes?: number
   }
 ) {
   try {
@@ -860,6 +925,7 @@ export async function updateJob(
           recurrenceEndDate: data.recurrenceEndDate
             ? new Date(data.recurrenceEndDate)
             : existing.recurrenceEndDate,
+          arrivalWindowMinutes: data.arrivalWindowMinutes ?? existing.arrivalWindowMinutes,
         },
       })
 
@@ -987,7 +1053,7 @@ export async function generateRecurringInstances(parentJobId: string) {
         organizationId: user.organizationId,
         isRecurring: true,
       },
-      include: { lineItems: true, assignments: true },
+      include: { lineItems: true, assignments: true, checklistItems: true },
     })
     if (!parentJob) return { error: "Recurring job not found" }
     if (!parentJob.recurrenceRule) return { error: "No recurrence rule set" }
@@ -1003,21 +1069,40 @@ export async function generateRecurringInstances(parentJobId: string) {
       WEEKLY: 7 * 24 * 60 * 60 * 1000,
       BIWEEKLY: 14 * 24 * 60 * 60 * 1000,
       MONTHLY: 30 * 24 * 60 * 60 * 1000,
+      QUARTERLY: 91 * 24 * 60 * 60 * 1000,
+      BIANNUALLY: 182 * 24 * 60 * 60 * 1000,
+      ANNUALLY: 365 * 24 * 60 * 60 * 1000,
     }
     const interval = intervalMs[parentJob.recurrenceRule] || intervalMs.WEEKLY
 
-    // Check existing child jobs to avoid duplicates
+    // Find latest child to continue from (instead of blocking re-generation)
     const existingChildren = await prisma.job.count({
       where: { parentJobId: parentJob.id },
     })
-    if (existingChildren > 0) {
-      return { error: "Recurring instances have already been generated" }
+    const latestChild = existingChildren > 0
+      ? await prisma.job.findFirst({
+          where: { parentJobId: parentJob.id },
+          orderBy: { scheduledStart: "desc" },
+        })
+      : null
+
+    // Check recurrenceCount limit
+    if (parentJob.recurrenceCount && existingChildren >= parentJob.recurrenceCount) {
+      return { error: "Recurrence count limit already reached" }
     }
 
     let created = 0
-    let nextDate = new Date(parentJob.scheduledStart.getTime() + interval)
+    let nextDate = latestChild
+      ? new Date(latestChild.scheduledStart.getTime() + interval)
+      : new Date(parentJob.scheduledStart.getTime() + interval)
 
     while (nextDate <= endDate && created < 52) {
+      // Check recurrenceCount limit dynamically
+      if (parentJob.recurrenceCount) {
+        const currentTotal = existingChildren + created
+        if (currentTotal >= parentJob.recurrenceCount) break
+      }
+
       const org = await prisma.organization.update({
         where: { id: user.organizationId },
         data: { nextJobNum: { increment: 1 } },
@@ -1041,6 +1126,23 @@ export async function generateRecurringInstances(parentJobId: string) {
         },
       })
 
+      // Copy line items from parent to child (CRITICAL FIX)
+      if (parentJob.lineItems.length > 0) {
+        await prisma.jobLineItem.createMany({
+          data: parentJob.lineItems.map((li) => ({
+            jobId: newJob.id,
+            serviceId: li.serviceId,
+            name: li.name,
+            description: li.description,
+            quantity: li.quantity,
+            unitPrice: li.unitPrice,
+            total: li.total,
+            taxable: li.taxable,
+            sortOrder: li.sortOrder,
+          })),
+        })
+      }
+
       // Copy assignments to child job
       if (parentJob.assignments.length > 0) {
         await prisma.jobAssignment.createMany({
@@ -1048,6 +1150,18 @@ export async function generateRecurringInstances(parentJobId: string) {
             jobId: newJob.id,
             userId: a.userId,
             organizationId: user.organizationId,
+          })),
+        })
+      }
+
+      // Copy checklist items (fresh uncompleted copies)
+      if (parentJob.checklistItems.length > 0) {
+        await prisma.jobChecklistItem.createMany({
+          data: parentJob.checklistItems.map((ci) => ({
+            jobId: newJob.id,
+            label: ci.label,
+            sortOrder: ci.sortOrder,
+            isCompleted: false,
           })),
         })
       }
@@ -1061,5 +1175,232 @@ export async function generateRecurringInstances(parentJobId: string) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("generateRecurringInstances error:", error)
     return { error: "Failed to generate recurring instances" }
+  }
+}
+
+// =============================================================================
+// 13b. cancelRecurringSeries - Stop recurrence and cancel future scheduled children
+// =============================================================================
+
+export async function cancelRecurringSeries(parentJobId: string) {
+  try {
+    const user = await requireAuth()
+    const parentJob = await prisma.job.findFirst({
+      where: {
+        id: parentJobId,
+        organizationId: user.organizationId,
+        isRecurring: true,
+      },
+    })
+    if (!parentJob) return { error: "Recurring job not found" }
+
+    // Stop recurring
+    await prisma.job.update({
+      where: { id: parentJobId },
+      data: { isRecurring: false },
+    })
+
+    // Cancel all future scheduled children
+    const result = await prisma.job.updateMany({
+      where: {
+        parentJobId: parentJobId,
+        status: "SCHEDULED",
+        scheduledStart: { gt: new Date() },
+      },
+      data: { status: "CANCELLED", cancelReason: "Recurring series cancelled" },
+    })
+
+    return { cancelled: result.count }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    return { error: "Failed to cancel recurring series" }
+  }
+}
+
+// =============================================================================
+// 14. sendOnMyWay - Send "On My Way" notification and start job
+// =============================================================================
+
+export async function sendOnMyWay(jobId: string) {
+  try {
+    const user = await requireAuth()
+
+    // Find job with customer and assignments
+    const job = await prisma.job.findFirst({
+      where: { id: jobId, organizationId: user.organizationId },
+      include: {
+        customer: true,
+        assignments: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+      },
+    })
+    if (!job) return { error: "Job not found" }
+
+    // Verify job status allows "On My Way"
+    if (job.status !== "SCHEDULED" && job.status !== "IN_PROGRESS") {
+      return { error: "Job must be scheduled or in progress to send 'On My Way'" }
+    }
+
+    // Check if already sent recently (within 30 minutes)
+    if (job.onMyWaySentAt) {
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000)
+      if (job.onMyWaySentAt > thirtyMinutesAgo) {
+        return { error: "Already sent recently" }
+      }
+    }
+
+    // Look up org settings
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: {
+        name: true,
+        slug: true,
+        defaultArrivalWindow: true,
+        onMyWayNotificationEnabled: true,
+      },
+    })
+
+    const now = new Date()
+    let smsSent = false
+    let emailSent = false
+    const warnings: string[] = []
+
+    // Only send notifications if the org has it enabled
+    if (org?.onMyWayNotificationEnabled) {
+      const customer = job.customer
+      const techName = user.firstName || "Your technician"
+      const orgName = org.name || "JobStream"
+
+      // Calculate arrival time text
+      const { formatArrivalTime } = await import("@/lib/format-helpers")
+      const windowMin = job.arrivalWindowMinutes ?? org.defaultArrivalWindow ?? 60
+      const arrivalText = formatArrivalTime(job.scheduledStart, windowMin)
+
+      const smsMessage = `Hi ${customer.firstName}, ${techName} from ${orgName} is on the way! Expected arrival: ${arrivalText}. See you soon!`
+
+      // Check notification preferences
+      const { isNotificationEnabled } = await import("@/lib/notification-check")
+
+      // Send SMS if customer has phone and Twilio is configured
+      if (await isNotificationEnabled(user.organizationId, "JOB_ON_MY_WAY", "sms")) {
+        if (customer.phone && process.env.TWILIO_ACCOUNT_SID) {
+          try {
+            const twilio = await import("twilio")
+            const client = twilio.default(
+              process.env.TWILIO_ACCOUNT_SID,
+              process.env.TWILIO_AUTH_TOKEN
+            )
+            let toPhone = customer.phone.replace(/\D/g, "")
+            if (toPhone.length === 10) toPhone = "1" + toPhone
+            if (!toPhone.startsWith("+")) toPhone = "+" + toPhone
+
+            await client.messages.create({
+              body: smsMessage,
+              from: process.env.TWILIO_PHONE_NUMBER,
+              to: toPhone,
+            })
+
+            smsSent = true
+
+            // Log SMS communication
+            await prisma.communicationLog.create({
+              data: {
+                organizationId: user.organizationId,
+                customerId: customer.id,
+                type: "SMS",
+                direction: "OUTBOUND",
+                recipientAddress: customer.phone,
+                content: smsMessage,
+                status: "SENT",
+                triggeredBy: "on_my_way",
+              },
+            })
+          } catch (e: any) {
+            console.error("Failed to send On My Way SMS:", e)
+            warnings.push(`SMS failed: ${e?.message || "Unknown error"}`)
+          }
+        }
+      }
+
+      // Send email if customer has email and SendGrid is configured
+      if (await isNotificationEnabled(user.organizationId, "JOB_ON_MY_WAY", "email")) {
+        if (customer.email && process.env.SENDGRID_API_KEY) {
+          try {
+            const sgMail = await import("@sendgrid/mail")
+            sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+
+            const subject = `${techName} from ${orgName} is on the way!`
+
+            await sgMail.default.send({
+              to: customer.email,
+              from: {
+                email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+                name: orgName,
+              },
+              subject,
+              html: `
+                <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
+                  <h2>Hi ${customer.firstName},</h2>
+                  <p><strong>${techName}</strong> from <strong>${orgName}</strong> is on the way to you!</p>
+                  <p>Expected arrival: <strong>${arrivalText}</strong></p>
+                  <p>If you have any questions, please don't hesitate to contact us.</p>
+                  <p>See you soon!</p>
+                  <br />
+                  <p style="color: #666;">- ${orgName}</p>
+                </div>
+              `,
+            })
+
+            emailSent = true
+
+            // Log email communication
+            await prisma.communicationLog.create({
+              data: {
+                organizationId: user.organizationId,
+                customerId: customer.id,
+                type: "EMAIL",
+                direction: "OUTBOUND",
+                recipientAddress: customer.email,
+                subject,
+                content: `On My Way notification sent to ${customer.firstName} ${customer.lastName}. ${techName} arriving ${arrivalText}.`,
+                status: "SENT",
+                triggeredBy: "on_my_way",
+              },
+            })
+          } catch (e: any) {
+            console.error("Failed to send On My Way email:", e)
+            warnings.push(`Email failed: ${e?.message || "Unknown error"}`)
+          }
+        }
+      }
+
+      // Warn if customer has no contact info at all
+      if (!customer.phone && !customer.email) {
+        warnings.push("Customer has no contact information. No notification was sent.")
+      }
+    }
+
+    // Update job: set onMyWaySentAt, transition to IN_PROGRESS, set actualStart
+    const updateData: any = {
+      onMyWaySentAt: now,
+    }
+    if (job.status === "SCHEDULED") {
+      updateData.status = "IN_PROGRESS"
+      updateData.actualStart = now
+    }
+
+    await prisma.job.update({
+      where: { id: jobId },
+      data: updateData,
+    })
+
+    return { success: true, smsSent, emailSent, warnings }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("sendOnMyWay error:", error)
+    return { error: "Failed to send On My Way notification" }
   }
 }

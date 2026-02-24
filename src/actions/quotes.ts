@@ -129,11 +129,25 @@ export async function getQuote(id: string) {
         lineItems: {
           orderBy: { sortOrder: "asc" },
         },
+        options: {
+          include: { lineItems: { orderBy: { sortOrder: "asc" } } },
+          orderBy: { sortOrder: "asc" },
+        },
       },
     })
 
     if (!quote) {
       return { error: "Quote not found" }
+    }
+
+    // If quote was converted to a job, fetch the job number for display
+    let convertedJobNumber: string | null = null
+    if (quote.convertedToJobId) {
+      const job = await prisma.job.findUnique({
+        where: { id: quote.convertedToJobId },
+        select: { jobNumber: true },
+      })
+      convertedJobNumber = job?.jobNumber || null
     }
 
     return {
@@ -142,11 +156,24 @@ export async function getQuote(id: string) {
         total: Number(quote.total),
         subtotal: Number(quote.subtotal),
         taxAmount: Number(quote.taxAmount),
+        convertedJobNumber,
         lineItems: quote.lineItems.map((li) => ({
           ...li,
           quantity: Number(li.quantity),
           unitPrice: Number(li.unitPrice),
           total: Number(li.total),
+        })),
+        options: quote.options.map((opt) => ({
+          ...opt,
+          subtotal: Number(opt.subtotal),
+          taxAmount: Number(opt.taxAmount),
+          total: Number(opt.total),
+          lineItems: opt.lineItems.map((li) => ({
+            ...li,
+            quantity: Number(li.quantity),
+            unitPrice: Number(li.unitPrice),
+            total: Number(li.total),
+          })),
         })),
       },
     }
@@ -175,14 +202,42 @@ export async function createQuote(data: {
   customerMessage?: string
   internalNote?: string
   validUntil: string | Date
+  options?: {
+    name: string
+    description?: string
+    lineItems: {
+      serviceId?: string
+      name: string
+      description?: string
+      quantity: number
+      unitPrice: number
+      taxable: boolean
+    }[]
+  }[]
 }) {
   try {
     const user = await requireAuth()
 
-    // Validate
+    // Validate (options are validated separately below)
     const result = quoteSchema.safeParse(data)
-    if (!result.success) {
+    // If options are provided, lineItems may be empty so skip validation errors about lineItems
+    if (!result.success && !(data.options && data.options.length > 0)) {
       return { error: result.error.issues[0].message }
+    }
+
+    // Validate options if provided
+    if (data.options && data.options.length > 0) {
+      if (data.options.length > 4) {
+        return { error: "A quote can have a maximum of 4 options" }
+      }
+      for (const opt of data.options) {
+        if (!opt.name || opt.name.trim().length === 0) {
+          return { error: "Each option must have a name" }
+        }
+        if (!opt.lineItems || opt.lineItems.length === 0) {
+          return { error: `Option "${opt.name}" must have at least one line item` }
+        }
+      }
     }
 
     // Verify customer belongs to org
@@ -203,6 +258,103 @@ export async function createQuote(data: {
     const quoteNumber = `${org.quotePrefix}-${org.nextQuoteNum - 1}`
     const taxRate = Number(org.taxRate)
 
+    // ── Multi-option quote ────────────────────────────────────────────────
+    if (data.options && data.options.length > 0) {
+      // Calculate per-option totals to find the lowest for "starting from" display
+      const optionCalculations = data.options.map((opt, optIndex) => {
+        let optSubtotal = 0
+        let optTaxable = 0
+        const items = opt.lineItems.map((li, liIndex) => {
+          const lineTotal = li.quantity * li.unitPrice
+          optSubtotal += lineTotal
+          if (li.taxable) optTaxable += lineTotal
+          return {
+            serviceId: li.serviceId || null,
+            name: li.name,
+            description: li.description || null,
+            quantity: li.quantity,
+            unitPrice: li.unitPrice,
+            total: lineTotal,
+            taxable: li.taxable,
+            sortOrder: liIndex,
+          }
+        })
+        const optTaxAmount = optTaxable * taxRate
+        const optTotal = optSubtotal + optTaxAmount
+        return {
+          name: opt.name,
+          description: opt.description || null,
+          sortOrder: optIndex,
+          subtotal: optSubtotal,
+          taxAmount: optTaxAmount,
+          total: optTotal,
+          items,
+        }
+      })
+
+      // Quote-level totals = lowest option total (for "starting from" display)
+      const lowestOption = optionCalculations.reduce((min, opt) =>
+        opt.total < min.total ? opt : min
+      )
+
+      const quote = await prisma.$transaction(async (tx) => {
+        // Create the quote shell
+        const newQuote = await tx.quote.create({
+          data: {
+            organizationId: user.organizationId,
+            customerId: data.customerId,
+            propertyId: data.propertyId || null,
+            quoteNumber,
+            status: "DRAFT",
+            subtotal: lowestOption.subtotal,
+            taxAmount: lowestOption.taxAmount,
+            total: lowestOption.total,
+            validUntil: new Date(data.validUntil),
+            customerMessage: data.customerMessage || null,
+            internalNote: data.internalNote || null,
+          },
+        })
+
+        // Create each option with its line items
+        for (const optCalc of optionCalculations) {
+          const option = await tx.quoteOption.create({
+            data: {
+              quoteId: newQuote.id,
+              name: optCalc.name,
+              description: optCalc.description,
+              subtotal: optCalc.subtotal,
+              taxAmount: optCalc.taxAmount,
+              total: optCalc.total,
+              sortOrder: optCalc.sortOrder,
+            },
+          })
+
+          // Create line items linked to this option AND the parent quote
+          if (optCalc.items.length > 0) {
+            await tx.quoteLineItem.createMany({
+              data: optCalc.items.map((li) => ({
+                quoteId: newQuote.id,
+                quoteOptionId: option.id,
+                serviceId: li.serviceId,
+                name: li.name,
+                description: li.description,
+                quantity: li.quantity,
+                unitPrice: li.unitPrice,
+                total: li.total,
+                taxable: li.taxable,
+                sortOrder: li.sortOrder,
+              })),
+            })
+          }
+        }
+
+        return newQuote
+      })
+
+      return { quote: { ...quote, total: Number(quote.total) } }
+    }
+
+    // ── Single / flat quote (backward compatible) ─────────────────────────
     // Calculate totals
     let subtotal = 0
     let taxableAmount = 0
@@ -517,17 +669,102 @@ export async function approveQuote(accessToken: string) {
       return { error: "This quote has expired" }
     }
 
-    await prisma.quote.update({
-      where: { id: quote.id },
+    // Atomic update: only update if status is still SENT (prevents race conditions)
+    const result = await prisma.quote.updateMany({
+      where: { id: quote.id, status: "SENT" },
       data: {
         status: "APPROVED",
         approvedAt: now,
       },
     })
 
+    if (result.count === 0) {
+      return { error: "Quote was already processed" }
+    }
+
+    // Check org setting for auto-conversion
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: quote.organizationId },
+        select: { autoConvertQuoteToJob: true },
+      })
+
+      if (org?.autoConvertQuoteToJob) {
+        const conversionResult = await _internalConvertQuoteToJob(
+          quote.organizationId,
+          quote.id
+        )
+
+        if ("error" in conversionResult) {
+          // Auto-conversion failed -- create a notification for the org owner
+          // so approval still succeeds but they know conversion didn't happen
+          console.error(
+            `Auto-conversion failed for Quote ${quote.quoteNumber}:`,
+            conversionResult.error
+          )
+          const owner = await prisma.user.findFirst({
+            where: { organizationId: quote.organizationId, role: "OWNER" },
+            select: { id: true },
+          })
+          if (owner) {
+            await prisma.notification.create({
+              data: {
+                organizationId: quote.organizationId,
+                userId: owner.id,
+                title: "Auto-conversion failed",
+                message: `Auto-conversion failed for Quote ${quote.quoteNumber}. You can convert it manually from the quote detail page.`,
+                linkUrl: `/quotes/${quote.id}`,
+              },
+            })
+          }
+        }
+      }
+    } catch (autoConvertError) {
+      // Approval succeeded; log but don't fail
+      console.error("Auto-conversion error (approval still succeeded):", autoConvertError)
+    }
+
     return { success: true }
   } catch (error: any) {
     console.error("approveQuote error:", error)
+    return { error: "Failed to approve quote" }
+  }
+}
+
+// =============================================================================
+// 6b. approveQuoteWithOption - Customer selects an option and approves (portal)
+// =============================================================================
+
+export async function approveQuoteWithOption(
+  accessToken: string,
+  selectedOptionId?: string
+) {
+  try {
+    // If the customer selected an option, persist it before approval
+    if (selectedOptionId) {
+      const quote = await prisma.quote.findFirst({
+        where: { accessToken },
+        include: { options: true },
+      })
+      if (!quote) return { error: "Quote not found" }
+
+      // Verify the selected option belongs to this quote
+      const validOption = quote.options.find((o) => o.id === selectedOptionId)
+      if (!validOption) {
+        return { error: "Invalid option selected" }
+      }
+
+      // Set the selectedOptionId on the quote
+      await prisma.quote.update({
+        where: { id: quote.id },
+        data: { selectedOptionId },
+      })
+    }
+
+    // Delegate to existing approval logic
+    return await approveQuote(accessToken)
+  } catch (error: any) {
+    console.error("approveQuoteWithOption error:", error)
     return { error: "Failed to approve quote" }
   }
 }
@@ -561,80 +798,129 @@ export async function declineQuote(accessToken: string, reason?: string) {
 }
 
 // =============================================================================
-// 8. convertQuoteToJob - Convert an approved quote to a job
+// 8a. _internalConvertQuoteToJob - Internal helper (no auth, used by automation)
+// =============================================================================
+
+async function _internalConvertQuoteToJob(
+  organizationId: string,
+  quoteId: string
+): Promise<{ jobId: string } | { error: string }> {
+  const quote = await prisma.quote.findFirst({
+    where: { id: quoteId, organizationId },
+    include: {
+      customer: true,
+      property: true,
+      lineItems: { orderBy: { sortOrder: "asc" } },
+    },
+  })
+  if (!quote) return { error: "Quote not found" }
+
+  // Guard: if already converted, return the existing job silently
+  if (quote.convertedToJobId) {
+    return { jobId: quote.convertedToJobId }
+  }
+
+  if (quote.status !== "APPROVED") {
+    return { error: "Only approved quotes can be converted to jobs" }
+  }
+
+  // Get next job number
+  const org = await prisma.organization.update({
+    where: { id: organizationId },
+    data: { nextJobNum: { increment: 1 } },
+    select: { nextJobNum: true, jobPrefix: true },
+  })
+  const jobNumber = `${org.jobPrefix}-${org.nextJobNum - 1}`
+
+  // Determine which line items to copy:
+  // If the quote has a selectedOptionId, only copy line items from that option.
+  // Otherwise (backward compat), copy all line items with quoteOptionId = null.
+  let lineItemsToCopy = quote.lineItems
+  if (quote.selectedOptionId) {
+    lineItemsToCopy = quote.lineItems.filter(
+      (li) => li.quoteOptionId === quote.selectedOptionId
+    )
+  } else {
+    // Backward compatible: only flat line items (no option)
+    lineItemsToCopy = quote.lineItems.filter(
+      (li) => li.quoteOptionId === null
+    )
+  }
+
+  // Create job with line items in a transaction
+  const job = await prisma.$transaction(async (tx) => {
+    const newJob = await tx.job.create({
+      data: {
+        organizationId,
+        customerId: quote.customerId,
+        propertyId: quote.propertyId,
+        quoteId: quote.id,
+        jobNumber,
+        title: `Services for ${quote.customer.firstName} ${quote.customer.lastName}`,
+        description: quote.customerMessage,
+        status: "SCHEDULED",
+        priority: "MEDIUM",
+        scheduledStart: new Date(), // User will update this
+        scheduledEnd: new Date(Date.now() + 2 * 60 * 60 * 1000), // Default 2 hours
+      },
+    })
+
+    // Copy line items to job line items
+    if (lineItemsToCopy.length > 0) {
+      await tx.jobLineItem.createMany({
+        data: lineItemsToCopy.map((li) => ({
+          jobId: newJob.id,
+          serviceId: li.serviceId,
+          name: li.name,
+          description: li.description,
+          quantity: li.quantity,
+          unitPrice: li.unitPrice,
+          total: li.total,
+          taxable: li.taxable,
+          sortOrder: li.sortOrder,
+        })),
+      })
+    }
+
+    // Update quote status
+    await tx.quote.update({
+      where: { id: quoteId },
+      data: {
+        status: "CONVERTED",
+        convertedToJobId: newJob.id,
+      },
+    })
+
+    return newJob
+  })
+
+  return { jobId: job.id }
+}
+
+// =============================================================================
+// 8b. convertQuoteToJob - Convert an approved quote to a job (authenticated)
 // =============================================================================
 
 export async function convertQuoteToJob(quoteId: string) {
   try {
     const user = await requireAuth()
 
+    // Verify quote belongs to org
     const quote = await prisma.quote.findFirst({
       where: { id: quoteId, organizationId: user.organizationId },
-      include: {
-        customer: true,
-        property: true,
-        lineItems: { orderBy: { sortOrder: "asc" } },
-      },
     })
     if (!quote) return { error: "Quote not found" }
-    if (quote.status !== "APPROVED") return { error: "Only approved quotes can be converted to jobs" }
 
-    // Get next job number
-    const org = await prisma.organization.update({
-      where: { id: user.organizationId },
-      data: { nextJobNum: { increment: 1 } },
-      select: { nextJobNum: true, jobPrefix: true },
-    })
-    const jobNumber = `${org.jobPrefix}-${org.nextJobNum - 1}`
+    // Guard: if already converted, return the existing job silently
+    if (quote.convertedToJobId) {
+      return { jobId: quote.convertedToJobId }
+    }
 
-    // Create job with line items in a transaction
-    const job = await prisma.$transaction(async (tx) => {
-      const newJob = await tx.job.create({
-        data: {
-          organizationId: user.organizationId,
-          customerId: quote.customerId,
-          propertyId: quote.propertyId,
-          quoteId: quote.id,
-          jobNumber,
-          title: `Services for ${quote.customer.firstName} ${quote.customer.lastName}`,
-          description: quote.customerMessage,
-          status: "SCHEDULED",
-          priority: "MEDIUM",
-          scheduledStart: new Date(), // User will update this
-          scheduledEnd: new Date(Date.now() + 2 * 60 * 60 * 1000), // Default 2 hours
-        },
-      })
+    if (quote.status !== "APPROVED") {
+      return { error: "Only approved quotes can be converted to jobs" }
+    }
 
-      // Copy line items to job line items
-      if (quote.lineItems.length > 0) {
-        await tx.jobLineItem.createMany({
-          data: quote.lineItems.map((li) => ({
-            jobId: newJob.id,
-            serviceId: li.serviceId,
-            name: li.name,
-            description: li.description,
-            quantity: li.quantity,
-            unitPrice: li.unitPrice,
-            total: li.total,
-            taxable: li.taxable,
-            sortOrder: li.sortOrder,
-          })),
-        })
-      }
-
-      // Update quote status
-      await tx.quote.update({
-        where: { id: quoteId },
-        data: {
-          status: "CONVERTED",
-          convertedToJobId: newJob.id,
-        },
-      })
-
-      return newJob
-    })
-
-    return { jobId: job.id }
+    return await _internalConvertQuoteToJob(user.organizationId, quoteId)
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("convertQuoteToJob error:", error)
@@ -744,6 +1030,41 @@ export async function markQuoteApproved(id: string) {
       where: { id },
       data: { status: "APPROVED", approvedAt: new Date() },
     })
+
+    // Check org setting for auto-conversion
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: user.organizationId },
+        select: { autoConvertQuoteToJob: true },
+      })
+
+      if (org?.autoConvertQuoteToJob) {
+        const conversionResult = await _internalConvertQuoteToJob(
+          user.organizationId,
+          id
+        )
+
+        if ("error" in conversionResult) {
+          console.error(
+            `Auto-conversion failed for Quote ${quote.quoteNumber}:`,
+            conversionResult.error
+          )
+          await prisma.notification.create({
+            data: {
+              organizationId: user.organizationId,
+              userId: user.id,
+              title: "Auto-conversion failed",
+              message: `Auto-conversion failed for Quote ${quote.quoteNumber}. You can convert it manually from the quote detail page.`,
+              linkUrl: `/quotes/${id}`,
+            },
+          })
+        }
+      }
+    } catch (autoConvertError) {
+      // Approval succeeded; log but don't fail
+      console.error("Auto-conversion error (approval still succeeded):", autoConvertError)
+    }
+
     return { success: true }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
@@ -785,6 +1106,10 @@ export async function getQuoteByToken(token: string) {
         },
         property: true,
         lineItems: { orderBy: { sortOrder: "asc" } },
+        options: {
+          include: { lineItems: { orderBy: { sortOrder: "asc" } } },
+          orderBy: { sortOrder: "asc" },
+        },
         organization: {
           select: { name: true, email: true, phone: true, logo: true, slug: true },
         },
@@ -804,6 +1129,18 @@ export async function getQuoteByToken(token: string) {
           quantity: Number(li.quantity),
           unitPrice: Number(li.unitPrice),
           total: Number(li.total),
+        })),
+        options: quote.options.map((opt) => ({
+          ...opt,
+          subtotal: Number(opt.subtotal),
+          taxAmount: Number(opt.taxAmount),
+          total: Number(opt.total),
+          lineItems: opt.lineItems.map((li) => ({
+            ...li,
+            quantity: Number(li.quantity),
+            unitPrice: Number(li.unitPrice),
+            total: Number(li.total),
+          })),
         })),
       },
     }

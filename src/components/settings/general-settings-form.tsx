@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { US_STATES, US_TIMEZONES, DEFAULT_BUSINESS_HOURS } from "@/lib/constants"
-import { updateOrganizationSettings } from "@/actions/settings"
+import { updateOrganizationSettings, updateWorkflowSettings } from "@/actions/settings"
 
 // ============================================================================
 // Types
@@ -45,6 +45,7 @@ interface OrganizationData {
   invoiceDueDays: number
   quoteValidDays: number
   businessHours: BusinessHours | null
+  autoConvertQuoteToJob: boolean
   [key: string]: unknown
 }
 
@@ -119,6 +120,33 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
       ? (organization.businessHours as BusinessHours)
       : DEFAULT_BUSINESS_HOURS
   )
+
+  // Workflow automation
+  const [autoConvertQuoteToJob, setAutoConvertQuoteToJob] = useState(
+    organization.autoConvertQuoteToJob ?? true
+  )
+
+  // -----------------------------------------------------------------------
+  // Workflow automation handler
+  // -----------------------------------------------------------------------
+
+  async function handleAutoConvertToggle(checked: boolean) {
+    setAutoConvertQuoteToJob(checked)
+    try {
+      const result = await updateWorkflowSettings({
+        autoConvertQuoteToJob: checked,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+        setAutoConvertQuoteToJob(!checked) // revert on error
+      } else {
+        toast.success("Workflow setting updated")
+      }
+    } catch {
+      toast.error("Failed to update workflow setting")
+      setAutoConvertQuoteToJob(!checked) // revert on error
+    }
+  }
 
   // -----------------------------------------------------------------------
   // Business hours helpers
@@ -525,6 +553,37 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               })}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Workflow Automation */}
+      {/* ----------------------------------------------------------------- */}
+      <section className="border-t border-[#E3E8EE] pt-8">
+        <h2 className="text-lg font-semibold text-[#0A2540]">
+          Workflow Automation
+        </h2>
+        <p className="mt-1 text-sm text-[#425466]">
+          Automate common workflows to save time.
+        </p>
+
+        <div className="mt-4 rounded-lg border border-[#E3E8EE] p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <Label className="text-sm font-medium text-[#0A2540]">
+                Automatically create a job when a quote is approved
+              </Label>
+              <p className="text-sm text-[#8898AA]">
+                When enabled, approved quotes are automatically converted to
+                jobs that appear in your calendar sidebar.
+              </p>
+            </div>
+            <Switch
+              checked={autoConvertQuoteToJob}
+              onCheckedChange={handleAutoConvertToggle}
+              aria-label="Auto-convert quotes to jobs"
+            />
+          </div>
         </div>
       </section>
 

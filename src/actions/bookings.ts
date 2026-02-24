@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireAuth } from "@/lib/auth-utils"
 import { bookingSchema } from "@/lib/validations"
+import { DEFAULT_BUSINESS_HOURS } from "@/lib/constants"
 
 // =============================================================================
 // Types
@@ -135,6 +136,7 @@ export async function getBooking(id: string) {
 export async function createPublicBooking(data: {
   organizationSlug: string
   serviceName?: string
+  serviceId?: string
   customerName: string
   customerEmail: string
   customerPhone?: string
@@ -144,6 +146,7 @@ export async function createPublicBooking(data: {
   zip?: string
   preferredDate?: string | Date
   preferredTime?: string
+  preferredTimeSlot?: string
   message?: string
 }) {
   try {
@@ -159,9 +162,20 @@ export async function createPublicBooking(data: {
 
     if (!org) return { error: "Organization not found" }
 
-    // Optionally look up service by name
+    // Optionally look up service by ID or name
     let serviceId: string | null = null
-    if (data.serviceName) {
+    if (data.serviceId) {
+      const service = await prisma.service.findFirst({
+        where: {
+          id: data.serviceId,
+          organizationId: org.id,
+          isActive: true,
+        },
+      })
+      if (service) {
+        serviceId = service.id
+      }
+    } else if (data.serviceName) {
       const service = await prisma.service.findFirst({
         where: {
           organizationId: org.id,
@@ -201,6 +215,7 @@ export async function createPublicBooking(data: {
         address: [data.addressLine1, data.city, data.state, data.zip].filter(Boolean).join(", ") || null,
         preferredDate: data.preferredDate ? new Date(data.preferredDate) : null,
         preferredTime: data.preferredTime || null,
+        preferredTimeSlot: data.preferredTimeSlot || null,
         message: data.message || null,
         status: "PENDING",
       },
@@ -477,5 +492,198 @@ export async function declineBooking(id: string, reason?: string) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("declineBooking error:", error)
     return { error: "Failed to decline booking" }
+  }
+}
+
+// =============================================================================
+// 6. getAvailableSlots - PUBLIC (no auth) - Get available time slots for a date
+// =============================================================================
+
+type BusinessHoursDay = { start: string; end: string; open: boolean }
+type BusinessHoursMap = Record<string, BusinessHoursDay>
+
+const DAY_MAP: Record<number, string> = {
+  0: "sun",
+  1: "mon",
+  2: "tue",
+  3: "wed",
+  4: "thu",
+  5: "fri",
+  6: "sat",
+}
+
+export async function getAvailableSlots(
+  orgSlug: string,
+  serviceId: string | null,
+  date: string
+) {
+  try {
+    // Find org by slug
+    const org = await prisma.organization.findUnique({
+      where: { slug: orgSlug },
+      select: {
+        id: true,
+        businessHours: true,
+        bookingBufferMinutes: true,
+        bookingSlotDuration: true,
+      },
+    })
+
+    if (!org) return { error: "Organization not found" }
+
+    // Determine service duration
+    let serviceDuration = org.bookingSlotDuration // fallback
+    if (serviceId) {
+      const service = await prisma.service.findFirst({
+        where: { id: serviceId, organizationId: org.id, isActive: true },
+        select: { estimatedMinutes: true },
+      })
+      if (service?.estimatedMinutes) {
+        serviceDuration = service.estimatedMinutes
+      }
+    }
+
+    const bufferMinutes = org.bookingBufferMinutes
+
+    // Parse date and get day of week
+    const dateObj = new Date(date + "T00:00:00")
+    const dayOfWeek = dateObj.getDay()
+    const dayKey = DAY_MAP[dayOfWeek]
+
+    // Get business hours for that day
+    const businessHours = (org.businessHours as BusinessHoursMap | null) ??
+      (DEFAULT_BUSINESS_HOURS as unknown as BusinessHoursMap)
+    const dayHours = businessHours[dayKey]
+
+    if (!dayHours || !dayHours.open) {
+      return { slots: [] }
+    }
+
+    const openTime = dayHours.start // e.g. "09:00"
+    const closeTime = dayHours.end // e.g. "17:00"
+
+    // Get all non-cancelled jobs scheduled for that date
+    const startOfDay = new Date(date + "T00:00:00")
+    const endOfDay = new Date(date + "T23:59:59")
+
+    const jobs = await prisma.job.findMany({
+      where: {
+        organizationId: org.id,
+        scheduledStart: { gte: startOfDay, lte: endOfDay },
+        status: { not: "CANCELLED" },
+      },
+      select: {
+        scheduledStart: true,
+        scheduledEnd: true,
+      },
+    })
+
+    // Generate slots at 30-minute intervals from open to close
+    const slots: string[] = []
+    const [openH, openM] = openTime.split(":").map(Number)
+    const [closeH, closeM] = closeTime.split(":").map(Number)
+    const openMinutes = openH * 60 + openM
+    const closeMinutes = closeH * 60 + closeM
+
+    for (let slotStart = openMinutes; slotStart < closeMinutes; slotStart += 30) {
+      const slotEnd = slotStart + serviceDuration + bufferMinutes
+
+      // Check: the service + buffer must fit before closing
+      if (slotStart + serviceDuration > closeMinutes) {
+        break
+      }
+
+      // Check for conflicts with existing jobs
+      const slotStartDate = new Date(date + "T00:00:00")
+      slotStartDate.setMinutes(slotStartDate.getMinutes() + slotStart)
+
+      const slotEndDate = new Date(date + "T00:00:00")
+      slotEndDate.setMinutes(slotEndDate.getMinutes() + slotEnd)
+
+      const hasConflict = jobs.some((job) => {
+        const jobStart = new Date(job.scheduledStart)
+        const jobEnd = new Date(job.scheduledEnd)
+        // Overlap check: slot start is before job end AND slot end is after job start
+        return slotStartDate < jobEnd && slotEndDate > jobStart
+      })
+
+      if (!hasConflict) {
+        const hours = Math.floor(slotStart / 60)
+        const mins = slotStart % 60
+        slots.push(
+          `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`
+        )
+      }
+    }
+
+    return { slots }
+  } catch (error: any) {
+    console.error("getAvailableSlots error:", error)
+    return { error: "Failed to get available slots" }
+  }
+}
+
+// =============================================================================
+// 7. getBookableServices - PUBLIC (no auth) - Get services available for booking
+// =============================================================================
+
+export async function getBookableServices(orgSlug: string) {
+  try {
+    const org = await prisma.organization.findUnique({
+      where: { slug: orgSlug },
+      select: {
+        id: true,
+        bookingEnabled: true,
+        bookingServices: true,
+        bookingMaxAdvanceDays: true,
+      },
+    })
+
+    if (!org) return { error: "Organization not found" }
+    if (!org.bookingEnabled) return { error: "Online booking is not enabled" }
+
+    // Build service filter
+    const serviceFilter: any = {
+      organizationId: org.id,
+      isActive: true,
+    }
+
+    // If org has specific booking services configured, filter to only those
+    if (
+      org.bookingServices &&
+      Array.isArray(org.bookingServices) &&
+      (org.bookingServices as string[]).length > 0
+    ) {
+      serviceFilter.id = { in: org.bookingServices as string[] }
+    }
+
+    const services = await prisma.service.findMany({
+      where: serviceFilter,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        defaultPrice: true,
+        estimatedMinutes: true,
+      },
+      orderBy: { sortOrder: "asc" },
+    })
+
+    // Serialize Decimal values before returning to client
+    const serialized = services.map((s) => ({
+      id: s.id,
+      name: s.name,
+      description: s.description,
+      defaultPrice: Number(s.defaultPrice),
+      estimatedMinutes: s.estimatedMinutes,
+    }))
+
+    return {
+      services: serialized,
+      bookingMaxAdvanceDays: org.bookingMaxAdvanceDays,
+    }
+  } catch (error: any) {
+    console.error("getBookableServices error:", error)
+    return { error: "Failed to get bookable services" }
   }
 }

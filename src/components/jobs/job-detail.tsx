@@ -23,6 +23,7 @@ import {
   Upload,
   Send,
   LinkIcon,
+  Navigation,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -68,7 +69,7 @@ import {
   isJobUnscheduled,
 } from "@/lib/utils"
 import { toast } from "sonner"
-import { updateJobStatus, addJobNote, toggleChecklistItem, uploadJobAttachment, generateRecurringInstances } from "@/actions/jobs"
+import { updateJobStatus, addJobNote, toggleChecklistItem, uploadJobAttachment, generateRecurringInstances, sendOnMyWay } from "@/actions/jobs"
 
 // ---- Types ----
 
@@ -170,6 +171,7 @@ interface Job {
   cancelReason: string | null
   isRecurring: boolean
   recurrenceRule: string | null
+  onMyWaySentAt: string | null
   customer: JobCustomer
   property: JobProperty | null
   quote: JobQuote | null
@@ -227,6 +229,10 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
   // Recurring instances
   const [generatingInstances, setGeneratingInstances] = useState(false)
 
+  // On My Way
+  const [onMyWayModalOpen, setOnMyWayModalOpen] = useState(false)
+  const [sendingOnMyWay, setSendingOnMyWay] = useState(false)
+
   // Computed
   const completedChecklistCount = checklistItems.filter(
     (item) => item.isCompleted
@@ -274,6 +280,37 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
       toast.error("Failed to reopen job")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleSendOnMyWay() {
+    setSendingOnMyWay(true)
+    try {
+      const result = await sendOnMyWay(job.id)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        // Show warnings if any notifications failed
+        if (result.warnings && result.warnings.length > 0) {
+          result.warnings.forEach((w: string) => toast.warning(w))
+        }
+        if (result.smsSent || result.emailSent) {
+          toast.success("'On My Way' notification sent to customer")
+        } else if (!result.warnings?.length) {
+          toast.success("Job started (notifications not configured)")
+        }
+        setJob((prev) => ({
+          ...prev,
+          status: "IN_PROGRESS",
+          actualStart: new Date().toISOString(),
+          onMyWaySentAt: new Date().toISOString(),
+        }))
+        setOnMyWayModalOpen(false)
+      }
+    } catch {
+      toast.error("Failed to send 'On My Way' notification")
+    } finally {
+      setSendingOnMyWay(false)
     }
   }
 
@@ -498,11 +535,32 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
 
         <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
           {/* Status action buttons */}
+          {job.status === "SCHEDULED" && !job.onMyWaySentAt && (
+            <Button
+              onClick={() => setOnMyWayModalOpen(true)}
+              disabled={loading}
+              className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+            >
+              <Navigation className="w-4 h-4 mr-1.5" />
+              On My Way
+            </Button>
+          )}
+          {job.status === "SCHEDULED" && job.onMyWaySentAt && (
+            <Button
+              disabled
+              variant="outline"
+              className="border-[#E3E8EE] text-[#8898AA]"
+            >
+              <Navigation className="w-4 h-4 mr-1.5" />
+              On My Way Sent {formatRelativeTime(job.onMyWaySentAt)}
+            </Button>
+          )}
           {job.status === "SCHEDULED" && (
             <Button
               onClick={handleStartJob}
               disabled={loading}
-              className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+              variant="outline"
+              className="border-[#E3E8EE] text-[#425466]"
             >
               <Play className="w-4 h-4 mr-1.5" />
               Start Job
@@ -1276,6 +1334,51 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
               variant="destructive"
             >
               {cancelling ? "Cancelling..." : "Cancel Job"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* On My Way Modal */}
+      <Dialog open={onMyWayModalOpen} onOpenChange={setOnMyWayModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#0A2540]">
+              <div className="flex items-center gap-2">
+                <Navigation className="w-5 h-5 text-[#635BFF]" />
+                On My Way
+              </div>
+            </DialogTitle>
+            <DialogDescription className="text-[#425466]">
+              Send an &quot;On My Way&quot; notification to{" "}
+              <strong>
+                {job.customer.firstName} {job.customer.lastName}
+              </strong>
+              ? The job will be started automatically.
+            </DialogDescription>
+          </DialogHeader>
+          {/* Warning if no contact info */}
+          {!job.customer.phone && !job.customer.email && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              This customer has no contact info. The job will be started but no
+              notification will be sent.
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setOnMyWayModalOpen(false)}
+              className="border-[#E3E8EE]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSendOnMyWay}
+              disabled={sendingOnMyWay}
+              className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+            >
+              <Navigation className="w-4 h-4 mr-1.5" />
+              {sendingOnMyWay ? "Sending..." : "Send & Start Job"}
             </Button>
           </DialogFooter>
         </DialogContent>

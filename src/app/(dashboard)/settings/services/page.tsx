@@ -19,6 +19,7 @@ export default async function SettingsServicesPage() {
   const serializedServices = result.services.map((s) => ({
     ...s,
     defaultPrice: Number(s.defaultPrice),
+    costPrice: s.costPrice != null ? Number(s.costPrice) : null,
   }))
 
   return <ServiceCatalog initialServices={serializedServices} />

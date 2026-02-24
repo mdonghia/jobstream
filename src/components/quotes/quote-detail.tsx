@@ -20,6 +20,7 @@ import {
   Clock,
   ExternalLink,
   FileText,
+  ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +49,17 @@ interface LineItem {
   unitPrice: number
   total: number
   taxable: boolean
+}
+
+interface QuoteOptionData {
+  id: string
+  name: string
+  description: string | null
+  subtotal: number
+  taxAmount: number
+  total: number
+  sortOrder: number
+  lineItems: LineItem[]
 }
 
 interface QuoteCustomer {
@@ -99,9 +111,12 @@ interface Quote {
   customerMessage: string | null
   internalNote: string | null
   convertedToJobId: string | null
+  convertedJobNumber: string | null
+  selectedOptionId: string | null
   customer: QuoteCustomer
   property: QuoteProperty | null
   lineItems: LineItem[]
+  options?: QuoteOptionData[]
 }
 
 interface QuoteDetailProps {
@@ -143,6 +158,124 @@ const timelineIcons: Record<string, React.ReactNode> = {
   approved: <CheckCircle2 className="w-4 h-4 text-green-500" />,
   declined: <XCircle className="w-4 h-4 text-red-500" />,
   converted: <Briefcase className="w-4 h-4 text-green-500" />,
+}
+
+// ── Option Card (collapsible, used for multi-option quotes) ───────────────
+
+function OptionCard({
+  option,
+  isSelected,
+}: {
+  option: QuoteOptionData
+  isSelected: boolean
+}) {
+  const [expanded, setExpanded] = useState(true)
+
+  return (
+    <div
+      className={`rounded-lg border overflow-hidden ${
+        isSelected ? "border-green-500 bg-green-50/30" : "border-[#E3E8EE]"
+      }`}
+    >
+      {/* Header (click to expand/collapse) */}
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-[#F6F8FA] transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <ChevronDown
+            className={`w-4 h-4 text-[#8898AA] transition-transform ${
+              expanded ? "" : "-rotate-90"
+            }`}
+          />
+          <span className="text-sm font-semibold text-[#0A2540]">
+            {option.name}
+          </span>
+          {isSelected && (
+            <Badge className="bg-green-100 text-green-700 text-xs ml-1">
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              Selected
+            </Badge>
+          )}
+        </div>
+        <span className="text-sm font-semibold text-[#0A2540]">
+          {formatCurrency(option.total)}
+        </span>
+      </button>
+
+      {/* Expandable body */}
+      {expanded && (
+        <div>
+          {option.description && (
+            <p className="px-4 pb-2 text-xs text-[#8898AA]">
+              {option.description}
+            </p>
+          )}
+          {/* Line items table */}
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-[#F6F8FA] border-y border-[#E3E8EE]">
+                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-[#8898AA]">
+                    Item
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-[#8898AA] w-[80px]">
+                    Qty
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-[#8898AA] w-[120px]">
+                    Unit Price
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-semibold uppercase text-[#8898AA] w-[120px]">
+                    Total
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {option.lineItems.map((li) => (
+                  <tr key={li.id} className="border-b border-[#E3E8EE]">
+                    <td className="px-4 py-2">
+                      <p className="text-sm font-medium text-[#0A2540]">{li.name}</p>
+                      {li.description && (
+                        <p className="text-xs text-[#8898AA] mt-0.5">{li.description}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-sm text-[#425466]">{li.quantity}</td>
+                    <td className="px-4 py-2 text-sm text-[#425466]">
+                      {formatCurrency(li.unitPrice)}
+                    </td>
+                    <td className="px-4 py-2 text-sm font-medium text-[#0A2540] text-right">
+                      {formatCurrency(li.total)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {/* Option totals */}
+          <div className="px-4 py-3 bg-[#F6F8FA] border-t border-[#E3E8EE]">
+            <div className="flex justify-end">
+              <div className="w-[200px] space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#425466]">Subtotal</span>
+                  <span className="text-[#0A2540]">{formatCurrency(option.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-[#425466]">Tax</span>
+                  <span className="text-[#0A2540]">{formatCurrency(option.taxAmount)}</span>
+                </div>
+                <Separator className="bg-[#E3E8EE]" />
+                <div className="flex justify-between text-sm font-semibold">
+                  <span className="text-[#0A2540]">Total</span>
+                  <span className="text-[#0A2540]">{formatCurrency(option.total)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -307,6 +440,24 @@ export function QuoteDetail({ quote: initialQuote, timeline }: QuoteDetailProps)
           </>
         )
       case "APPROVED":
+        // If already converted to a job (e.g. auto-conversion), show link
+        if (quote.convertedToJobId) {
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-green-200 text-green-700 hover:bg-green-50"
+              asChild
+            >
+              <Link href={`/jobs/${quote.convertedToJobId}`}>
+                <Briefcase className="w-4 h-4 mr-1.5" />
+                {quote.convertedJobNumber
+                  ? `Job ${quote.convertedJobNumber} was automatically created`
+                  : "View Created Job"}
+              </Link>
+            </Button>
+          )
+        }
         return (
           <Button
             size="sm"
@@ -460,78 +611,105 @@ export function QuoteDetail({ quote: initialQuote, timeline }: QuoteDetailProps)
             </CardContent>
           </Card>
 
-          {/* Line items table */}
-          <Card className="border-[#E3E8EE]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold uppercase text-[#8898AA]">
-                Line Items
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-[#F6F8FA] border-y border-[#E3E8EE]">
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
-                        Item
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA] w-[80px]">
-                        Qty
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA] w-[120px]">
-                        Unit Price
-                      </th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-[#8898AA] w-[120px]">
-                        Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {quote.lineItems.map((li) => (
-                      <tr key={li.id} className="border-b border-[#E3E8EE]">
-                        <td className="px-4 py-3">
-                          <p className="text-sm font-medium text-[#0A2540]">{li.name}</p>
-                          {li.description && (
-                            <p className="text-xs text-[#8898AA] mt-0.5">{li.description}</p>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-[#425466]">{li.quantity}</td>
-                        <td className="px-4 py-3 text-sm text-[#425466]">
-                          {formatCurrency(li.unitPrice)}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-medium text-[#0A2540] text-right">
-                          {formatCurrency(li.total)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          {/* ── Options or flat line items ────────────────────────────── */}
+          {quote.options && quote.options.length > 0 ? (
+            /* Multi-option quote: show each option as a collapsible card */
+            <Card className="border-[#E3E8EE]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold uppercase text-[#8898AA]">
+                  Quote Options ({quote.options.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {quote.options.map((option) => {
+                  const isSelectedOption =
+                    quote.selectedOptionId === option.id &&
+                    (quote.status === "APPROVED" || quote.status === "CONVERTED")
 
-              {/* Totals */}
-              <div className="px-4 py-4 space-y-2">
-                <div className="flex justify-end">
-                  <div className="w-[250px] space-y-1.5">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#425466]">Subtotal</span>
-                      <span className="text-[#0A2540]">{formatCurrency(quote.subtotal)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#425466]">Tax</span>
-                      <span className="text-[#0A2540]">{formatCurrency(quote.taxAmount)}</span>
-                    </div>
-                    <Separator className="bg-[#E3E8EE]" />
-                    <div className="flex justify-between">
-                      <span className="text-sm font-semibold text-[#0A2540]">Total</span>
-                      <span className="text-lg font-semibold text-[#0A2540]">
-                        {formatCurrency(quote.total)}
-                      </span>
+                  return (
+                    <OptionCard
+                      key={option.id}
+                      option={option}
+                      isSelected={isSelectedOption}
+                    />
+                  )
+                })}
+              </CardContent>
+            </Card>
+          ) : (
+            /* Flat line items (backward compatible) */
+            <Card className="border-[#E3E8EE]">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold uppercase text-[#8898AA]">
+                  Line Items
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-[#F6F8FA] border-y border-[#E3E8EE]">
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
+                          Item
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA] w-[80px]">
+                          Qty
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA] w-[120px]">
+                          Unit Price
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold uppercase text-[#8898AA] w-[120px]">
+                          Total
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quote.lineItems.map((li) => (
+                        <tr key={li.id} className="border-b border-[#E3E8EE]">
+                          <td className="px-4 py-3">
+                            <p className="text-sm font-medium text-[#0A2540]">{li.name}</p>
+                            {li.description && (
+                              <p className="text-xs text-[#8898AA] mt-0.5">{li.description}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-[#425466]">{li.quantity}</td>
+                          <td className="px-4 py-3 text-sm text-[#425466]">
+                            {formatCurrency(li.unitPrice)}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-[#0A2540] text-right">
+                            {formatCurrency(li.total)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Totals */}
+                <div className="px-4 py-4 space-y-2">
+                  <div className="flex justify-end">
+                    <div className="w-[250px] space-y-1.5">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-[#425466]">Subtotal</span>
+                        <span className="text-[#0A2540]">{formatCurrency(quote.subtotal)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-[#425466]">Tax</span>
+                        <span className="text-[#0A2540]">{formatCurrency(quote.taxAmount)}</span>
+                      </div>
+                      <Separator className="bg-[#E3E8EE]" />
+                      <div className="flex justify-between">
+                        <span className="text-sm font-semibold text-[#0A2540]">Total</span>
+                        <span className="text-lg font-semibold text-[#0A2540]">
+                          {formatCurrency(quote.total)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Customer message */}
           {quote.customerMessage && (

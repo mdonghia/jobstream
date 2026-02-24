@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import { approveQuote, declineQuote } from "@/actions/quotes"
+import { approveQuote, approveQuoteWithOption, declineQuote } from "@/actions/quotes"
 
 interface LineItem {
   id: string
@@ -25,6 +25,17 @@ interface LineItem {
   quantity: number
   unitPrice: number
   total: number
+}
+
+interface QuoteOption {
+  id: string
+  name: string
+  description: string | null
+  subtotal: number
+  taxAmount: number
+  total: number
+  sortOrder: number
+  lineItems: LineItem[]
 }
 
 interface QuoteData {
@@ -38,10 +49,12 @@ interface QuoteData {
   total: number
   customerMessage: string | null
   accessToken: string
+  selectedOptionId: string | null
   approvedAt: string | null
   declinedAt: string | null
   declineReason: string | null
   lineItems: LineItem[]
+  options?: QuoteOption[]
   customer: {
     firstName: string
     lastName: string
@@ -93,21 +106,123 @@ const STATUS_CONFIG: Record<
   },
 }
 
+// ── Line items table (reused for both flat and per-option display) ────────
+
+function LineItemsTable({ items }: { items: LineItem[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-[#E3E8EE] bg-[#F6F8FA]">
+            <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
+              Item
+            </th>
+            <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-[#8898AA]">
+              Qty
+            </th>
+            <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-[#8898AA]">
+              Rate
+            </th>
+            <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-[#8898AA]">
+              Amount
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr
+              key={item.id}
+              className="border-b border-[#E3E8EE] last:border-0"
+            >
+              <td className="px-6 py-3">
+                <p className="text-sm font-medium text-[#0A2540]">
+                  {item.name}
+                </p>
+                {item.description && (
+                  <p className="text-xs text-[#8898AA] mt-0.5">
+                    {item.description}
+                  </p>
+                )}
+              </td>
+              <td className="px-6 py-3 text-right text-sm text-[#425466]">
+                {item.quantity}
+              </td>
+              <td className="px-6 py-3 text-right text-sm text-[#425466]">
+                ${item.unitPrice.toFixed(2)}
+              </td>
+              <td className="px-6 py-3 text-right text-sm font-medium text-[#0A2540]">
+                ${item.total.toFixed(2)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Totals summary (reused) ──────────────────────────────────────────────
+
+function TotalsSummary({
+  subtotal,
+  taxAmount,
+  total,
+}: {
+  subtotal: number
+  taxAmount: number
+  total: number
+}) {
+  return (
+    <div className="px-6 py-4 border-t border-[#E3E8EE] bg-[#F6F8FA]">
+      <div className="max-w-xs ml-auto space-y-1">
+        <div className="flex justify-between text-sm">
+          <span className="text-[#425466]">Subtotal</span>
+          <span className="text-[#0A2540]">${subtotal.toFixed(2)}</span>
+        </div>
+        {taxAmount > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-[#425466]">Tax</span>
+            <span className="text-[#0A2540]">${taxAmount.toFixed(2)}</span>
+          </div>
+        )}
+        <div className="flex justify-between text-lg font-bold border-t border-[#E3E8EE] pt-2 mt-2">
+          <span className="text-[#0A2540]">Total</span>
+          <span className="text-[#0A2540]">${total.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main component ───────────────────────────────────────────────────────
+
 export function QuotePortalView({ quote }: { quote: QuoteData }) {
   const router = useRouter()
   const [approving, setApproving] = useState(false)
   const [declining, setDeclining] = useState(false)
   const [showDeclineForm, setShowDeclineForm] = useState(false)
   const [declineReason, setDeclineReason] = useState("")
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(
+    quote.selectedOptionId || null
+  )
 
   const status = STATUS_CONFIG[quote.status] || STATUS_CONFIG.SENT
   const isExpired = new Date(quote.validUntil) < new Date()
   const canRespond = quote.status === "SENT" && !isExpired
+  const hasOptions = (quote.options?.length ?? 0) > 0
 
   async function handleApprove() {
+    // If this is a multi-option quote and no option is selected, prompt user
+    if (hasOptions && !selectedOptionId) {
+      toast.error("Please select an option before approving")
+      return
+    }
+
     setApproving(true)
     try {
-      const result = await approveQuote(quote.accessToken)
+      const result = hasOptions
+        ? await approveQuoteWithOption(quote.accessToken, selectedOptionId || undefined)
+        : await approveQuote(quote.accessToken)
       if ("error" in result) {
         toast.error(result.error)
       } else {
@@ -218,7 +333,9 @@ export function QuotePortalView({ quote }: { quote: QuoteData }) {
               </p>
             </div>
             <div>
-              <p className="text-[#8898AA] text-xs">Total</p>
+              <p className="text-[#8898AA] text-xs">
+                {hasOptions ? "Starting From" : "Total"}
+              </p>
               <p className="text-2xl font-bold text-[#0A2540]">
                 ${quote.total.toFixed(2)}
               </p>
@@ -239,81 +356,100 @@ export function QuotePortalView({ quote }: { quote: QuoteData }) {
           )}
         </div>
 
-        {/* Line Items */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-[#E3E8EE] bg-[#F6F8FA]">
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
-                  Item
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-[#8898AA]">
-                  Qty
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-[#8898AA]">
-                  Rate
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-[#8898AA]">
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {quote.lineItems.map((item) => (
-                <tr
-                  key={item.id}
-                  className="border-b border-[#E3E8EE] last:border-0"
-                >
-                  <td className="px-6 py-3">
-                    <p className="text-sm font-medium text-[#0A2540]">
-                      {item.name}
-                    </p>
-                    {item.description && (
-                      <p className="text-xs text-[#8898AA] mt-0.5">
-                        {item.description}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-6 py-3 text-right text-sm text-[#425466]">
-                    {item.quantity}
-                  </td>
-                  <td className="px-6 py-3 text-right text-sm text-[#425466]">
-                    ${item.unitPrice.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-3 text-right text-sm font-medium text-[#0A2540]">
-                    ${item.total.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {/* ── Multi-option display ───────────────────────────────────────── */}
+        {hasOptions ? (
+          <div className="px-6 py-4 border-b border-[#E3E8EE]">
+            <p className="text-xs font-semibold uppercase text-[#8898AA] mb-4">
+              Choose an Option
+            </p>
+            <div className="space-y-4">
+              {quote.options!.map((option) => {
+                const isSelected = selectedOptionId === option.id
+                const wasApprovedOption =
+                  quote.selectedOptionId === option.id &&
+                  (quote.status === "APPROVED" || quote.status === "CONVERTED")
 
-        {/* Totals */}
-        <div className="px-6 py-4 border-t border-[#E3E8EE] bg-[#F6F8FA]">
-          <div className="max-w-xs ml-auto space-y-1">
-            <div className="flex justify-between text-sm">
-              <span className="text-[#425466]">Subtotal</span>
-              <span className="text-[#0A2540]">
-                ${quote.subtotal.toFixed(2)}
-              </span>
-            </div>
-            {quote.taxAmount > 0 && (
-              <div className="flex justify-between text-sm">
-                <span className="text-[#425466]">Tax</span>
-                <span className="text-[#0A2540]">
-                  ${quote.taxAmount.toFixed(2)}
-                </span>
-              </div>
-            )}
-            <div className="flex justify-between text-lg font-bold border-t border-[#E3E8EE] pt-2 mt-2">
-              <span className="text-[#0A2540]">Total</span>
-              <span className="text-[#0A2540]">
-                ${quote.total.toFixed(2)}
-              </span>
+                return (
+                  <div
+                    key={option.id}
+                    className={`rounded-lg border-2 overflow-hidden transition-colors ${
+                      isSelected
+                        ? "border-[#635BFF] bg-[#635BFF]/5"
+                        : wasApprovedOption
+                          ? "border-green-500 bg-green-50"
+                          : "border-[#E3E8EE] bg-white"
+                    }`}
+                  >
+                    {/* Option header */}
+                    <div
+                      className={`px-4 py-3 flex items-center justify-between ${
+                        canRespond ? "cursor-pointer" : ""
+                      }`}
+                      onClick={() => {
+                        if (canRespond) setSelectedOptionId(option.id)
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Radio-style indicator */}
+                        {canRespond && (
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                              isSelected
+                                ? "border-[#635BFF]"
+                                : "border-[#C1C9D2]"
+                            }`}
+                          >
+                            {isSelected && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-[#635BFF]" />
+                            )}
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-semibold text-[#0A2540]">
+                            {option.name}
+                          </p>
+                          {option.description && (
+                            <p className="text-xs text-[#8898AA] mt-0.5">
+                              {option.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {wasApprovedOption && (
+                          <Badge className="bg-green-100 text-green-700 text-xs">
+                            Selected
+                          </Badge>
+                        )}
+                        <p className="text-lg font-bold text-[#0A2540]">
+                          ${option.total.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Option line items (always visible) */}
+                    <LineItemsTable items={option.lineItems} />
+                    <TotalsSummary
+                      subtotal={option.subtotal}
+                      taxAmount={option.taxAmount}
+                      total={option.total}
+                    />
+                  </div>
+                )
+              })}
             </div>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* ── Flat line items (backward compatible) ────────────────── */}
+            <LineItemsTable items={quote.lineItems} />
+            <TotalsSummary
+              subtotal={quote.subtotal}
+              taxAmount={quote.taxAmount}
+              total={quote.total}
+            />
+          </>
+        )}
 
         {/* Customer Message */}
         {quote.customerMessage && (
@@ -374,11 +510,17 @@ export function QuotePortalView({ quote }: { quote: QuoteData }) {
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
                 onClick={handleApprove}
-                disabled={approving}
+                disabled={approving || (hasOptions && !selectedOptionId)}
                 className="bg-[#635BFF] hover:bg-[#5851ea] text-white flex-1 h-12 text-base"
               >
                 <ThumbsUp className="w-5 h-5 mr-2" />
-                {approving ? "Approving..." : "Approve Quote"}
+                {approving
+                  ? "Approving..."
+                  : hasOptions && selectedOptionId
+                    ? `Approve "${quote.options!.find((o) => o.id === selectedOptionId)?.name}"`
+                    : hasOptions
+                      ? "Select an option to approve"
+                      : "Approve Quote"}
               </Button>
               <Button
                 variant="outline"

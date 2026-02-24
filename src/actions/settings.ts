@@ -88,6 +88,33 @@ export async function updateOrganizationSettings(
 }
 
 // =============================================================================
+// 2b. updateWorkflowSettings - Update workflow automation settings (OWNER/ADMIN)
+// =============================================================================
+
+export async function updateWorkflowSettings(data: {
+  autoConvertQuoteToJob: boolean
+}) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: {
+        autoConvertQuoteToJob: data.autoConvertQuoteToJob,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error
+    }
+    console.error("updateWorkflowSettings error:", error)
+    return { error: "Failed to update workflow settings" }
+  }
+}
+
+// =============================================================================
 // 3. getTeamMembers - List team members for the org
 // =============================================================================
 
@@ -455,12 +482,19 @@ export async function changePassword(
 // 9. getServices - List services for the org
 // =============================================================================
 
-export async function getServices() {
+export async function getServices(
+  typeFilter: "service" | "material" | "all" = "all"
+) {
   try {
     const user = await requireAuth()
 
+    const where: any = { organizationId: user.organizationId }
+    if (typeFilter === "service" || typeFilter === "material") {
+      where.type = typeFilter
+    }
+
     const services = await prisma.service.findMany({
-      where: { organizationId: user.organizationId },
+      where,
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     })
 
@@ -506,6 +540,10 @@ export async function createService(data: z.infer<typeof serviceSchema>) {
         taxable: result.data.taxable,
         isActive: result.data.isActive,
         sortOrder: nextSortOrder,
+        costPrice: result.data.costPrice ?? null,
+        type: result.data.type ?? "service",
+        estimatedMinutes: result.data.estimatedMinutes ?? null,
+        sku: result.data.sku ?? null,
       },
     })
 
@@ -1037,6 +1075,8 @@ export async function getBookingSettings() {
         bookingEnabled: true,
         bookingServices: true,
         bookingSlotDuration: true,
+        bookingBufferMinutes: true,
+        bookingMaxAdvanceDays: true,
         slug: true,
       },
     })
@@ -1061,6 +1101,8 @@ export async function getBookingSettings() {
         bookingEnabled: org.bookingEnabled,
         bookingServices: org.bookingServices as string[] | null,
         bookingSlotDuration: org.bookingSlotDuration,
+        bookingBufferMinutes: org.bookingBufferMinutes,
+        bookingMaxAdvanceDays: org.bookingMaxAdvanceDays,
         slug: org.slug,
       },
       services: serializedServices,
@@ -1080,20 +1122,31 @@ export async function updateBookingSettings(data: {
   bookingEnabled: boolean
   bookingServices: string[] | null
   bookingSlotDuration: number
+  bookingBufferMinutes?: number
+  bookingMaxAdvanceDays?: number
 }) {
   try {
     const user = await requireRole(["OWNER", "ADMIN"])
 
+    const updateData: any = {
+      bookingEnabled: data.bookingEnabled,
+      bookingServices:
+        data.bookingServices === null
+          ? Prisma.DbNull
+          : data.bookingServices,
+      bookingSlotDuration: data.bookingSlotDuration,
+    }
+
+    if (data.bookingBufferMinutes !== undefined) {
+      updateData.bookingBufferMinutes = data.bookingBufferMinutes
+    }
+    if (data.bookingMaxAdvanceDays !== undefined) {
+      updateData.bookingMaxAdvanceDays = data.bookingMaxAdvanceDays
+    }
+
     await prisma.organization.update({
       where: { id: user.organizationId },
-      data: {
-        bookingEnabled: data.bookingEnabled,
-        bookingServices:
-          data.bookingServices === null
-            ? Prisma.DbNull
-            : data.bookingServices,
-        bookingSlotDuration: data.bookingSlotDuration,
-      },
+      data: updateData,
     })
 
     return { success: true }

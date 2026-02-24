@@ -32,6 +32,8 @@ interface BookingSettingsFormProps {
     bookingEnabled: boolean
     bookingServices: string[] | null
     bookingSlotDuration: number
+    bookingBufferMinutes: number
+    bookingMaxAdvanceDays: number
     slug: string
   }
   services: ServiceItem[]
@@ -48,6 +50,22 @@ const SLOT_DURATIONS = [
   { value: "60", label: "60 minutes" },
   { value: "90", label: "90 minutes" },
   { value: "120", label: "120 minutes" },
+]
+
+const BUFFER_OPTIONS = [
+  { value: "0", label: "No buffer" },
+  { value: "15", label: "15 minutes" },
+  { value: "30", label: "30 minutes" },
+  { value: "45", label: "45 minutes" },
+  { value: "60", label: "60 minutes" },
+]
+
+const ADVANCE_BOOKING_OPTIONS = [
+  { value: "7", label: "1 week" },
+  { value: "14", label: "2 weeks" },
+  { value: "30", label: "1 month" },
+  { value: "60", label: "2 months" },
+  { value: "90", label: "3 months" },
 ]
 
 // ============================================================================
@@ -69,6 +87,12 @@ export function BookingSettingsForm({
   )
   const [slotDuration, setSlotDuration] = useState(
     String(settings.bookingSlotDuration)
+  )
+  const [bufferMinutes, setBufferMinutes] = useState(
+    String(settings.bookingBufferMinutes)
+  )
+  const [maxAdvanceDays, setMaxAdvanceDays] = useState(
+    String(settings.bookingMaxAdvanceDays)
   )
 
   // -----------------------------------------------------------------------
@@ -125,6 +149,8 @@ export function BookingSettingsForm({
         bookingEnabled,
         bookingServices: selectedServices.length > 0 ? selectedServices : null,
         bookingSlotDuration: Number(slotDuration),
+        bookingBufferMinutes: Number(bufferMinutes),
+        bookingMaxAdvanceDays: Number(maxAdvanceDays),
       })
       if ("error" in result) {
         toast.error(result.error)
@@ -226,23 +252,57 @@ export function BookingSettingsForm({
       <section className="border-t border-[#E3E8EE] pt-8">
         <h2 className="text-lg font-semibold text-[#0A2540]">Scheduling</h2>
         <p className="mt-1 text-sm text-[#425466]">
-          Configure time slot duration for the booking calendar.
+          Configure time slot duration, buffer time, and advance booking window.
         </p>
 
-        <div className="mt-4 max-w-xs space-y-1.5">
-          <Label className={labelClass}>Slot Duration</Label>
-          <Select value={slotDuration} onValueChange={setSlotDuration}>
-            <SelectTrigger className="h-10 w-full border-[#E3E8EE] focus-visible:ring-[#635BFF]">
-              <SelectValue placeholder="Select duration" />
-            </SelectTrigger>
-            <SelectContent>
-              {SLOT_DURATIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="mt-4 grid gap-6 sm:grid-cols-3 max-w-2xl">
+          <div className="space-y-1.5">
+            <Label className={labelClass}>Slot Duration</Label>
+            <Select value={slotDuration} onValueChange={setSlotDuration}>
+              <SelectTrigger className="h-10 w-full border-[#E3E8EE] focus-visible:ring-[#635BFF]">
+                <SelectValue placeholder="Select duration" />
+              </SelectTrigger>
+              <SelectContent>
+                {SLOT_DURATIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className={labelClass}>Buffer Between Appointments</Label>
+            <Select value={bufferMinutes} onValueChange={setBufferMinutes}>
+              <SelectTrigger className="h-10 w-full border-[#E3E8EE] focus-visible:ring-[#635BFF]">
+                <SelectValue placeholder="Select buffer" />
+              </SelectTrigger>
+              <SelectContent>
+                {BUFFER_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className={labelClass}>How Far in Advance</Label>
+            <Select value={maxAdvanceDays} onValueChange={setMaxAdvanceDays}>
+              <SelectTrigger className="h-10 w-full border-[#E3E8EE] focus-visible:ring-[#635BFF]">
+                <SelectValue placeholder="Select window" />
+              </SelectTrigger>
+              <SelectContent>
+                {ADVANCE_BOOKING_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </section>
 

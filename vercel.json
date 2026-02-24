@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/sync-reviews",
       "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/invoice-reminders",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/recurring-jobs",
+      "schedule": "0 10 * * *"
     }
   ]
 }

@@ -20,6 +20,7 @@ export default async function PublicBookingPage({
       bookingEnabled: true,
       bookingServices: true,
       bookingSlotDuration: true,
+      bookingMaxAdvanceDays: true,
       businessHours: true,
     },
   })
@@ -65,7 +66,13 @@ export default async function PublicBookingPage({
 
   const services = await prisma.service.findMany({
     where: serviceFilter,
-    select: { id: true, name: true, description: true, defaultPrice: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      defaultPrice: true,
+      estimatedMinutes: true,
+    },
     orderBy: { sortOrder: "asc" },
   })
 
@@ -74,6 +81,7 @@ export default async function PublicBookingPage({
     name: s.name,
     description: s.description,
     defaultPrice: Number(s.defaultPrice),
+    estimatedMinutes: s.estimatedMinutes,
   }))
 
   return (
@@ -106,6 +114,7 @@ export default async function PublicBookingPage({
           services={serializedServices}
           businessHours={org.businessHours as Record<string, { start: string; end: string; open: boolean }> | null}
           slotDuration={org.bookingSlotDuration}
+          maxAdvanceDays={org.bookingMaxAdvanceDays}
         />
       </main>
 

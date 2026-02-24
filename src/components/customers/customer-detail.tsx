@@ -50,6 +50,7 @@ import {
   getAllTags,
 } from "@/actions/customers"
 import { CustomerForm } from "@/components/customers/customer-form"
+import { CustomerSubscriptions } from "@/components/customers/customer-subscriptions"
 
 interface Property {
   id: string
@@ -114,6 +115,8 @@ interface CustomerDetailProps {
   jobs: any[]
   invoices: any[]
   payments: any[]
+  subscriptions?: any[]
+  availablePlans?: any[]
 }
 
 export function CustomerDetail({
@@ -125,6 +128,8 @@ export function CustomerDetail({
   jobs,
   invoices,
   payments,
+  subscriptions = [],
+  availablePlans = [],
 }: CustomerDetailProps) {
   const router = useRouter()
   const [notes, setNotes] = useState(initialNotes)
@@ -364,6 +369,7 @@ export function CustomerDetail({
             { value: "jobs", label: "Jobs", count: jobs.length },
             { value: "invoices", label: "Invoices", count: invoices.length },
             { value: "payments", label: "Payments", count: payments.length },
+            { value: "plans", label: "Plans", count: subscriptions.length },
             { value: "communications", label: "Communications" },
             { value: "notes", label: "Notes", count: notes.length },
           ].map((tab) => (
@@ -755,6 +761,15 @@ export function CustomerDetail({
               </table>
             </div>
           )}
+        </TabsContent>
+
+        {/* Plans Tab */}
+        <TabsContent value="plans" className="mt-6">
+          <CustomerSubscriptions
+            customerId={customer.id}
+            initialSubscriptions={subscriptions}
+            availablePlans={availablePlans}
+          />
         </TabsContent>
 
         {/* Communications Tab */}

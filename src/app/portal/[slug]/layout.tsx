@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db"
+import { cookies } from "next/headers"
 import { notFound } from "next/navigation"
+import { getPortalSession } from "@/actions/portal"
+import { PortalNav } from "@/components/portal/portal-nav"
 
 export default async function PortalLayout({
   children,
@@ -17,6 +20,44 @@ export default async function PortalLayout({
 
   if (!org) notFound()
 
+  // Check for portal session cookie
+  const cookieStore = await cookies()
+  const sessionToken = cookieStore.get(`portal_session_${slug}`)?.value
+  let portalSession: Awaited<ReturnType<typeof getPortalSession>> = null
+
+  if (sessionToken) {
+    portalSession = await getPortalSession(slug, sessionToken)
+  }
+
+  // If the customer has a valid session, show the portal nav
+  if (portalSession) {
+    const { customer, organization } = portalSession
+    const customerName = `${customer.firstName} ${customer.lastName}`
+
+    return (
+      <div className="min-h-screen bg-[#F6F8FA] flex flex-col">
+        {/* Authenticated portal nav */}
+        <PortalNav
+          slug={slug}
+          customerName={customerName}
+          orgName={organization.name}
+          orgLogo={organization.logo}
+        />
+
+        {/* Content */}
+        <main className="max-w-5xl mx-auto w-full px-4 py-8 flex-1">{children}</main>
+
+        {/* Footer */}
+        <footer className="border-t border-[#E3E8EE] bg-white mt-auto">
+          <div className="max-w-5xl mx-auto px-4 py-4 text-center text-xs text-[#8898AA]">
+            Powered by JobStream
+          </div>
+        </footer>
+      </div>
+    )
+  }
+
+  // Fallback: minimal layout for token-based access (invoices, quotes) and login page
   return (
     <div className="min-h-screen bg-[#F6F8FA]">
       {/* Header */}
