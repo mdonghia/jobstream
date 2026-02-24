@@ -200,7 +200,9 @@ export function ScheduleLayout({ initialJobs, teamMembers, unscheduledJobs }: Sc
 
     if (!dragData || !dropData) return
 
-    const jobId = dragData.job.id
+    // Use realJobId for virtual recurring occurrences; fall back to id
+    const calJob = dragData.job as CalendarJob
+    const jobId = calJob.realJobId || calJob.id
     const dropDate = dropData.date
     const dropTime = dropData.time || "09:00"
     const [dropHour, dropMin] = dropTime.split(":").map(Number)

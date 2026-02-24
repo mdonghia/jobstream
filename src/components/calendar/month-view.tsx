@@ -26,12 +26,16 @@ import type { DragData, DropData } from "./dnd-wrappers"
 
 export interface CalendarJob {
   id: string
+  /** For virtual recurring occurrences, points to the actual job record */
+  realJobId?: string
   title: string
   jobNumber: string
   status: string
   priority: string
   scheduledStart: string
   scheduledEnd: string | null
+  isRecurring?: boolean
+  recurrenceRule?: string | null
   customer: { firstName: string; lastName: string }
   assignments: {
     user: {
@@ -176,7 +180,7 @@ export function MonthView({ jobs, currentDate, onJobClick, onSlotClick }: MonthV
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
-                              onJobClick(job.id)
+                              onJobClick(job.realJobId || job.id)
                             }}
                             className="w-full flex items-center gap-1 px-1.5 py-0.5 rounded text-left group hover:bg-[#E3E8EE] transition-colors"
                           >
@@ -227,7 +231,7 @@ export function MonthView({ jobs, currentDate, onJobClick, onSlotClick }: MonthV
                                 key={job.id}
                                 onClick={() => {
                                   setMorePopoverDay(null)
-                                  onJobClick(job.id)
+                                  onJobClick(job.realJobId || job.id)
                                 }}
                                 className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-[#F6F8FA] text-left transition-colors"
                               >

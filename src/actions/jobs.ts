@@ -638,37 +638,116 @@ export async function getCalendarJobs(params: {
   try {
     const user = await requireAuth()
 
-    const where: any = {
+    const rangeStart = new Date(params.start)
+    const rangeEnd = new Date(params.end)
+
+    // Build a base filter shared by both queries
+    const baseWhere: any = {
       organizationId: user.organizationId,
-      scheduledStart: {
-        gte: new Date(params.start),
-        lte: new Date(params.end),
-      },
       status: { notIn: ["CANCELLED", "COMPLETED"] },
     }
 
     if (params.userIds && params.userIds.length > 0) {
-      where.assignments = { some: { userId: { in: params.userIds } } }
+      baseWhere.assignments = { some: { userId: { in: params.userIds } } }
     }
 
-    const jobs = await prisma.job.findMany({
-      where,
-      include: {
-        customer: {
-          select: { firstName: true, lastName: true },
-        },
-        assignments: {
-          include: {
-            user: {
-              select: { id: true, firstName: true, lastName: true, color: true },
-            },
+    // 1. Fetch non-recurring jobs whose scheduledStart falls in the range
+    const nonRecurringWhere = {
+      ...baseWhere,
+      scheduledStart: { gte: rangeStart, lte: rangeEnd },
+      isRecurring: false,
+    }
+
+    // 2. Fetch recurring jobs whose scheduledStart is on or before the range end.
+    //    We need these so we can project virtual future occurrences into the range.
+    const recurringWhere = {
+      ...baseWhere,
+      scheduledStart: { lte: rangeEnd },
+      isRecurring: true,
+    }
+
+    const includeClause = {
+      customer: {
+        select: { firstName: true, lastName: true },
+      },
+      assignments: {
+        include: {
+          user: {
+            select: { id: true, firstName: true, lastName: true, color: true },
           },
         },
       },
-      orderBy: { scheduledStart: "asc" },
+    }
+
+    const [nonRecurringJobs, recurringJobs] = await Promise.all([
+      prisma.job.findMany({
+        where: nonRecurringWhere,
+        include: includeClause,
+        orderBy: { scheduledStart: "asc" },
+      }),
+      prisma.job.findMany({
+        where: recurringWhere,
+        include: includeClause,
+        orderBy: { scheduledStart: "asc" },
+      }),
+    ])
+
+    // 3. Expand recurring jobs into virtual occurrences within the date range.
+    //    The "real" occurrence (the actual scheduledStart) is included if it falls
+    //    in range, plus we project forward from that date using the recurrence rule.
+    const allJobs: any[] = [...nonRecurringJobs]
+
+    for (const job of recurringJobs) {
+      const duration = job.scheduledEnd.getTime() - job.scheduledStart.getTime()
+      const seriesEnd = job.recurrenceEndDate ?? null
+
+      // Walk forward from the job's current scheduledStart generating occurrences
+      let occurrenceStart = new Date(job.scheduledStart)
+
+      // Safety limit to prevent infinite loops (max 120 occurrences per job)
+      let safety = 0
+      while (occurrenceStart <= rangeEnd && safety < 120) {
+        safety++
+
+        // Stop if past the series end date
+        if (seriesEnd && occurrenceStart > seriesEnd) break
+
+        // Include this occurrence if it falls within the range
+        if (occurrenceStart >= rangeStart && occurrenceStart <= rangeEnd) {
+          const occurrenceEnd = new Date(occurrenceStart.getTime() + duration)
+          const isRealOccurrence = occurrenceStart.getTime() === job.scheduledStart.getTime()
+
+          // For virtual (projected) occurrences, generate a unique ID so the
+          // calendar can render them as separate items. The real job ID is kept
+          // in `realJobId` so clicks still navigate to the correct detail page.
+          const occurrenceId = isRealOccurrence
+            ? job.id
+            : `${job.id}__${occurrenceStart.toISOString()}`
+
+          allJobs.push({
+            ...job,
+            id: occurrenceId,
+            realJobId: job.id,
+            scheduledStart: occurrenceStart,
+            scheduledEnd: occurrenceEnd,
+            isRecurring: true,
+            recurrenceRule: job.recurrenceRule,
+          })
+        }
+
+        // Advance to the next occurrence
+        occurrenceStart = calculateNextOccurrence(occurrenceStart, job.recurrenceRule || "WEEKLY")
+      }
+    }
+
+    // Sort all jobs by scheduledStart
+    allJobs.sort((a, b) => {
+      const aTime = a.scheduledStart instanceof Date ? a.scheduledStart.getTime() : new Date(a.scheduledStart).getTime()
+      const bTime = b.scheduledStart instanceof Date ? b.scheduledStart.getTime() : new Date(b.scheduledStart).getTime()
+      return aTime - bTime
     })
 
-    return { jobs }
+    return { jobs: allJobs }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("getCalendarJobs error:", error)

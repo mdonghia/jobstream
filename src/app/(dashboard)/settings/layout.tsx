@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 
 const settingsLinks = [
   { href: "/settings/general", label: "General" },
+  { href: "/settings/automation", label: "Automation" },
   { href: "/settings/team", label: "Team Members" },
   { href: "/settings/services", label: "Services" },
   { href: "/settings/checklists", label: "Checklists" },

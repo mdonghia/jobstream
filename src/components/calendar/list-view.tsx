@@ -9,7 +9,7 @@ import {
 } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { Clock, MapPin, User } from "lucide-react"
+import { Clock, MapPin, RotateCcw, User } from "lucide-react"
 import type { CalendarJob } from "./month-view"
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ export function ListView({ jobs, currentDate, onJobClick }: ListViewProps) {
                     key={job.id}
                     className="flex items-start gap-4 px-4 py-3 hover:bg-[#F6F8FA]/50 transition-colors cursor-pointer"
                     style={{ borderLeft: `3px solid ${color}` }}
-                    onClick={() => onJobClick?.(job.id)}
+                    onClick={() => onJobClick?.(job.realJobId || job.id)}
                   >
                     {/* Time */}
                     <div className="shrink-0 w-28">
@@ -151,7 +151,8 @@ export function ListView({ jobs, currentDate, onJobClick }: ListViewProps) {
                     {/* Details */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-[#0A2540] truncate">
+                        <p className="text-sm font-semibold text-[#0A2540] truncate flex items-center gap-1">
+                          {job.isRecurring && <RotateCcw className="w-3 h-3 text-[#8898AA] shrink-0" />}
                           {job.customer.firstName} {job.customer.lastName}
                         </p>
                         <Badge

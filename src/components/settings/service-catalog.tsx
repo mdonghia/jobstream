@@ -14,13 +14,13 @@ import {
   Trash2,
   X,
   Clock,
+  ChevronsUpDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -53,9 +53,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { Textarea } from "@/components/ui/textarea"
 import { SERVICE_UNITS } from "@/lib/constants"
-import { formatCurrency } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 import {
   createService,
   updateService,
@@ -104,6 +113,102 @@ interface ServiceCatalogProps {
 function getUnitLabel(unit: string): string {
   const found = SERVICE_UNITS.find((u) => u.value === unit)
   return found ? found.label : unit
+}
+
+// ============================================================================
+// Multi-select combobox for linking items
+// ============================================================================
+
+function ChecklistCombobox({
+  options,
+  selectedIds,
+  onToggle,
+  onRemove,
+  placeholder = "Search...",
+  emptyText = "No results found.",
+}: {
+  options: { id: string; name: string }[]
+  selectedIds: string[]
+  onToggle: (id: string) => void
+  onRemove: (id: string) => void
+  placeholder?: string
+  emptyText?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const selectedItems = options.filter((o) => selectedIds.includes(o.id))
+
+  return (
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between h-10 border-[#E3E8EE] text-sm font-normal"
+          >
+            <span className="text-[#8898AA]">
+              {selectedIds.length > 0
+                ? `${selectedIds.length} selected`
+                : "Select..."}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+          <Command>
+            <CommandInput placeholder={placeholder} />
+            <CommandList>
+              <CommandEmpty>{emptyText}</CommandEmpty>
+              <CommandGroup>
+                {options.map((option) => {
+                  const isSelected = selectedIds.includes(option.id)
+                  return (
+                    <CommandItem
+                      key={option.id}
+                      value={option.name}
+                      onSelect={() => onToggle(option.id)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          isSelected ? "opacity-100 text-[#635BFF]" : "opacity-0"
+                        )}
+                      />
+                      <span className="text-sm">{option.name}</span>
+                    </CommandItem>
+                  )
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {/* Selected items as removable badges */}
+      {selectedItems.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {selectedItems.map((item) => (
+            <Badge
+              key={item.id}
+              variant="secondary"
+              className="bg-[#635BFF]/10 text-[#635BFF] ring-1 ring-inset ring-[#635BFF]/20 pr-1 gap-1"
+            >
+              {item.name}
+              <button
+                type="button"
+                onClick={() => onRemove(item.id)}
+                className="ml-0.5 rounded-full p-0.5 hover:bg-[#635BFF]/20 transition-colors"
+                aria-label={`Remove ${item.name}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ============================================================================
@@ -1061,34 +1166,22 @@ export function ServiceCatalog({ initialServices, checklistTemplates = [] }: Ser
                 <p className="text-xs text-[#8898AA] mb-2">
                   When this service is added to a job, the linked checklist items will auto-populate.
                 </p>
-                <div className="max-h-[160px] overflow-y-auto space-y-1 rounded-md border border-[#E3E8EE] p-2">
-                  {checklistTemplates.map((template) => {
-                    const isChecked = formChecklistIds.includes(template.id)
-                    return (
-                      <label
-                        key={template.id}
-                        className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-[#F6F8FA] cursor-pointer transition-colors"
-                      >
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            if (checked) {
-                              setFormChecklistIds((prev) => [...prev, template.id])
-                            } else {
-                              setFormChecklistIds((prev) =>
-                                prev.filter((id) => id !== template.id)
-                              )
-                            }
-                          }}
-                          className="data-[state=checked]:bg-[#635BFF] data-[state=checked]:border-[#635BFF]"
-                        />
-                        <span className="text-sm font-medium text-[#0A2540]">
-                          {template.name}
-                        </span>
-                      </label>
+                <ChecklistCombobox
+                  options={checklistTemplates}
+                  selectedIds={formChecklistIds}
+                  onToggle={(id) => {
+                    setFormChecklistIds((prev) =>
+                      prev.includes(id)
+                        ? prev.filter((x) => x !== id)
+                        : [...prev, id]
                     )
-                  })}
-                </div>
+                  }}
+                  onRemove={(id) => {
+                    setFormChecklistIds((prev) => prev.filter((x) => x !== id))
+                  }}
+                  placeholder="Search checklist templates..."
+                  emptyText="No templates found."
+                />
               </div>
             )}
           </div>

@@ -10,6 +10,7 @@ import {
   setHours,
   setMinutes,
 } from "date-fns"
+import { RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DraggableJob, DroppableSlot, ResizeHandle } from "./dnd-wrappers"
 import type { DragData, DropData } from "./dnd-wrappers"
@@ -301,12 +302,13 @@ export function DayView({ jobs, currentDate, onJobClick, onSlotClick, teamMember
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        onJobClick(job.id)
+                        onJobClick(job.realJobId || job.id)
                       }}
                       className="w-full h-full px-2 py-1 text-left cursor-pointer"
                     >
-                      <p className="text-xs font-semibold text-[#0A2540] truncate leading-tight">
-                        {job.customer.firstName} {job.customer.lastName}
+                      <p className="text-xs font-semibold text-[#0A2540] truncate leading-tight flex items-center gap-0.5">
+                        {job.isRecurring && <RotateCcw className="w-2.5 h-2.5 text-[#8898AA] shrink-0" />}
+                        <span className="truncate">{job.customer.firstName} {job.customer.lastName}</span>
                       </p>
                       {height >= 44 && (
                         <p className="text-[11px] text-[#425466] truncate leading-tight mt-0.5">

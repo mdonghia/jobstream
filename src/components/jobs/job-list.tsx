@@ -11,6 +11,7 @@ import {
   ChevronUp,
   ChevronDown,
   CalendarIcon,
+  RotateCcw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -64,6 +65,8 @@ interface JobRow {
   priority: string
   scheduledStart: string | Date | null
   scheduledEnd: string | Date | null
+  isRecurring?: boolean
+  recurrenceRule?: string | null
   customer: {
     id: string
     firstName: string
@@ -104,6 +107,15 @@ function toTitleCase(str: string): string {
     .toLowerCase()
     .replace(/_/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+const RECURRENCE_LABELS: Record<string, string> = {
+  DAILY: "Daily",
+  WEEKLY: "Weekly",
+  BIWEEKLY: "Biweekly",
+  MONTHLY: "Monthly",
+  QUARTERLY: "Quarterly",
+  ANNUALLY: "Annually",
 }
 
 // ---- Component ----
@@ -469,8 +481,16 @@ export function JobList({
                   </td>
 
                   {/* Title */}
-                  <td className="px-4 py-3 text-sm text-[#425466] max-w-[200px] truncate">
-                    {job.title}
+                  <td className="px-4 py-3 text-sm text-[#425466] max-w-[250px]">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="truncate">{job.title}</span>
+                      {job.isRecurring && (
+                        <span className="inline-flex items-center gap-1 shrink-0 rounded-full bg-[#635BFF]/10 border border-[#635BFF]/20 text-[#635BFF] text-[10px] font-medium px-1.5 py-0.5">
+                          <RotateCcw className="w-2.5 h-2.5" />
+                          {RECURRENCE_LABELS[job.recurrenceRule || ""] || "Recurring"}
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {/* Assigned */}
