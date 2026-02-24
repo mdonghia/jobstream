@@ -326,6 +326,15 @@ export function QuotePortalView({ quote }: { quote: QuoteData }) {
             </p>
           </div>
         )}
+
+        {/* Disclaimer */}
+        <div className="px-6 py-4 border-t border-[#E3E8EE]">
+          <p className="text-xs text-[#8898AA] leading-relaxed">
+            This quote is an estimate based on information available at the time of assessment.
+            Final pricing may vary depending on actual conditions and scope of work encountered
+            on-site. Any changes will be communicated and approved before additional work is performed.
+          </p>
+        </div>
       </div>
 
       {/* Approve/Decline Buttons */}

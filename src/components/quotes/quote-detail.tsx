@@ -549,6 +549,17 @@ export function QuoteDetail({ quote: initialQuote, timeline }: QuoteDetailProps)
             </Card>
           )}
 
+          {/* Disclaimer */}
+          <Card className="border-[#E3E8EE]">
+            <CardContent className="pt-4">
+              <p className="text-xs text-[#8898AA] leading-relaxed">
+                This quote is an estimate based on information available at the time of assessment.
+                Final pricing may vary depending on actual conditions and scope of work encountered
+                on-site. Any changes will be communicated and approved before additional work is performed.
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Internal note */}
           {quote.internalNote && (
             <Card className="border-[#E3E8EE]">
