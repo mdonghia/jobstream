@@ -16,19 +16,18 @@ export async function submitIssue(formData: FormData) {
       return { error: "Description is required" }
     }
 
-    // Upload screenshot if provided (non-fatal -- still send email if upload fails)
-    let screenshotUrl: string | null = null
+    // Prepare screenshot as email attachment (no S3 needed)
+    let screenshotAttachment: { content: string; filename: string; type: string } | null = null
     if (screenshot && screenshot.size > 0) {
       try {
-        const { uploadFile, getFileUrl } = await import("@/lib/s3")
-        const sanitizedName = screenshot.name.replace(/[^a-zA-Z0-9.-]/g, "_")
-        const fileName = `${Date.now()}-${sanitizedName}`
-        const key = `${user.organizationId}/issues/${fileName}`
         const buffer = Buffer.from(await screenshot.arrayBuffer())
-        const rawUrl = await uploadFile(buffer, key, screenshot.type)
-        screenshotUrl = await getFileUrl(rawUrl)
-      } catch (uploadErr) {
-        console.error("Screenshot upload failed (continuing without it):", uploadErr)
+        screenshotAttachment = {
+          content: buffer.toString("base64"),
+          filename: screenshot.name || "screenshot.png",
+          type: screenshot.type || "image/png",
+        }
+      } catch (fileErr) {
+        console.error("Failed to read screenshot file:", fileErr)
       }
     }
 
@@ -80,10 +79,10 @@ export async function submitIssue(formData: FormData) {
           <p style="margin: 0; white-space: pre-wrap;">${description.replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</p>
         </div>
 
-        ${screenshotUrl ? `
+        ${screenshotAttachment ? `
         <div style="margin-top: 20px;">
           <p style="font-weight: 600; color: #425466; margin: 0 0 8px 0;">Screenshot</p>
-          <a href="${screenshotUrl}" style="color: #635BFF;">View Screenshot</a>
+          <p style="margin: 0; color: #8898AA; font-size: 13px;">See attached file: ${screenshotAttachment.filename}</p>
         </div>
         ` : ""}
       </div>
@@ -103,6 +102,16 @@ export async function submitIssue(formData: FormData) {
           },
           subject,
           html,
+          ...(screenshotAttachment && {
+            attachments: [
+              {
+                content: screenshotAttachment.content,
+                filename: screenshotAttachment.filename,
+                type: screenshotAttachment.type,
+                disposition: "attachment",
+              },
+            ],
+          }),
         })
       } catch (e) {
         console.error("Failed to send issue report email:", e)
