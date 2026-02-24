@@ -93,7 +93,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
     organization.timezone || "America/New_York"
   )
   const [taxRate, setTaxRate] = useState(
-    String(Number(organization.taxRate || 0))
+    String(Number(organization.taxRate || 0) * 100)
   )
   const [currency] = useState(organization.currency || "USD")
 
@@ -164,7 +164,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
         state: state || undefined,
         zip: zip.trim() || undefined,
         timezone,
-        taxRate: Number(taxRate) || 0,
+        taxRate: (Number(taxRate) || 0) / 100,
         currency,
         invoicePrefix: invoicePrefix.trim(),
         quotePrefix: quotePrefix.trim(),

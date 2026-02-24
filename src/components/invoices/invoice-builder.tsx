@@ -535,7 +535,7 @@ export function InvoiceBuilder({
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-[#425466]">Tax ({orgSettings.taxRate}%)</span>
+                      <span className="text-[#425466]">Tax ({+(orgSettings.taxRate * 100).toFixed(2)}%)</span>
                       <span className="text-[#0A2540]">
                         {formatCurrency(calculations.taxAmount)}
                       </span>
