@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { toast } from "sonner"
-import { Loader2, Star } from "lucide-react"
+import { Loader2, Star, CheckCircle2, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,6 +21,7 @@ interface ReviewSettingsFormProps {
     reviewFacebookUrl: string | null
     reviewAutoRequest: boolean
     reviewRequestDelay: number
+    googleConnected?: boolean
   }
 }
 
@@ -30,6 +31,8 @@ interface ReviewSettingsFormProps {
 
 export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
   const [saving, setSaving] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
+  const [googleConnected, setGoogleConnected] = useState(settings.googleConnected || false)
 
   // Review platform URLs
   const [googleUrl, setGoogleUrl] = useState(settings.reviewGoogleUrl || "")
@@ -45,6 +48,38 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
   )
 
   const orgName = settings.name
+
+  async function handleConnectGoogle() {
+    try {
+      const { getGoogleConnectUrl } = await import("@/actions/settings")
+      const result = await getGoogleConnectUrl()
+      if ("error" in result) {
+        toast.error(result.error)
+      } else if (result.url) {
+        window.location.href = result.url
+      }
+    } catch {
+      toast.error("Failed to initiate Google connection")
+    }
+  }
+
+  async function handleDisconnectGoogle() {
+    setDisconnecting(true)
+    try {
+      const { disconnectGoogle } = await import("@/actions/settings")
+      const result = await disconnectGoogle()
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        setGoogleConnected(false)
+        toast.success("Google Business Profile disconnected")
+      }
+    } catch {
+      toast.error("Failed to disconnect Google")
+    } finally {
+      setDisconnecting(false)
+    }
+  }
 
   // -----------------------------------------------------------------------
   // Save
@@ -89,9 +124,67 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
   return (
     <div className="space-y-8">
       {/* ----------------------------------------------------------------- */}
-      {/* Review Platforms */}
+      {/* Google Business Profile Connection */}
       {/* ----------------------------------------------------------------- */}
       <section>
+        <h2 className="text-lg font-semibold text-[#0A2540]">
+          Google Business Profile
+        </h2>
+        <p className="mt-1 text-sm text-[#425466]">
+          Connect your Google Business Profile to pull real Google reviews into JobStream.
+        </p>
+
+        <div className="mt-4 flex items-center justify-between rounded-lg border border-[#E3E8EE] p-4">
+          <div className="flex items-center gap-3">
+            {googleConnected ? (
+              <>
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <div>
+                  <p className="text-sm font-medium text-[#0A2540]">Connected</p>
+                  <p className="text-xs text-[#8898AA]">
+                    Google reviews will sync automatically.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-5 w-5 text-[#8898AA]" />
+                <div>
+                  <p className="text-sm font-medium text-[#0A2540]">Not Connected</p>
+                  <p className="text-xs text-[#8898AA]">
+                    Connect to see your Google reviews in the Reviews tab.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          {googleConnected ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDisconnectGoogle}
+              disabled={disconnecting}
+            >
+              {disconnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Disconnect
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleConnectGoogle}
+              className="bg-[#4285F4] hover:bg-[#3367d6] text-white"
+            >
+              Connect Google
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Review Platforms */}
+      {/* ----------------------------------------------------------------- */}
+      <section className="border-t border-[#E3E8EE] pt-8">
         <h2 className="text-lg font-semibold text-[#0A2540]">
           Review Platforms
         </h2>

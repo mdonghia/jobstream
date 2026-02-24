@@ -397,6 +397,27 @@ export async function updateJobStatus(
       data: updateData,
     })
 
+    // Auto-send review request when job is completed (if enabled)
+    if (newStatus === "COMPLETED") {
+      try {
+        const org = await prisma.organization.findUnique({
+          where: { id: user.organizationId },
+          select: { reviewAutoRequest: true, reviewRequestDelay: true },
+        })
+
+        if (org?.reviewAutoRequest) {
+          // Fire and forget -- don't block the status update
+          const { sendReviewRequest } = await import("@/actions/reviews")
+          sendReviewRequest(id).catch((err: any) => {
+            console.error("Auto review request failed:", err)
+          })
+        }
+      } catch (e) {
+        // Don't fail the job status update if review request fails
+        console.error("Review auto-request check failed:", e)
+      }
+    }
+
     return { success: true }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error

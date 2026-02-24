@@ -2,264 +2,260 @@
 
 import { prisma } from "@/lib/db"
 import { requireAuth } from "@/lib/auth-utils"
-import { reviewSchema } from "@/lib/validations"
 
 // =============================================================================
 // Types
 // =============================================================================
 
-type GetReviewsParams = {
-  platform?: string
-  rating?: number
-  responded?: boolean
-  dateFrom?: string
-  dateTo?: string
-  search?: string
-  page?: number
-  perPage?: number
+type DateRange = "this_month" | "last_month" | "this_quarter" | "all_time"
+
+type ReviewFilter = "all" | "new" | "reviewed" | "responded"
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+function getDateRangeBounds(range: DateRange): { from: Date; to: Date } | null {
+  if (range === "all_time") return null
+
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+
+  switch (range) {
+    case "this_month":
+      return {
+        from: new Date(year, month, 1),
+        to: new Date(year, month + 1, 0, 23, 59, 59),
+      }
+    case "last_month":
+      return {
+        from: new Date(year, month - 1, 1),
+        to: new Date(year, month, 0, 23, 59, 59),
+      }
+    case "this_quarter": {
+      const qStart = Math.floor(month / 3) * 3
+      return {
+        from: new Date(year, qStart, 1),
+        to: new Date(year, qStart + 3, 0, 23, 59, 59),
+      }
+    }
+    default:
+      return null
+  }
 }
 
 // =============================================================================
-// 1. getReviews - List reviews with filters and summary stats
+// 1. getReviewRequestStats - Summary stats for the review requests tab
 // =============================================================================
 
-export async function getReviews(params: GetReviewsParams = {}) {
+export async function getReviewRequestStats(dateRange: DateRange = "this_month") {
   try {
     const user = await requireAuth()
-    const {
-      platform,
-      rating,
-      responded,
-      dateFrom,
-      dateTo,
-      search,
-      page = 1,
-      perPage = 25,
-    } = params
+    const bounds = getDateRangeBounds(dateRange)
 
     const where: any = { organizationId: user.organizationId }
-
-    if (platform && platform !== "ALL") {
-      where.platform = platform
+    if (bounds) {
+      where.sentAt = { gte: bounds.from, lte: bounds.to }
     }
 
-    if (rating !== undefined && rating !== null) {
-      where.rating = rating
-    }
+    const [totalSent, uniqueClicked] = await Promise.all([
+      prisma.reviewRequest.count({ where }),
+      prisma.reviewRequest.count({
+        where: { ...where, clickedAt: { not: null } },
+      }),
+    ])
 
-    if (responded !== undefined) {
-      if (responded) {
-        where.respondedAt = { not: null }
-      } else {
-        where.respondedAt = null
-      }
-    }
+    const conversionRate = totalSent > 0
+      ? Math.round((uniqueClicked / totalSent) * 1000) / 10
+      : 0
 
-    if (dateFrom || dateTo) {
-      where.reviewDate = {}
-      if (dateFrom) where.reviewDate.gte = new Date(dateFrom + "T00:00:00")
-      if (dateTo) where.reviewDate.lte = new Date(dateTo + "T23:59:59")
-    }
+    return { totalSent, uniqueClicked, conversionRate }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getReviewRequestStats error:", error)
+    return { error: "Failed to fetch review request stats" }
+  }
+}
 
-    // Split on whitespace so multi-word searches like "David Brown" match across fields
-    if (search && search.trim()) {
-      const words = search.trim().split(/\s+/)
-      where.AND = [
-        ...(where.AND || []),
-        ...words.map((word: string) => ({
-          OR: [
-            { reviewerName: { contains: word, mode: "insensitive" } },
-            { content: { contains: word, mode: "insensitive" } },
-            { responseContent: { contains: word, mode: "insensitive" } },
-          ],
-        })),
-      ]
+// =============================================================================
+// 2. getReviewRequests - Paginated list of review request emails sent
+// =============================================================================
+
+export async function getReviewRequests(
+  dateRange: DateRange = "this_month",
+  page: number = 1,
+  perPage: number = 25,
+) {
+  try {
+    const user = await requireAuth()
+    const bounds = getDateRangeBounds(dateRange)
+
+    const where: any = { organizationId: user.organizationId }
+    if (bounds) {
+      where.sentAt = { gte: bounds.from, lte: bounds.to }
     }
 
     const skip = (page - 1) * perPage
 
-    const now = new Date()
-    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const [total, requests] = await Promise.all([
+      prisma.reviewRequest.count({ where }),
+      prisma.reviewRequest.findMany({
+        where,
+        orderBy: { sentAt: "desc" },
+        skip,
+        take: perPage,
+        include: {
+          customer: {
+            select: { id: true, firstName: true, lastName: true },
+          },
+          job: {
+            select: { id: true, jobNumber: true },
+          },
+        },
+      }),
+    ])
 
-    const [total, reviews, avgRating, totalReviews, respondedCount, requestsSentThisMonth] =
-      await Promise.all([
-        prisma.review.count({ where }),
-        prisma.review.findMany({
-          where,
-          orderBy: { reviewDate: "desc" },
-          skip,
-          take: perPage,
-          include: {
-            customer: {
-              select: { id: true, firstName: true, lastName: true },
-            },
-            job: {
-              select: { id: true, jobNumber: true, title: true },
-            },
-          },
-        }),
-        // Average rating
-        prisma.review.aggregate({
-          where: { organizationId: user.organizationId },
-          _avg: { rating: true },
-        }),
-        // Total reviews count
-        prisma.review.count({
-          where: { organizationId: user.organizationId },
-        }),
-        // Count of reviews with a response
-        prisma.review.count({
-          where: {
-            organizationId: user.organizationId,
-            respondedAt: { not: null },
-          },
-        }),
-        // Review requests sent this month
-        prisma.review.count({
-          where: {
-            organizationId: user.organizationId,
-            requestSentAt: { gte: thisMonthStart },
-          },
-        }),
-      ])
+    return {
+      requests,
+      total,
+      page,
+      totalPages: Math.ceil(total / perPage),
+    }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getReviewRequests error:", error)
+    return { error: "Failed to fetch review requests" }
+  }
+}
 
-    const responseRate =
-      totalReviews > 0 ? Math.round((respondedCount / totalReviews) * 100) : 0
+// =============================================================================
+// 3. getGoogleReviews - Cached Google reviews from database
+// =============================================================================
+
+export async function getGoogleReviews(
+  filter: ReviewFilter = "all",
+  page: number = 1,
+  perPage: number = 25,
+) {
+  try {
+    const user = await requireAuth()
+
+    const where: any = { organizationId: user.organizationId }
+
+    switch (filter) {
+      case "new":
+        where.reviewedAt = null
+        where.hasOwnerReply = false
+        break
+      case "reviewed":
+        where.reviewedAt = { not: null }
+        where.hasOwnerReply = false
+        break
+      case "responded":
+        where.hasOwnerReply = true
+        break
+    }
+
+    const skip = (page - 1) * perPage
+
+    const [total, reviews] = await Promise.all([
+      prisma.review.count({ where }),
+      prisma.review.findMany({
+        where,
+        orderBy: { reviewDate: "desc" },
+        skip,
+        take: perPage,
+      }),
+    ])
 
     return {
       reviews,
       total,
       page,
       totalPages: Math.ceil(total / perPage),
-      summary: {
-        averageRating: avgRating._avg.rating ? Number(avgRating._avg.rating.toFixed(1)) : 0,
-        totalReviews,
-        responseRate,
-        requestsSentThisMonth,
-      },
     }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
-    console.error("getReviews error:", error)
-    return { error: "Failed to fetch reviews" }
+    console.error("getGoogleReviews error:", error)
+    return { error: "Failed to fetch Google reviews" }
   }
 }
 
 // =============================================================================
-// 2. createReview - Manually add a review
+// 4. getGoogleReviewStats - Rating, total count, and new count
 // =============================================================================
 
-export async function createReview(data: {
-  platform: string
-  reviewerName: string
-  rating: number
-  content?: string
-  reviewDate: string | Date
-  reviewUrl?: string
-  customerId?: string
-  jobId?: string
-}) {
+export async function getGoogleReviewStats() {
   try {
     const user = await requireAuth()
 
-    const result = reviewSchema.safeParse(data)
-    if (!result.success) {
-      return { error: result.error.issues[0].message }
+    const orgWhere = { organizationId: user.organizationId }
+
+    const [avgRating, totalReviews, newCount, org] = await Promise.all([
+      prisma.review.aggregate({
+        where: orgWhere,
+        _avg: { rating: true },
+      }),
+      prisma.review.count({ where: orgWhere }),
+      prisma.review.count({
+        where: {
+          ...orgWhere,
+          reviewedAt: null,
+          hasOwnerReply: false,
+        },
+      }),
+      prisma.organization.findUnique({
+        where: { id: user.organizationId },
+        select: {
+          googlePlaceId: true,
+          googleAccountId: true,
+          googleLocationId: true,
+          googleLastSyncAt: true,
+        },
+      }),
+    ])
+
+    return {
+      averageRating: avgRating._avg.rating
+        ? Number(Number(avgRating._avg.rating).toFixed(1))
+        : 0,
+      totalReviews,
+      newCount,
+      isConnected: !!(org?.googleAccountId && org?.googleLocationId),
+      lastSyncAt: org?.googleLastSyncAt?.toISOString() || null,
     }
-
-    // Verify customer if provided
-    if (data.customerId) {
-      const customer = await prisma.customer.findFirst({
-        where: { id: data.customerId, organizationId: user.organizationId },
-      })
-      if (!customer) return { error: "Customer not found" }
-    }
-
-    // Verify job if provided
-    if (data.jobId) {
-      const job = await prisma.job.findFirst({
-        where: { id: data.jobId, organizationId: user.organizationId },
-      })
-      if (!job) return { error: "Job not found" }
-    }
-
-    const review = await prisma.review.create({
-      data: {
-        organizationId: user.organizationId,
-        platform: data.platform,
-        reviewerName: data.reviewerName,
-        rating: data.rating,
-        content: data.content || null,
-        reviewDate: new Date(data.reviewDate),
-        reviewUrl: data.reviewUrl || null,
-        customerId: data.customerId || null,
-        jobId: data.jobId || null,
-      },
-    })
-
-    return { review }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
-    console.error("createReview error:", error)
-    return { error: "Failed to create review" }
+    console.error("getGoogleReviewStats error:", error)
+    return { error: "Failed to fetch Google review stats" }
   }
 }
 
 // =============================================================================
-// 3. updateReviewResponse - Add or update a response to a review
+// 5. markReviewReviewed - Mark a review as "reviewed" (dismiss "New" badge)
 // =============================================================================
 
-export async function updateReviewResponse(id: string, responseContent: string) {
+export async function markReviewReviewed(reviewId: string) {
   try {
     const user = await requireAuth()
 
     const review = await prisma.review.findFirst({
-      where: { id, organizationId: user.organizationId },
+      where: { id: reviewId, organizationId: user.organizationId },
     })
 
     if (!review) return { error: "Review not found" }
 
-    if (!responseContent || !responseContent.trim()) {
-      return { error: "Response content is required" }
-    }
-
-    const updated = await prisma.review.update({
-      where: { id },
-      data: {
-        responseContent: responseContent.trim(),
-        respondedAt: new Date(),
-      },
+    await prisma.review.update({
+      where: { id: reviewId },
+      data: { reviewedAt: new Date() },
     })
-
-    return { review: updated }
-  } catch (error: any) {
-    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
-    console.error("updateReviewResponse error:", error)
-    return { error: "Failed to update review response" }
-  }
-}
-
-// =============================================================================
-// 4. deleteReview - Delete a review
-// =============================================================================
-
-export async function deleteReview(id: string) {
-  try {
-    const user = await requireAuth()
-
-    const review = await prisma.review.findFirst({
-      where: { id, organizationId: user.organizationId },
-    })
-
-    if (!review) return { error: "Review not found" }
-
-    await prisma.review.delete({ where: { id } })
 
     return { success: true }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
-    console.error("deleteReview error:", error)
-    return { error: "Failed to delete review" }
+    console.error("markReviewReviewed error:", error)
+    return { error: "Failed to mark review as reviewed" }
   }
 }
 
@@ -270,27 +266,32 @@ export async function deleteReview(id: string) {
 function buildReviewRequestHtml(
   firstName: string,
   orgName: string,
+  token: string,
   googleUrl: string | null,
   yelpUrl: string | null,
   facebookUrl: string | null,
 ): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000"
   const buttonStyle =
     "display: inline-block; padding: 12px 24px; margin: 6px 8px 6px 0; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;"
 
   const buttons: string[] = []
   if (googleUrl) {
+    const trackUrl = `${baseUrl}/api/review-redirect?token=${encodeURIComponent(token)}&platform=google`
     buttons.push(
-      `<a href="${googleUrl}" style="${buttonStyle} background-color: #4285F4;">Google Reviews</a>`,
+      `<a href="${trackUrl}" style="${buttonStyle} background-color: #4285F4;">Google Reviews</a>`,
     )
   }
   if (yelpUrl) {
+    const trackUrl = `${baseUrl}/api/review-redirect?token=${encodeURIComponent(token)}&platform=yelp`
     buttons.push(
-      `<a href="${yelpUrl}" style="${buttonStyle} background-color: #D32323;">Yelp Reviews</a>`,
+      `<a href="${trackUrl}" style="${buttonStyle} background-color: #D32323;">Yelp Reviews</a>`,
     )
   }
   if (facebookUrl) {
+    const trackUrl = `${baseUrl}/api/review-redirect?token=${encodeURIComponent(token)}&platform=facebook`
     buttons.push(
-      `<a href="${facebookUrl}" style="${buttonStyle} background-color: #1877F2;">Facebook Reviews</a>`,
+      `<a href="${trackUrl}" style="${buttonStyle} background-color: #1877F2;">Facebook Reviews</a>`,
     )
   }
 
@@ -315,7 +316,7 @@ function buildReviewRequestHtml(
 }
 
 // =============================================================================
-// 5. sendReviewRequest - Trigger a review request for a completed job
+// 6. sendReviewRequest - Trigger a review request for a completed job
 // =============================================================================
 
 export async function sendReviewRequest(jobId: string) {
@@ -340,13 +341,27 @@ export async function sendReviewRequest(jobId: string) {
 
     const org = await prisma.organization.findUnique({
       where: { id: user.organizationId },
-      select: { name: true, slug: true, reviewGoogleUrl: true, reviewYelpUrl: true, reviewFacebookUrl: true },
+      select: {
+        name: true,
+        slug: true,
+        reviewGoogleUrl: true,
+        reviewYelpUrl: true,
+        reviewFacebookUrl: true,
+      },
+    })
+
+    // Create a ReviewRequest record with a unique tracking token
+    const reviewRequest = await prisma.reviewRequest.create({
+      data: {
+        organizationId: user.organizationId,
+        customerId: job.customerId,
+        jobId: job.id,
+      },
     })
 
     const { isNotificationEnabled } = await import("@/lib/notification-check")
 
     if (await isNotificationEnabled(user.organizationId, "review_request", "email")) {
-      // Send review request email (best effort)
       if (process.env.SENDGRID_API_KEY) {
         try {
           const sgMail = await import("@sendgrid/mail")
@@ -358,7 +373,14 @@ export async function sendReviewRequest(jobId: string) {
               name: org?.name || "JobStream",
             },
             subject: `How did we do? - ${org?.name}`,
-            html: buildReviewRequestHtml(job.customer.firstName, org?.name || "Our Company", org?.reviewGoogleUrl || null, org?.reviewYelpUrl || null, org?.reviewFacebookUrl || null),
+            html: buildReviewRequestHtml(
+              job.customer.firstName,
+              org?.name || "Our Company",
+              reviewRequest.token,
+              org?.reviewGoogleUrl || null,
+              org?.reviewYelpUrl || null,
+              org?.reviewFacebookUrl || null,
+            ),
           })
         } catch (e) {
           console.error("Failed to send review request email:", e)
@@ -383,20 +405,47 @@ export async function sendReviewRequest(jobId: string) {
       })
     }
 
-    // Update the review request tracking
-    // Mark that a request was sent for this job
-    await prisma.review.updateMany({
-      where: {
-        organizationId: user.organizationId,
-        jobId,
-      },
-      data: { requestSentAt: new Date() },
-    })
-
     return { success: true }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("sendReviewRequest error:", error)
     return { error: "Failed to send review request" }
+  }
+}
+
+// =============================================================================
+// 7. syncGoogleReviews - Fetch reviews from Google and cache in database
+// =============================================================================
+
+export async function syncGoogleReviews() {
+  try {
+    const user = await requireAuth()
+
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: {
+        googleAccountId: true,
+        googleLocationId: true,
+        googlePlaceId: true,
+        googleAccessToken: true,
+        googleRefreshToken: true,
+        googleTokenExpiry: true,
+        googleLastSyncAt: true,
+      },
+    })
+
+    if (!org?.googleAccountId || !org?.googleLocationId) {
+      return { error: "Google Business Profile not connected" }
+    }
+
+    // Import the sync service
+    const { fetchAndSyncGoogleReviews } = await import("@/lib/google-reviews")
+    const result = await fetchAndSyncGoogleReviews(user.organizationId)
+
+    return result
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("syncGoogleReviews error:", error)
+    return { error: "Failed to sync Google reviews" }
   }
 }

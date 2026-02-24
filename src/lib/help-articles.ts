@@ -2356,59 +2356,53 @@ The review request message template is hardcoded and not customizable. It includ
     slug: "managing-reviews",
     category: "reviews",
     title: "Managing Reviews",
-    excerpt: "Track, respond to, and measure your online reviews from within JobStream.",
-    lastUpdated: "2026-02-01",
+    excerpt: "Track your Google reviews and monitor review request performance from within JobStream.",
+    lastUpdated: "2026-02-23",
     readingTime: 2,
-    keywords: ["manage reviews", "respond", "metrics", "track", "reputation"],
+    keywords: ["manage reviews", "respond", "metrics", "track", "reputation", "google reviews"],
     content: `## The Reviews Dashboard
 
-Click **Reviews** in the left sidebar to access your reviews management dashboard.
+Click **Reviews** in the left sidebar to access your reviews dashboard. The page has two tabs:
 
-## Overview Metrics
+### Google Reviews Tab
 
-At the top of the page, you will see key metrics:
+If you have connected your Google Business Profile (in Settings > Reviews), this tab shows your real Google reviews. Each review displays the star rating, reviewer name, review text, and a status badge.
 
-- **Total Reviews** -- The number of reviews across all platforms.
-- **Average Rating** -- Your overall star rating.
-- **Review Requests Sent** -- How many requests were sent in the current period.
-- **Response Rate** -- The percentage of reviews that have a response from your business.
+**Review statuses:**
+- **New** -- A review you have not yet looked at.
+- **Reviewed** -- You have seen this review and marked it as handled.
+- **Responded** -- You have replied to this review on Google (auto-detected).
 
-## Adding Reviews Manually
+Click **Mark Reviewed** to dismiss the "New" badge. Click **View on Google** to open the review on Google where you can post a response.
 
-While automated tracking captures reviews from some sources, you can also add reviews manually:
+If Google is not connected, the tab shows a prompt to connect via Settings.
 
-1. Click **Add Review**.
-2. Select the platform (Google, Yelp, Facebook, or Other).
-3. Enter the reviewer's name, rating, review text, and date.
-4. Click **Save**.
+### Review Requests Tab
 
-This is useful for tracking reviews that come in through platforms JobStream does not automatically monitor.
+This tab tracks the review request emails you send to customers after completing jobs. It shows three stats:
 
-## Responding to Reviews
+- **Requests Sent** -- Total review request emails sent.
+- **Customers Clicked** -- How many unique customers clicked a review link in the email. If one person clicks multiple links, it still counts as one click.
+- **Conversion Rate** -- The percentage of requests where the customer clicked a link (0-100%).
 
-Responding to reviews -- both positive and negative -- shows customers that you value their feedback. You can track your responses directly in JobStream:
+Below the stats is a table listing each request with the customer name, job number, sent date, and whether they clicked.
 
-1. Expand a review by clicking on it.
-2. Write your response in the **Write a Response** text area.
-3. Click **Save Response** to save your reply.
-
-We recommend responding to all reviews within 24-48 hours. Note that responses saved in JobStream are for your records -- you should also post your response directly on the respective review platform.
+Use the date range filter to view stats for This Month, Last Month, This Quarter, or All Time.
 
 ## Handling Negative Reviews
 
 When you receive a negative review:
 
 1. Do not react emotionally. Take time to consider the feedback.
-2. Respond professionally and empathetically on the platform.
-3. Offer to resolve the issue offline by inviting the customer to contact you directly.
-4. Document the situation in JobStream with internal notes.
-5. Follow up to ensure the issue is resolved.
+2. Click **View on Google** to respond directly on the platform.
+3. Respond professionally and empathetically.
+4. Offer to resolve the issue offline by inviting the customer to contact you directly.
 
 ### Tips
 
-- Aim to maintain a response rate above 90% for review requests.
-- Respond to every review, positive or negative, to show you are engaged.
-- Use review feedback to identify areas for service improvement.`,
+- Connect Google Business Profile to see your reviews in real time.
+- Enable automatic review requests in Settings > Reviews so every completed job triggers an email.
+- Use the Review Requests tab to monitor how effective your outreach is.`,
   },
   // ============================================
   // REPORTS & ANALYTICS

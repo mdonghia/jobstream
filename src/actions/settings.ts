@@ -1121,12 +1121,20 @@ export async function getReviewSettings() {
         reviewFacebookUrl: true,
         reviewAutoRequest: true,
         reviewRequestDelay: true,
+        googleAccountId: true,
+        googleLocationId: true,
+        googlePlaceId: true,
       },
     })
 
     if (!org) return { error: "Organization not found" }
 
-    return { settings: org }
+    return {
+      settings: {
+        ...org,
+        googleConnected: !!(org.googleAccountId && org.googleLocationId),
+      },
+    }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("getReviewSettings error:", error)
@@ -1164,6 +1172,69 @@ export async function updateReviewSettings(data: {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("updateReviewSettings error:", error)
     return { error: "Failed to update review settings" }
+  }
+}
+
+// =============================================================================
+// 26. getGoogleConnectUrl - Generate Google OAuth authorization URL
+// =============================================================================
+
+export async function getGoogleConnectUrl() {
+  try {
+    await requireRole(["OWNER", "ADMIN"])
+
+    const clientId = process.env.GOOGLE_CLIENT_ID
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI
+
+    if (!clientId || !redirectUri) {
+      return { error: "Google OAuth is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI environment variables." }
+    }
+
+    const scope = "https://www.googleapis.com/auth/business.manage"
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope,
+      access_type: "offline",
+      prompt: "consent",
+    })
+
+    return { url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}` }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getGoogleConnectUrl error:", error)
+    return { error: "Failed to generate Google connect URL" }
+  }
+}
+
+// =============================================================================
+// 27. disconnectGoogle - Remove Google Business Profile connection
+// =============================================================================
+
+export async function disconnectGoogle() {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: {
+        googleAccessToken: null,
+        googleRefreshToken: null,
+        googleTokenExpiry: null,
+        googleAccountId: null,
+        googleLocationId: null,
+        googlePlaceId: null,
+        googleLastSyncAt: null,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("disconnectGoogle error:", error)
+    return { error: "Failed to disconnect Google" }
   }
 }
 

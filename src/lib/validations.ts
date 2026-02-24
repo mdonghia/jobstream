@@ -160,15 +160,12 @@ export const bookingSchema = z.object({
   message: z.string().optional(),
 })
 
-export const reviewSchema = z.object({
-  platform: z.string().min(1, "Platform is required"),
-  reviewerName: z.string().min(1, "Reviewer name is required"),
-  rating: z.coerce.number().int().min(1).max(5),
-  content: z.string().optional(),
-  reviewDate: z.coerce.date(),
-  reviewUrl: z.string().url().optional().or(z.literal("")),
-  customerId: z.string().optional(),
-  jobId: z.string().optional(),
+export const reviewSettingsSchema = z.object({
+  reviewGoogleUrl: z.string().url().optional().or(z.literal("")),
+  reviewYelpUrl: z.string().url().optional().or(z.literal("")),
+  reviewFacebookUrl: z.string().url().optional().or(z.literal("")),
+  reviewAutoRequest: z.boolean().default(false),
+  reviewRequestDelay: z.coerce.number().int().min(1).max(168).default(24),
 })
 
 export type RegisterInput = z.infer<typeof registerSchema>
@@ -181,4 +178,4 @@ export type QuoteInput = z.infer<typeof quoteSchema>
 export type JobInput = z.infer<typeof jobSchema>
 export type InvoiceInput = z.infer<typeof invoiceSchema>
 export type BookingInput = z.infer<typeof bookingSchema>
-export type ReviewInput = z.infer<typeof reviewSchema>
+export type ReviewSettingsInput = z.infer<typeof reviewSettingsSchema>

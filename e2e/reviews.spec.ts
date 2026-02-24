@@ -1,10 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // ---------------------------------------------------------------------------
-// Phase 14 -- Reviews Page Tests
+// Reviews Page Tests -- Redesigned
 // ---------------------------------------------------------------------------
-// Tests for the Reviews page: summary cards, filter dropdowns,
-// and the Add Review dialog.
+// Tests for the new tabbed Reviews page with Google Reviews and
+// Review Requests tabs.
 // ---------------------------------------------------------------------------
 
 async function loginViaForm(page: Page) {
@@ -12,7 +12,6 @@ async function loginViaForm(page: Page) {
   await page.getByLabel(/email/i).fill('demo@jobstream.app');
   await page.getByLabel(/password/i).fill('password123');
   await page.getByRole('button', { name: /sign in/i }).click();
-  // Wait for the topbar heading to confirm we landed on the dashboard
   await expect(
     page.locator("header").getByRole("heading", { level: 1 })
   ).toHaveText("Dashboard", { timeout: 15000 });
@@ -26,7 +25,7 @@ test.describe("Reviews Page", () => {
   // -------------------------------------------------------------------------
   // Page Load
   // -------------------------------------------------------------------------
-  test("Reviews page loads when logged in", async ({ page }) => {
+  test("Reviews page loads with heading and tabs", async ({ page }) => {
     await page.goto("/reviews");
 
     // Page heading
@@ -36,14 +35,18 @@ test.describe("Reviews Page", () => {
 
     // Subtext
     await expect(
-      page.getByText("Track and respond to customer reviews")
+      page.getByText("Monitor your online reputation and track review request performance.")
     ).toBeVisible();
+
+    // Tab triggers should be visible
+    await expect(page.getByRole("tab", { name: /google reviews/i })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /review requests/i })).toBeVisible();
   });
 
   // -------------------------------------------------------------------------
-  // Summary Cards
+  // Tab Switching
   // -------------------------------------------------------------------------
-  test("Summary cards are visible (Average Rating, Total Reviews, Response Rate, Requests Sent)", async ({
+  test("Can switch between Google Reviews and Review Requests tabs", async ({
     page,
   }) => {
     await page.goto("/reviews");
@@ -52,19 +55,28 @@ test.describe("Reviews Page", () => {
       page.getByRole("main").getByRole("heading", { name: "Reviews", level: 1 })
     ).toBeVisible({ timeout: 15000 });
 
-    // Each summary card has an uppercase label rendered as a <p> tag.
-    // The text content is "AVERAGE RATING", "TOTAL REVIEWS", etc. because
-    // of the `uppercase` CSS class. We use case-insensitive matching.
-    await expect(page.getByText(/average rating/i)).toBeVisible();
-    await expect(page.getByText(/total reviews/i)).toBeVisible();
-    await expect(page.getByText(/response rate/i)).toBeVisible();
-    await expect(page.getByText(/requests sent/i)).toBeVisible();
+    // Click on Review Requests tab
+    await page.getByRole("tab", { name: /review requests/i }).click();
+
+    // Review Requests tab content should be visible -- look for stats labels
+    await expect(page.getByText("Requests Sent")).toBeVisible();
+    await expect(page.getByText("Customers Clicked")).toBeVisible();
+    await expect(page.getByText("Conversion Rate")).toBeVisible();
+
+    // Click on Google Reviews tab
+    await page.getByRole("tab", { name: /google reviews/i }).click();
+
+    // Google Reviews tab content should be visible
+    // Since Google is not connected in test env, should show the connect prompt
+    await expect(
+      page.getByText(/connect google business profile/i)
+    ).toBeVisible();
   });
 
   // -------------------------------------------------------------------------
-  // Filter Dropdowns
+  // Google Reviews Tab -- Not Connected State
   // -------------------------------------------------------------------------
-  test("Filter dropdowns work (Platform, Rating, Responded)", async ({
+  test("Google Reviews tab shows connect prompt when not connected", async ({
     page,
   }) => {
     await page.goto("/reviews");
@@ -73,79 +85,75 @@ test.describe("Reviews Page", () => {
       page.getByRole("main").getByRole("heading", { name: "Reviews", level: 1 })
     ).toBeVisible({ timeout: 15000 });
 
-    // Platform filter -- the trigger shows "All Platforms" by default
-    const platformTrigger = page.getByRole("combobox").filter({
-      hasText: /all platforms/i,
-    });
-    await expect(platformTrigger).toBeVisible();
-    await platformTrigger.click();
+    // Navigate to Google Reviews tab
+    await page.getByRole("tab", { name: /google reviews/i }).click();
 
-    // Check that platform options are available in the dropdown
-    await expect(page.getByRole("option", { name: "Google" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "Yelp" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "Facebook" })).toBeVisible();
-
-    // Select Google to verify the dropdown works
-    await page.getByRole("option", { name: "Google" }).click();
-
-    // Rating filter -- the trigger shows "All Ratings" by default
-    const ratingTrigger = page.getByRole("combobox").filter({
-      hasText: /all ratings/i,
-    });
-    await expect(ratingTrigger).toBeVisible();
-    await ratingTrigger.click();
-    await expect(page.getByRole("option", { name: "5 Stars" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "1 Star" })).toBeVisible();
-
-    // Close rating dropdown by pressing Escape
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(300);
-
-    // Responded filter -- the trigger shows "All" by default.
-    // After closing the rating dropdown, find the combobox that shows exactly "All"
-    // (not "All Platforms" or "All Ratings"). Use nth(2) since order is:
-    // 0=Platform (now "Google"), 1=Rating (still "All Ratings"), 2=Responded ("All")
-    const allComboboxes = page.getByRole("combobox");
-    // The responded filter is the 3rd combobox (index 2) in the filter row
-    const respondedTrigger = allComboboxes.nth(2);
-    await expect(respondedTrigger).toBeVisible();
-    await respondedTrigger.click();
+    // Should show the not-connected card
     await expect(
-      page.getByRole("option", { name: "Responded", exact: true })
+      page.getByText(/connect your google business profile/i)
     ).toBeVisible();
+
+    // Should have a link to settings
     await expect(
-      page.getByRole("option", { name: "Not Responded", exact: true })
+      page.getByRole("link", { name: /go to review settings/i })
     ).toBeVisible();
+  });
+
+  // -------------------------------------------------------------------------
+  // Review Requests Tab -- Stats Cards
+  // -------------------------------------------------------------------------
+  test("Review Requests tab shows stat cards with correct labels", async ({
+    page,
+  }) => {
+    await page.goto("/reviews");
+
+    await expect(
+      page.getByRole("main").getByRole("heading", { name: "Reviews", level: 1 })
+    ).toBeVisible({ timeout: 15000 });
+
+    // Navigate to Review Requests tab
+    await page.getByRole("tab", { name: /review requests/i }).click();
+
+    // Stat cards should show
+    await expect(page.getByText("Requests Sent")).toBeVisible();
+    await expect(page.getByText("Customers Clicked")).toBeVisible();
+    await expect(page.getByText("Conversion Rate")).toBeVisible();
+  });
+
+  // -------------------------------------------------------------------------
+  // Review Requests Tab -- Date Range Filter
+  // -------------------------------------------------------------------------
+  test("Review Requests tab has a date range filter", async ({ page }) => {
+    await page.goto("/reviews");
+
+    await expect(
+      page.getByRole("main").getByRole("heading", { name: "Reviews", level: 1 })
+    ).toBeVisible({ timeout: 15000 });
+
+    // Navigate to Review Requests tab
+    await page.getByRole("tab", { name: /review requests/i }).click();
+
+    // Date range select should be visible
+    const dateRangeTrigger = page.getByRole("combobox");
+    await expect(dateRangeTrigger).toBeVisible();
+
+    // Click the trigger
+    await dateRangeTrigger.click();
+
+    // Verify date range options
+    await expect(page.getByRole("option", { name: "This Month" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "Last Month" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "This Quarter" })).toBeVisible();
+    await expect(page.getByRole("option", { name: "All Time" })).toBeVisible();
 
     // Close dropdown
     await page.keyboard.press("Escape");
   });
 
   // -------------------------------------------------------------------------
-  // Add Review Dialog
+  // Review Requests Tab -- Table Structure
   // -------------------------------------------------------------------------
-  test("Can open Add Review dialog", async ({ page }) => {
-    await page.goto("/reviews");
-
-    await expect(
-      page.getByRole("main").getByRole("heading", { name: "Reviews", level: 1 })
-    ).toBeVisible({ timeout: 15000 });
-
-    // Click the "Add Review" button in the page header
-    await page.getByRole("button", { name: /add review/i }).click();
-
-    // The dialog should open with a title "Add Review"
-    await expect(
-      page.getByRole("heading", { name: "Add Review" })
-    ).toBeVisible();
-
-    // Dialog description
-    await expect(
-      page.getByText("Manually add a review from an external platform.")
-    ).toBeVisible();
-  });
-
-  test("Add Review dialog has all required fields (Platform, Reviewer name, Rating, Content, Date)", async ({
+  test("Review Requests tab shows table with correct columns", async ({
     page,
   }) => {
     await page.goto("/reviews");
@@ -154,55 +162,13 @@ test.describe("Reviews Page", () => {
       page.getByRole("main").getByRole("heading", { name: "Reviews", level: 1 })
     ).toBeVisible({ timeout: 15000 });
 
-    // Open the dialog
-    await page.getByRole("button", { name: /add review/i }).click();
+    // Navigate to Review Requests tab
+    await page.getByRole("tab", { name: /review requests/i }).click();
 
-    await expect(
-      page.getByRole("heading", { name: "Add Review" })
-    ).toBeVisible();
-
-    // Platform field -- Label "Platform" and a select/combobox
-    await expect(
-      page.locator("dialog, [role='dialog']").getByText("Platform", { exact: true })
-    ).toBeVisible();
-
-    // Reviewer Name field -- Input with placeholder "John Smith"
-    await expect(
-      page.locator("dialog, [role='dialog']").getByText("Reviewer Name")
-    ).toBeVisible();
-    await expect(
-      page.getByPlaceholder("John Smith")
-    ).toBeVisible();
-
-    // Rating field -- Label "Rating" and interactive stars
-    await expect(
-      page.locator("dialog, [role='dialog']").getByText("Rating", { exact: true })
-    ).toBeVisible();
-
-    // Content field -- Textarea with placeholder
-    await expect(
-      page.locator("dialog, [role='dialog']").getByText(/review content/i)
-    ).toBeVisible();
-    await expect(
-      page.getByPlaceholder("Paste the review content here...")
-    ).toBeVisible();
-
-    // Review Date field -- date input
-    await expect(
-      page.locator("dialog, [role='dialog']").getByText("Review Date")
-    ).toBeVisible();
-
-    // URL field (optional)
-    await expect(
-      page.locator("dialog, [role='dialog']").getByText(/url/i)
-    ).toBeVisible();
-
-    // Dialog footer buttons
-    await expect(
-      page.getByRole("button", { name: /cancel/i })
-    ).toBeVisible();
-    await expect(
-      page.locator("dialog, [role='dialog']").getByRole("button", { name: /add review/i })
-    ).toBeVisible();
+    // Table header columns should be visible
+    await expect(page.getByRole("columnheader", { name: "Customer" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Job" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Sent" })).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "Clicked?" })).toBeVisible();
   });
 });

@@ -154,6 +154,15 @@ model Organization {
   reviewAutoRequest   Boolean  @default(false)
   reviewRequestDelay  Int      @default(24)
 
+  // Google Business Profile OAuth
+  googlePlaceId       String?
+  googleAccountId     String?
+  googleLocationId    String?
+  googleAccessToken   String?
+  googleRefreshToken  String?
+  googleTokenExpiry   DateTime?
+  googleLastSyncAt    DateTime?
+
   // Communication settings
   commSmsEnabled      Boolean  @default(true)
   commEmailEnabled    Boolean  @default(true)
@@ -175,6 +184,7 @@ model Organization {
   timeEntries       TimeEntry[]
   bookings          Booking[]
   reviews           Review[]
+  reviewRequests    ReviewRequest[]
   communicationLogs CommunicationLog[]
   automationRules   AutomationRule[]
   scheduledMessages ScheduledMessage[]
@@ -240,7 +250,7 @@ model Customer {
   invoices          Invoice[]
   customerNotes     CustomerNote[]
   bookings          Booking[]
-  reviews           Review[]
+  reviewRequests    ReviewRequest[]
   communicationLogs CommunicationLog[]
   portalSessions    PortalSession[]
   scheduledMessages ScheduledMessage[]
@@ -394,7 +404,7 @@ model Job {
   lineItems         JobLineItem[]
   invoices          Invoice[]
   timeEntries       TimeEntry[]
-  reviews           Review[]
+  reviewRequests    ReviewRequest[]
   scheduledMessages ScheduledMessage[] @relation("JobMessages")
 
   @@index([organizationId])
@@ -632,30 +642,49 @@ model Booking {
   @@index([organizationId, status])
 }
 
-// 19. Review
+// 19. Review (cached from Google Business Profile)
 model Review {
   id              String    @id @default(cuid())
   organizationId  String
-  customerId      String?
-  jobId           String?
-  platform        String
+  externalId      String?
+  platform        String    @default("google")
   rating          Int
   reviewerName    String
+  reviewerPhoto   String?
   content         String?
   reviewDate      DateTime
-  responseContent String?
-  respondedAt     DateTime?
-  requestSentAt   DateTime?
+  hasOwnerReply   Boolean   @default(false)
+  ownerReplyText  String?
+  ownerReplyDate  DateTime?
+  reviewedAt      DateTime?
   reviewUrl       String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   // Relations
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, externalId])
+  @@index([organizationId])
+}
+
+// 19b. ReviewRequest (tracks review request emails sent to customers)
+model ReviewRequest {
+  id              String    @id @default(cuid())
+  organizationId  String
+  customerId      String
+  jobId           String?
+  token           String    @unique @default(cuid())
+  sentAt          DateTime  @default(now())
+  clickedAt       DateTime?
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   job          Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
+  @@index([token])
 }
 
 // 20. CommunicationLog
