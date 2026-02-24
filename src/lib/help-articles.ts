@@ -206,7 +206,7 @@ Each service includes the following information:
 You can link a checklist template to any service. When a service with a linked checklist is added to a job, the checklist items auto-populate on the job -- saving time and ensuring consistency. To link a template:
 
 1. Edit a service from the Services settings page.
-2. Select a checklist template from the **Checklist Template** dropdown.
+2. Use the **Checklist Template** searchable selector -- type to filter the list and select a template. The linked template appears as a removable badge chip.
 3. Save the service.
 
 Checklist templates are created and managed in **Settings > Checklists**. See the "Using Job Checklists" article for more details on creating templates.
@@ -1037,7 +1037,7 @@ Click **Create Job** to save. The job appears in your Jobs list and on the calen
     category: "job-management",
     title: "Understanding the Job Lifecycle",
     excerpt: "Learn how jobs move through different statuses from creation to completion.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 3,
     keywords: ["status", "lifecycle", "workflow", "transitions", "stages"],
     content: `## Job Statuses
@@ -1179,7 +1179,7 @@ After completing the job, a separate prompt appears asking if you want to create
 - **Create Invoice** -- Generates an invoice from the job's line items. The invoice is created in Draft status so you can review it before sending.
 - **Not Now** -- Skips invoice creation. You can always create an invoice from the job later.
 
-**Note:** If you have the **Auto-create invoice when job completed** toggle enabled in Settings > General > Workflow Automation (it is ON by default), an invoice is created automatically when the job is completed and you will not see this prompt.
+**Note:** If you have the **Auto-create invoice when job completed** toggle enabled in Settings > Automation (it is ON by default), an invoice is created automatically when the job is completed and you will not see this prompt.
 
 ## After Completion
 
@@ -1210,9 +1210,10 @@ Recurring jobs automate scheduling for repeat services like weekly lawn care, mo
 A recurring job works as follows:
 
 1. The job is scheduled for its first occurrence and appears on the calendar as normal.
-2. When the job is completed, an invoice is automatically created for that visit.
-3. The job then automatically reschedules itself to the next occurrence based on the recurrence pattern.
-4. This cycle repeats -- Scheduled, Completed (invoice created), rescheduled to next date -- until the end date is reached or you stop the recurrence.
+2. All projected future occurrences also appear on the calendar as virtual entries (e.g., a weekly job shows on every week). These projected occurrences are marked with a recurring indicator icon so you can distinguish them from one-time jobs. The Jobs list also displays a recurring badge (e.g., "Recurring: Weekly") for recurring jobs.
+3. When the job is completed, an invoice is automatically created for that visit.
+4. The job then automatically reschedules itself to the next occurrence based on the recurrence pattern.
+5. This cycle repeats -- Scheduled, Completed (invoice created), rescheduled to next date -- until the end date is reached or you stop the recurrence.
 
 This means you always have one job record that represents the ongoing service, rather than dozens of separate job instances.
 
@@ -1242,7 +1243,7 @@ Each time a recurring job is marked as completed:
 
 - An invoice is automatically created for that visit's line items.
 - The job status resets to **Scheduled** with the next occurrence date based on the recurrence pattern.
-- The job reappears on the calendar at its next scheduled date.
+- The next occurrence continues to appear on the calendar (along with all other projected future occurrences).
 
 ## Editing a Recurring Job
 
@@ -2718,7 +2719,7 @@ Customize the prefixes for your document numbers:
 
 ## Workflow Automation
 
-The General settings page includes a **Workflow Automation** section with three toggles that automate common business tasks. All three default to ON for new accounts.
+Workflow automation settings are located in their own dedicated tab: **Settings > Automation**. The Automation tab includes three toggles that automate common business tasks. All three default to ON for new accounts.
 
 ### Auto-Create Invoice When Job Completed
 When enabled, an invoice is automatically created in Draft status whenever a job is marked as completed. This speeds up your billing cycle by eliminating the manual step of creating invoices after each job.
@@ -3330,8 +3331,8 @@ You can edit or delete templates at any time from this page.
 
 Checklist templates and services can be linked bidirectionally:
 
-- **From a service:** Edit a service in Settings > Services and select a checklist template from the Checklist Template dropdown.
-- **From a template:** Edit a checklist template in Settings > Checklists and link it to one or more services.
+- **From a service:** Edit a service in Settings > Services and use the searchable **Checklist Template** selector to find and link a template. Type to filter and the linked template appears as a removable badge chip.
+- **From a template:** Edit a checklist template in Settings > Checklists and use the searchable **Services** selector to link it to one or more services. Type to filter and linked services appear as removable badge chips.
 
 When a service with a linked checklist template is added to a job, the checklist items auto-populate on the job automatically. This saves time and ensures every job has the right tasks from the start.
 

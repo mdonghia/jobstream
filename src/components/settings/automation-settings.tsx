@@ -1,7 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
+import { Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -41,6 +43,16 @@ export function AutomationSettings({
   const [invoiceReminderDays, setInvoiceReminderDays] = useState(
     initialReminderDays ?? "3,7,14"
   )
+  const [saving, setSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState(0)
+
+  // Clear the "Changes saved" indicator after 2.5 seconds
+  useEffect(() => {
+    if (lastSaved > 0) {
+      const t = setTimeout(() => setLastSaved(0), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [lastSaved])
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -56,7 +68,7 @@ export function AutomationSettings({
         toast.error(result.error)
         setAutoConvertQuoteToJob(!checked) // revert on error
       } else {
-        toast.success("Workflow setting updated")
+        setLastSaved(Date.now())
       }
     } catch {
       toast.error("Failed to update workflow setting")
@@ -74,7 +86,7 @@ export function AutomationSettings({
         toast.error(result.error)
         setAutoInvoiceOnJobComplete(!checked)
       } else {
-        toast.success("Workflow setting updated")
+        setLastSaved(Date.now())
       }
     } catch {
       toast.error("Failed to update workflow setting")
@@ -92,7 +104,7 @@ export function AutomationSettings({
         toast.error(result.error)
         setInvoiceRemindersEnabled(!checked)
       } else {
-        toast.success("Workflow setting updated")
+        setLastSaved(Date.now())
       }
     } catch {
       toast.error("Failed to update workflow setting")
@@ -109,10 +121,35 @@ export function AutomationSettings({
       if ("error" in result) {
         toast.error(result.error)
       } else {
-        toast.success("Reminder schedule updated")
+        setLastSaved(Date.now())
       }
     } catch {
       toast.error("Failed to update reminder schedule")
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Save all settings at once (manual fallback)
+  // -----------------------------------------------------------------------
+
+  async function handleSaveAll() {
+    setSaving(true)
+    try {
+      const result = await updateWorkflowSettings({
+        autoConvertQuoteToJob,
+        autoInvoiceOnJobComplete,
+        invoiceRemindersEnabled,
+        invoiceReminderDays,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Settings saved")
+      }
+    } catch {
+      toast.error("Failed to save settings")
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -216,6 +253,25 @@ export function AutomationSettings({
           </div>
         </div>
       </section>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Save Button */}
+      {/* ----------------------------------------------------------------- */}
+      <div className="border-t border-[#E3E8EE] pt-6 flex items-center gap-3">
+        <Button
+          onClick={handleSaveAll}
+          disabled={saving}
+          className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+        >
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Save Changes
+        </Button>
+        {lastSaved > 0 && (
+          <span className="text-xs text-green-600 animate-in fade-in duration-300">
+            Changes saved
+          </span>
+        )}
+      </div>
     </div>
   )
 }

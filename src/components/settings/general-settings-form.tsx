@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -74,6 +74,9 @@ const DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) {
   const [saving, setSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState(0)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const handleSaveRef = useRef<() => Promise<void>>(() => Promise.resolve())
 
   // Business details
   const [name, setName] = useState(organization.name || "")
@@ -185,6 +188,37 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
     }
   }
 
+  // Keep a ref to the latest handleSave so the debounced timeout always
+  // calls the version with the most recent state values.
+  handleSaveRef.current = handleSave
+
+  // -----------------------------------------------------------------------
+  // Auto-save helpers
+  // -----------------------------------------------------------------------
+
+  const triggerAutoSave = useCallback(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(async () => {
+      await handleSaveRef.current()
+      setLastSaved(Date.now())
+    }, 500)
+  }, [])
+
+  // Clear the "Changes saved" indicator after 2.5 seconds
+  useEffect(() => {
+    if (lastSaved > 0) {
+      const t = setTimeout(() => setLastSaved(0), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [lastSaved])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    }
+  }, [])
+
   // -----------------------------------------------------------------------
   // Shared label + input styles
   // -----------------------------------------------------------------------
@@ -213,6 +247,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="Your Business Name"
               className={inputClass}
               required
@@ -225,6 +260,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="hello@example.com"
               className={inputClass}
               required
@@ -237,6 +273,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="(555) 123-4567"
               className={inputClass}
             />
@@ -248,6 +285,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               type="url"
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="https://www.example.com"
               className={inputClass}
             />
@@ -270,6 +308,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
             <Input
               value={address}
               onChange={(e) => setAddress(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="123 Main Street"
               className={inputClass}
             />
@@ -280,6 +319,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
             <Input
               value={city}
               onChange={(e) => setCity(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="New York"
               className={inputClass}
             />
@@ -288,7 +328,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className={labelClass}>State</Label>
-              <Select value={state} onValueChange={setState}>
+              <Select value={state} onValueChange={(v) => { setState(v); triggerAutoSave() }}>
                 <SelectTrigger className={selectTriggerClass}>
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
@@ -307,6 +347,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               <Input
                 value={zip}
                 onChange={(e) => setZip(e.target.value)}
+                onBlur={triggerAutoSave}
                 placeholder="10001"
                 className={inputClass}
               />
@@ -329,7 +370,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
         <div className="mt-4 grid gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label className={labelClass}>Timezone</Label>
-            <Select value={timezone} onValueChange={setTimezone}>
+            <Select value={timezone} onValueChange={(v) => { setTimezone(v); triggerAutoSave() }}>
               <SelectTrigger className={selectTriggerClass}>
                 <SelectValue placeholder="Select timezone" />
               </SelectTrigger>
@@ -352,6 +393,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               step="0.01"
               value={taxRate}
               onChange={(e) => setTaxRate(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="0.00"
               className={inputClass}
             />
@@ -386,6 +428,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
             <Input
               value={invoicePrefix}
               onChange={(e) => setInvoicePrefix(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="INV"
               className={inputClass}
             />
@@ -396,6 +439,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
             <Input
               value={quotePrefix}
               onChange={(e) => setQuotePrefix(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="QTE"
               className={inputClass}
             />
@@ -406,6 +450,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
             <Input
               value={jobPrefix}
               onChange={(e) => setJobPrefix(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="JOB"
               className={inputClass}
             />
@@ -418,6 +463,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               min="1"
               value={invoiceDueDays}
               onChange={(e) => setInvoiceDueDays(e.target.value)}
+              onBlur={triggerAutoSave}
               className={inputClass}
               aria-label="Default invoice due days"
             />
@@ -432,6 +478,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
               min="1"
               value={quoteValidDays}
               onChange={(e) => setQuoteValidDays(e.target.value)}
+              onBlur={triggerAutoSave}
               className={inputClass}
               aria-label="Default quote validity days"
             />
@@ -486,9 +533,10 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
                     <td className="px-4 py-3">
                       <Switch
                         checked={hours.open}
-                        onCheckedChange={(checked) =>
+                        onCheckedChange={(checked) => {
                           updateDayHours(day, "open", checked)
-                        }
+                          triggerAutoSave()
+                        }}
                         aria-label={`${DAY_LABELS[day]} open`}
                       />
                     </td>
@@ -499,6 +547,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
                         onChange={(e) =>
                           updateDayHours(day, "start", e.target.value)
                         }
+                        onBlur={triggerAutoSave}
                         disabled={!hours.open}
                         className={`h-9 w-32 border-[#E3E8EE] focus-visible:ring-[#635BFF] ${
                           !hours.open ? "opacity-40" : ""
@@ -513,6 +562,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
                         onChange={(e) =>
                           updateDayHours(day, "end", e.target.value)
                         }
+                        onBlur={triggerAutoSave}
                         disabled={!hours.open}
                         className={`h-9 w-32 border-[#E3E8EE] focus-visible:ring-[#635BFF] ${
                           !hours.open ? "opacity-40" : ""
@@ -531,7 +581,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
       {/* ----------------------------------------------------------------- */}
       {/* Save Button */}
       {/* ----------------------------------------------------------------- */}
-      <div className="border-t border-[#E3E8EE] pt-6">
+      <div className="border-t border-[#E3E8EE] pt-6 flex items-center gap-3">
         <Button
           onClick={handleSave}
           disabled={saving}
@@ -540,6 +590,11 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save Changes
         </Button>
+        {lastSaved > 0 && (
+          <span className="text-xs text-green-600 animate-in fade-in duration-300">
+            Changes saved
+          </span>
+        )}
       </div>
     </div>
   )

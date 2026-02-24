@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { Loader2, Star, CheckCircle2, Search, MapPin, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -41,6 +41,8 @@ type SearchResult = {
 
 export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
   const [saving, setSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState(0)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [disconnecting, setDisconnecting] = useState(false)
   const [googleConnected, setGoogleConnected] = useState(settings.googleConnected || false)
   const [connectedName, setConnectedName] = useState(settings.googleBusinessName || "")
@@ -66,6 +68,59 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
   )
 
   const orgName = settings.name
+
+  // -----------------------------------------------------------------------
+  // Auto-save cleanup
+  // -----------------------------------------------------------------------
+
+  useEffect(() => () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current) }, [])
+
+  // Fade out "Changes saved" indicator after 2.5 seconds
+  useEffect(() => {
+    if (lastSaved > 0) {
+      const t = setTimeout(() => setLastSaved(0), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [lastSaved])
+
+  // -----------------------------------------------------------------------
+  // Auto-save trigger (debounced)
+  // -----------------------------------------------------------------------
+
+  const triggerAutoSave = useCallback(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(async () => {
+      setSaving(true)
+      try {
+        const result = await updateReviewSettings({
+          reviewGoogleUrl: googleUrl.trim() || null,
+          reviewYelpUrl: yelpUrl.trim() || null,
+          reviewFacebookUrl: facebookUrl.trim() || null,
+          reviewAutoRequest: autoRequest,
+          reviewRequestDelay: Number(requestDelay) || 24,
+        })
+        if ("error" in result) {
+          toast.error(result.error)
+        } else {
+          setLastSaved(Date.now())
+        }
+      } catch {
+        toast.error("Failed to save settings")
+      } finally {
+        setSaving(false)
+      }
+    }, 500)
+  }, [googleUrl, yelpUrl, facebookUrl, autoRequest, requestDelay])
+
+  // Auto-save when the auto-request toggle changes (skip initial mount)
+  const isInitialMount = useRef(true)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    triggerAutoSave()
+  }, [autoRequest]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // -----------------------------------------------------------------------
   // Business search (debounced)
@@ -384,6 +439,7 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
               type="url"
               value={googleUrl}
               onChange={(e) => setGoogleUrl(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="https://search.google.com/local/writereview?placeid=..."
               className={inputClass}
             />
@@ -408,6 +464,7 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
               type="url"
               value={yelpUrl}
               onChange={(e) => setYelpUrl(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="https://www.yelp.com/writeareview/biz/..."
               className={inputClass}
             />
@@ -432,6 +489,7 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
               type="url"
               value={facebookUrl}
               onChange={(e) => setFacebookUrl(e.target.value)}
+              onBlur={triggerAutoSave}
               placeholder="https://www.facebook.com/yourbusiness/reviews"
               className={inputClass}
             />
@@ -479,6 +537,7 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
                 max="168"
                 value={requestDelay}
                 onChange={(e) => setRequestDelay(e.target.value)}
+                onBlur={triggerAutoSave}
                 className={inputClass}
                 aria-label="Delay in hours"
               />
@@ -565,7 +624,7 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
       {/* ----------------------------------------------------------------- */}
       {/* Save Button */}
       {/* ----------------------------------------------------------------- */}
-      <div className="border-t border-[#E3E8EE] pt-6">
+      <div className="border-t border-[#E3E8EE] pt-6 flex items-center gap-3">
         <Button
           onClick={handleSave}
           disabled={saving}
@@ -574,6 +633,9 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save Changes
         </Button>
+        {lastSaved > 0 && (
+          <span className="text-sm text-green-600">Changes saved</span>
+        )}
       </div>
     </div>
   )

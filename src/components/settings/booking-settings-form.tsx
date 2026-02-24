@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { Loader2, Copy, Check, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -77,6 +77,9 @@ export function BookingSettingsForm({
   services,
 }: BookingSettingsFormProps) {
   const [saving, setSaving] = useState(false)
+  const [lastSaved, setLastSaved] = useState(0)
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const handleSaveRef = useRef<() => Promise<void>>(() => Promise.resolve())
   const [copied, setCopied] = useState(false)
   const [copiedEmbed, setCopiedEmbed] = useState(false)
 
@@ -164,6 +167,37 @@ export function BookingSettingsForm({
     }
   }
 
+  // Keep a ref to the latest handleSave so the debounced timeout always
+  // calls the version with the most recent state values.
+  handleSaveRef.current = handleSave
+
+  // -----------------------------------------------------------------------
+  // Auto-save helpers
+  // -----------------------------------------------------------------------
+
+  const triggerAutoSave = useCallback(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(async () => {
+      await handleSaveRef.current()
+      setLastSaved(Date.now())
+    }, 500)
+  }, [])
+
+  // Clear the "Changes saved" indicator after 2.5 seconds
+  useEffect(() => {
+    if (lastSaved > 0) {
+      const t = setTimeout(() => setLastSaved(0), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [lastSaved])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    }
+  }, [])
+
   // -----------------------------------------------------------------------
   // Shared styles
   // -----------------------------------------------------------------------
@@ -194,7 +228,7 @@ export function BookingSettingsForm({
           </div>
           <Switch
             checked={bookingEnabled}
-            onCheckedChange={setBookingEnabled}
+            onCheckedChange={(checked) => { setBookingEnabled(checked); triggerAutoSave() }}
             aria-label="Enable online booking"
           />
         </div>
@@ -226,7 +260,7 @@ export function BookingSettingsForm({
                 >
                   <Checkbox
                     checked={selectedServices.includes(service.id)}
-                    onCheckedChange={() => toggleService(service.id)}
+                    onCheckedChange={() => { toggleService(service.id); triggerAutoSave() }}
                   />
                   <div className="flex-1">
                     <span className="text-sm font-medium text-[#0A2540]">
@@ -258,7 +292,7 @@ export function BookingSettingsForm({
         <div className="mt-4 grid gap-6 sm:grid-cols-3 max-w-2xl">
           <div className="space-y-1.5">
             <Label className={labelClass}>Slot Duration</Label>
-            <Select value={slotDuration} onValueChange={setSlotDuration}>
+            <Select value={slotDuration} onValueChange={(v) => { setSlotDuration(v); triggerAutoSave() }}>
               <SelectTrigger className="h-10 w-full border-[#E3E8EE] focus-visible:ring-[#635BFF]">
                 <SelectValue placeholder="Select duration" />
               </SelectTrigger>
@@ -274,7 +308,7 @@ export function BookingSettingsForm({
 
           <div className="space-y-1.5">
             <Label className={labelClass}>Buffer Between Appointments</Label>
-            <Select value={bufferMinutes} onValueChange={setBufferMinutes}>
+            <Select value={bufferMinutes} onValueChange={(v) => { setBufferMinutes(v); triggerAutoSave() }}>
               <SelectTrigger className="h-10 w-full border-[#E3E8EE] focus-visible:ring-[#635BFF]">
                 <SelectValue placeholder="Select buffer" />
               </SelectTrigger>
@@ -290,7 +324,7 @@ export function BookingSettingsForm({
 
           <div className="space-y-1.5">
             <Label className={labelClass}>How Far in Advance</Label>
-            <Select value={maxAdvanceDays} onValueChange={setMaxAdvanceDays}>
+            <Select value={maxAdvanceDays} onValueChange={(v) => { setMaxAdvanceDays(v); triggerAutoSave() }}>
               <SelectTrigger className="h-10 w-full border-[#E3E8EE] focus-visible:ring-[#635BFF]">
                 <SelectValue placeholder="Select window" />
               </SelectTrigger>
@@ -379,7 +413,7 @@ export function BookingSettingsForm({
       {/* ----------------------------------------------------------------- */}
       {/* Save Button */}
       {/* ----------------------------------------------------------------- */}
-      <div className="border-t border-[#E3E8EE] pt-6">
+      <div className="border-t border-[#E3E8EE] pt-6 flex items-center gap-3">
         <Button
           onClick={handleSave}
           disabled={saving}
@@ -388,6 +422,11 @@ export function BookingSettingsForm({
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save Changes
         </Button>
+        {lastSaved > 0 && (
+          <span className="text-xs text-green-600 animate-in fade-in duration-300">
+            Changes saved
+          </span>
+        )}
       </div>
     </div>
   )

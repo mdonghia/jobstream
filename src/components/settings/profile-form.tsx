@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -44,9 +44,56 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [savingPassword, setSavingPassword] = useState(false)
 
+  // Auto-save state
+  const [lastSaved, setLastSaved] = useState(0)
+  const saveTimeoutRef = useRef<NodeJS.Timeout>(null)
+
   // Shared style classes
   const labelClass = "text-xs font-semibold uppercase text-[#8898AA]"
   const inputClass = "h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+
+  // -----------------------------------------------------------------------
+  // Auto-save cleanup
+  // -----------------------------------------------------------------------
+
+  useEffect(() => () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current) }, [])
+
+  // Fade out "Changes saved" indicator after 2.5 seconds
+  useEffect(() => {
+    if (lastSaved > 0) {
+      const t = setTimeout(() => setLastSaved(0), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [lastSaved])
+
+  // -----------------------------------------------------------------------
+  // Auto-save trigger for profile fields (debounced)
+  // -----------------------------------------------------------------------
+
+  const triggerProfileAutoSave = useCallback(() => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(async () => {
+      if (!firstName.trim() || !lastName.trim() || !email.trim()) return
+      setSavingProfile(true)
+      try {
+        const result = await updateProfile({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim(),
+          phone: phone.trim() || undefined,
+        })
+        if ("error" in result) {
+          toast.error(result.error)
+        } else {
+          setLastSaved(Date.now())
+        }
+      } catch {
+        toast.error("Failed to save profile")
+      } finally {
+        setSavingProfile(false)
+      }
+    }, 500)
+  }, [firstName, lastName, email, phone])
 
   // -----------------------------------------------------------------------
   // Save Profile
@@ -143,6 +190,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             <Input
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
+              onBlur={triggerProfileAutoSave}
               placeholder="John"
               className={inputClass}
               required
@@ -154,6 +202,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             <Input
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
+              onBlur={triggerProfileAutoSave}
               placeholder="Doe"
               className={inputClass}
               required
@@ -166,6 +215,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={triggerProfileAutoSave}
               placeholder="john@example.com"
               className={inputClass}
               required
@@ -178,13 +228,14 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              onBlur={triggerProfileAutoSave}
               placeholder="(555) 123-4567"
               className={inputClass}
             />
           </div>
         </div>
 
-        <div className="mt-6">
+        <div className="mt-6 flex items-center gap-3">
           <Button
             onClick={handleSaveProfile}
             disabled={savingProfile}
@@ -195,6 +246,9 @@ export function ProfileForm({ profile }: ProfileFormProps) {
             )}
             Save Profile
           </Button>
+          {lastSaved > 0 && (
+            <span className="text-sm text-green-600">Changes saved</span>
+          )}
         </div>
       </section>
 

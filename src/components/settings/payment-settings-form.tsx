@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { toast } from "sonner"
 import { Loader2, CreditCard, CheckCircle2, XCircle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -59,6 +59,51 @@ export function PaymentSettingsForm({ settings }: PaymentSettingsFormProps) {
   const [onlineEnabled, setOnlineEnabled] = useState(
     settings.paymentOnlineEnabled
   )
+
+  // Auto-save state
+  const [lastSaved, setLastSaved] = useState(0)
+  const saveTimeoutRef = useRef<NodeJS.Timeout>(null)
+
+  // -----------------------------------------------------------------------
+  // Auto-save cleanup
+  // -----------------------------------------------------------------------
+
+  useEffect(() => () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current) }, [])
+
+  // Fade out "Changes saved" indicator after 2.5 seconds
+  useEffect(() => {
+    if (lastSaved > 0) {
+      const t = setTimeout(() => setLastSaved(0), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [lastSaved])
+
+  // Auto-save when the online payments toggle changes (skip initial mount)
+  const isInitialMount = useRef(true)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(async () => {
+      setSaving(true)
+      try {
+        const result = await updatePaymentSettings({
+          paymentOnlineEnabled: onlineEnabled,
+        })
+        if ("error" in result) {
+          toast.error(result.error)
+        } else {
+          setLastSaved(Date.now())
+        }
+      } catch {
+        toast.error("Failed to save settings")
+      } finally {
+        setSaving(false)
+      }
+    }, 500)
+  }, [onlineEnabled]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // -----------------------------------------------------------------------
   // Helpers
@@ -426,7 +471,7 @@ export function PaymentSettingsForm({ settings }: PaymentSettingsFormProps) {
       {/* ----------------------------------------------------------------- */}
       {/* Save Button */}
       {/* ----------------------------------------------------------------- */}
-      <div className="border-t border-[#E3E8EE] pt-6">
+      <div className="border-t border-[#E3E8EE] pt-6 flex items-center gap-3">
         <Button
           onClick={handleSave}
           disabled={saving}
@@ -435,6 +480,9 @@ export function PaymentSettingsForm({ settings }: PaymentSettingsFormProps) {
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save Changes
         </Button>
+        {lastSaved > 0 && (
+          <span className="text-sm text-green-600">Changes saved</span>
+        )}
       </div>
     </div>
   )

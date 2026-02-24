@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -77,6 +77,8 @@ export function CommunicationsSettingsForm({
   preferences: initialPreferences,
 }: CommunicationsSettingsFormProps) {
   const [savingPrefs, setSavingPrefs] = useState(false)
+  const [lastSaved, setLastSaved] = useState(0)
+  const saveTimeoutRef = useRef<NodeJS.Timeout>(null)
 
   // Notification preferences -- build lookup from saved prefs, with defaults
   const [notifPrefs, setNotifPrefs] = useState<
@@ -94,7 +96,51 @@ export function CommunicationsSettingsForm({
   })
 
   // -----------------------------------------------------------------------
-  // Notification preferences save
+  // Auto-save cleanup
+  // -----------------------------------------------------------------------
+
+  useEffect(() => () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current) }, [])
+
+  // Fade out "Changes saved" indicator after 2.5 seconds
+  useEffect(() => {
+    if (lastSaved > 0) {
+      const t = setTimeout(() => setLastSaved(0), 2500)
+      return () => clearTimeout(t)
+    }
+  }, [lastSaved])
+
+  // Auto-save when any toggle changes (skip initial mount)
+  const isInitialMount = useRef(true)
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(async () => {
+      setSavingPrefs(true)
+      try {
+        const updates = NOTIFICATION_TYPES.map((nt) => ({
+          triggerKey: nt.triggerKey,
+          emailEnabled: notifPrefs[nt.triggerKey].emailEnabled,
+          smsEnabled: notifPrefs[nt.triggerKey].smsEnabled,
+        }))
+        const result = await updateNotificationPreferences(updates)
+        if ("error" in result) {
+          toast.error(result.error)
+        } else {
+          setLastSaved(Date.now())
+        }
+      } catch {
+        toast.error("Failed to save preferences")
+      } finally {
+        setSavingPrefs(false)
+      }
+    }, 500)
+  }, [notifPrefs])
+
+  // -----------------------------------------------------------------------
+  // Notification preferences save (manual button)
   // -----------------------------------------------------------------------
 
   async function handleSavePreferences() {
@@ -204,7 +250,7 @@ export function CommunicationsSettingsForm({
           </table>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 flex items-center gap-3">
           <Button
             onClick={handleSavePreferences}
             disabled={savingPrefs}
@@ -215,6 +261,9 @@ export function CommunicationsSettingsForm({
             )}
             Save Preferences
           </Button>
+          {lastSaved > 0 && (
+            <span className="text-sm text-green-600">Changes saved</span>
+          )}
         </div>
       </section>
     </div>
