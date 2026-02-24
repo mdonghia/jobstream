@@ -90,26 +90,19 @@ export async function submitIssue(formData: FormData) {
 
     // Send email via SendGrid
     if (process.env.SENDGRID_API_KEY) {
-      const sgMail = await import("@sendgrid/mail")
-      sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
+      try {
+        const sgMail = await import("@sendgrid/mail")
+        sgMail.default.setApiKey(process.env.SENDGRID_API_KEY)
 
-      const baseMsg = {
-        to: "mikedonghia@gmail.com",
-        from: {
-          email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
-          name: "JobStream",
-        },
-        subject,
-        html,
-      }
-
-      let sent = false
-
-      // Try with attachment first
-      if (screenshotAttachment) {
-        try {
-          await sgMail.default.send({
-            ...baseMsg,
+        await sgMail.default.send({
+          to: "mikedonghia@gmail.com",
+          from: {
+            email: process.env.SENDGRID_FROM_EMAIL || "noreply@jobstream.app",
+            name: "JobStream",
+          },
+          subject,
+          html,
+          ...(screenshotAttachment && {
             attachments: [
               {
                 content: screenshotAttachment.content,
@@ -118,21 +111,11 @@ export async function submitIssue(formData: FormData) {
                 disposition: "attachment",
               },
             ],
-          })
-          sent = true
-        } catch (e) {
-          console.error("Failed to send email with attachment, retrying without:", e)
-        }
-      }
-
-      // Send without attachment (either no screenshot, or attachment send failed)
-      if (!sent) {
-        try {
-          await sgMail.default.send(baseMsg)
-        } catch (e) {
-          console.error("Failed to send issue report email:", e)
-          return { error: "Failed to send report. Please try again." }
-        }
+          }),
+        })
+      } catch (e) {
+        console.error("Failed to send issue report email:", e)
+        return { error: "Failed to send report. Please try again." }
       }
     } else {
       console.log(`[Email] Would send issue report to mikedonghia@gmail.com: ${subject}`)
