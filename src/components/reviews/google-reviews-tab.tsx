@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Settings,
 } from "lucide-react"
+import { toast } from "sonner"
 
 type ReviewFilter = "all" | "new" | "reviewed" | "responded"
 
@@ -164,10 +165,19 @@ export function GoogleReviewsTab({ initialStats, initialReviews, initialTotal }:
     setIsSyncing(true)
     try {
       const mod = await import("@/actions/reviews")
-      await mod.syncGoogleReviews()
+      const result = await mod.syncGoogleReviews()
       await loadData(filter, page)
+
+      if (result && "error" in result) {
+        toast.error(result.error)
+      } else if (result && "skipped" in result) {
+        toast.info("Reviews were synced recently. Try again in an hour.")
+      } else if (result) {
+        toast.success(`Synced ${result.synced} review(s) from Google`)
+      }
     } catch (e) {
       console.error("Sync failed:", e)
+      toast.error("Failed to sync reviews from Google")
     } finally {
       setIsSyncing(false)
     }
