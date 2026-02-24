@@ -108,6 +108,12 @@ export function ReviewRequestsTab({ initialStats, initialRequests, initialTotal 
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Track review request emails sent to customers after jobs are completed.
+        See how many customers opened the email and clicked through to leave a review.
+        Configure automatic requests in Settings &gt; Reviews.
+      </p>
+
       {/* Stats cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>

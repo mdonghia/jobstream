@@ -256,6 +256,12 @@ export function GoogleReviewsTab({ initialStats, initialReviews, initialTotal }:
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        Reviews pulled from your Google Business listing, synced daily at 6 AM.
+        Use this to monitor new reviews, mark them as handled, and click through
+        to respond directly on Google.
+      </p>
+
       {/* Stats cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
