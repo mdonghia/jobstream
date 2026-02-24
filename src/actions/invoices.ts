@@ -550,6 +550,107 @@ export async function getInvoiceByToken(token: string) {
 }
 
 // =============================================================================
+// 7b. verifyStripePayment - Verify a Stripe checkout session and record payment
+// =============================================================================
+
+export async function verifyStripePayment(
+  invoiceToken: string,
+  sessionId: string
+) {
+  try {
+    const invoice = await prisma.invoice.findFirst({
+      where: { accessToken: invoiceToken },
+      include: {
+        organization: {
+          select: { stripeAccountId: true },
+        },
+      },
+    })
+
+    if (!invoice || !invoice.organization.stripeAccountId) {
+      return { verified: false }
+    }
+
+    // Check if this payment was already recorded (idempotency)
+    const existingPayment = await prisma.payment.findFirst({
+      where: {
+        invoiceId: invoice.id,
+        reference: { contains: sessionId },
+      },
+    })
+
+    if (existingPayment) {
+      // Already recorded (by webhook or previous verification)
+      return { verified: true }
+    }
+
+    // Retrieve the checkout session from the connected Stripe account
+    const { getStripe } = await import("@/lib/stripe")
+    const stripe = getStripe()
+    if (!stripe) return { verified: false }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      stripeAccount: invoice.organization.stripeAccountId,
+    })
+
+    if (session.payment_status !== "paid") {
+      return { verified: false }
+    }
+
+    const amountPaid = (session.amount_total || 0) / 100
+    const newAmountPaid = Number(invoice.amountPaid) + amountPaid
+    const newAmountDue = Math.max(0, Number(invoice.total) - newAmountPaid)
+    const isPaid = newAmountDue <= 0
+
+    await prisma.$transaction([
+      prisma.payment.create({
+        data: {
+          organizationId: invoice.organizationId,
+          invoiceId: invoice.id,
+          amount: amountPaid,
+          method: "CARD",
+          status: "COMPLETED",
+          reference: `stripe:${session.payment_intent || session.id}`,
+          processedAt: new Date(),
+        },
+      }),
+      prisma.invoice.update({
+        where: { id: invoice.id },
+        data: {
+          amountPaid: newAmountPaid,
+          amountDue: newAmountDue,
+          status: isPaid ? "PAID" : "PARTIALLY_PAID",
+          paidAt: isPaid ? new Date() : undefined,
+        },
+      }),
+    ])
+
+    // Notify the org owner
+    const orgOwner = await prisma.user.findFirst({
+      where: { organizationId: invoice.organizationId, role: "OWNER" },
+      select: { id: true },
+    })
+
+    if (orgOwner) {
+      await prisma.notification.create({
+        data: {
+          organizationId: invoice.organizationId,
+          userId: orgOwner.id,
+          title: "Payment Received",
+          message: `Online payment of $${amountPaid.toFixed(2)} received for invoice ${invoice.invoiceNumber}`,
+          linkUrl: `/invoices/${invoice.id}`,
+        },
+      })
+    }
+
+    return { verified: true }
+  } catch (error: any) {
+    console.error("verifyStripePayment error:", error)
+    return { verified: false }
+  }
+}
+
+// =============================================================================
 // 8. adjustInvoiceTotal - Adjust the total on an invoice (e.g. agreed discount)
 // =============================================================================
 

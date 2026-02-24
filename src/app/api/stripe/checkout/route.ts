@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
           },
         ],
         customer_email: invoice.customer.email || undefined,
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${invoice.organization.slug}/invoices/${invoiceToken}?paid=true`,
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${invoice.organization.slug}/invoices/${invoiceToken}?paid=true&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/portal/${invoice.organization.slug}/invoices/${invoiceToken}`,
         metadata: {
           invoiceId: invoice.id,

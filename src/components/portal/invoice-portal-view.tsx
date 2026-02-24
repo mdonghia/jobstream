@@ -105,7 +105,13 @@ const STATUS_CONFIG: Record<
   },
 }
 
-export function InvoicePortalView({ invoice }: { invoice: InvoiceData }) {
+export function InvoicePortalView({
+  invoice,
+  justPaid = false,
+}: {
+  invoice: InvoiceData
+  justPaid?: boolean
+}) {
   const [paying, setPaying] = useState(false)
   const status = STATUS_CONFIG[invoice.status] || STATUS_CONFIG.SENT
   const stripeReady =
@@ -140,8 +146,18 @@ export function InvoicePortalView({ invoice }: { invoice: InvoiceData }) {
 
   return (
     <div className="space-y-6">
+      {/* Payment Success Banner */}
+      {justPaid && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+          <CheckCircle2 className="w-5 h-5 text-green-600" />
+          <p className="text-sm font-medium text-green-800">
+            Payment received! Thank you for your payment.
+          </p>
+        </div>
+      )}
+
       {/* Status Banner */}
-      {invoice.status === "PAID" && (
+      {!justPaid && invoice.status === "PAID" && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
           <CheckCircle2 className="w-5 h-5 text-green-600" />
           <p className="text-sm font-medium text-green-800">

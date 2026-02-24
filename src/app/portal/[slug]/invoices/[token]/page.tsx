@@ -1,12 +1,22 @@
-import { getInvoiceByToken } from "@/actions/invoices"
+import { getInvoiceByToken, verifyStripePayment } from "@/actions/invoices"
 import { InvoicePortalView } from "@/components/portal/invoice-portal-view"
 
 export default async function PortalInvoicePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; token: string }>
+  searchParams: Promise<{ paid?: string; session_id?: string }>
 }) {
   const { token } = await params
+  const query = await searchParams
+
+  // If returning from Stripe checkout, verify and record the payment first
+  if (query.paid === "true" && query.session_id) {
+    await verifyStripePayment(token, query.session_id)
+  }
+
+  // Fetch invoice (will now reflect updated payment status)
   const result = await getInvoiceByToken(token)
 
   if ("error" in result) {
@@ -23,6 +33,7 @@ export default async function PortalInvoicePage({
   }
 
   const invoice = JSON.parse(JSON.stringify(result.invoice))
+  const justPaid = query.paid === "true"
 
-  return <InvoicePortalView invoice={invoice} />
+  return <InvoicePortalView invoice={invoice} justPaid={justPaid} />
 }
