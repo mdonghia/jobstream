@@ -284,8 +284,13 @@ export function QuoteDetail({ quote: initialQuote, timeline }: QuoteDetailProps)
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [quote] = useState(initialQuote)
+  const [quote, setQuote] = useState(initialQuote)
   const [loading, setLoading] = useState(false)
+
+  // Sync local state when server re-renders with fresh data (e.g. after send, approve, etc.)
+  useEffect(() => {
+    setQuote(initialQuote)
+  }, [initialQuote])
 
   // Modals
   const [sendModalOpen, setSendModalOpen] = useState(false)

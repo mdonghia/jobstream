@@ -58,7 +58,7 @@ export const serviceSchema = z.object({
   taxable: z.boolean().default(true),
   isActive: z.boolean().default(true),
   costPrice: z.coerce.number().min(0).optional().nullable(),
-  type: z.enum(["service", "material"]).default("service"),
+  type: z.enum(["service", "material"]).default("service").optional(),
   estimatedMinutes: z.coerce.number().int().min(0).optional().nullable(),
   sku: z.string().optional().nullable(),
 })

@@ -42,6 +42,9 @@ export default async function SettingsGeneralPage() {
       { start: string; end: string; open: boolean }
     > | null,
     autoConvertQuoteToJob: org.autoConvertQuoteToJob,
+    autoInvoiceOnJobComplete: org.autoInvoiceOnJobComplete,
+    invoiceRemindersEnabled: org.invoiceRemindersEnabled,
+    invoiceReminderDays: org.invoiceReminderDays,
   }
 
   return <GeneralSettingsForm organization={settings} />

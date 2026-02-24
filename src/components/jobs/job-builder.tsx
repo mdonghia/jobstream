@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  GripVertical,
   CalendarIcon,
   Clock,
   User,
@@ -37,7 +36,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Avatar,
   AvatarFallback,
@@ -104,9 +102,24 @@ interface LineItem {
   taxable: boolean
 }
 
-interface ChecklistItem {
+interface ChecklistTemplateItem {
   id: string
   label: string
+  sortOrder: number
+}
+
+interface ChecklistTemplate {
+  id: string
+  name: string
+  items: ChecklistTemplateItem[]
+  services: { id: string; name: string }[]
+}
+
+interface AttachedChecklist {
+  templateId: string
+  templateName: string
+  items: string[]
+  autoAdded: boolean // true = auto-populated from service, false = manually selected
 }
 
 interface JobBuilderProps {
@@ -114,6 +127,7 @@ interface JobBuilderProps {
   customers: Customer[]
   teamMembers: TeamMember[]
   orgSettings: OrgSettings
+  checklistTemplates?: ChecklistTemplate[]
   initialData?: any
   mode?: "create" | "edit"
 }
@@ -158,6 +172,7 @@ export function JobBuilder({
   customers: initialCustomers,
   teamMembers,
   orgSettings,
+  checklistTemplates = [],
   initialData,
   mode = "create",
 }: JobBuilderProps) {
@@ -204,22 +219,81 @@ export function JobBuilder({
   )
 
   // Recurring
-  const [isRecurring, setIsRecurring] = useState(false)
-  const [frequency, setFrequency] = useState("WEEKLY")
+  const [isRecurring, setIsRecurring] = useState(initialData?.isRecurring ?? false)
+  const [frequency, setFrequency] = useState(initialData?.recurrenceRule || "WEEKLY")
   const [weeklyDays, setWeeklyDays] = useState<number[]>([])
-  const [recurrenceEnd, setRecurrenceEnd] = useState<"never" | "date">("never")
+  const [recurrenceEnd, setRecurrenceEnd] = useState<"never" | "date">(
+    initialData?.recurrenceEndDate ? "date" : "never"
+  )
   const [recurrenceEndDate, setRecurrenceEndDate] = useState<Date | undefined>(
-    undefined
+    initialData?.recurrenceEndDate ? new Date(initialData.recurrenceEndDate) : undefined
   )
 
-  // Checklist
-  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>(
-    initialData?.checklistItems?.map((label: string) => ({
-      id: generateId(),
-      label,
-    })) || []
-  )
-  const [newChecklistItem, setNewChecklistItem] = useState("")
+  // Checklists (template-based)
+  // When editing, reconstruct attached checklists from the job's existing checklist items
+  // by matching them against available templates (via service links on line items).
+  const [attachedChecklists, setAttachedChecklists] = useState<AttachedChecklist[]>(() => {
+    if (!initialData?.checklistItems?.length) return []
+
+    const existingLabels = new Set<string>(initialData.checklistItems)
+    const attached: AttachedChecklist[] = []
+    const coveredLabels = new Set<string>()
+
+    // First, match templates linked to services that are in the line items
+    const serviceIdsInJob = new Set(
+      (initialData.lineItems || [])
+        .map((li: LineItem) => li.serviceId)
+        .filter(Boolean)
+    )
+
+    for (const template of checklistTemplates) {
+      const templateLabels = template.items.map((i) => i.label)
+      const isLinkedToJobService = template.services.some((s) => serviceIdsInJob.has(s.id))
+      const hasMatchingItems = templateLabels.some((label) => existingLabels.has(label))
+
+      if (isLinkedToJobService && hasMatchingItems) {
+        attached.push({
+          templateId: template.id,
+          templateName: template.name,
+          items: templateLabels,
+          autoAdded: true,
+        })
+        templateLabels.forEach((l) => coveredLabels.add(l))
+      }
+    }
+
+    // Then, check remaining templates that match by item content
+    for (const template of checklistTemplates) {
+      if (attached.some((ac) => ac.templateId === template.id)) continue
+      const templateLabels = template.items.map((i) => i.label)
+      const allMatch = templateLabels.every((label) => existingLabels.has(label))
+      if (allMatch && templateLabels.length > 0) {
+        attached.push({
+          templateId: template.id,
+          templateName: template.name,
+          items: templateLabels,
+          autoAdded: false,
+        })
+        templateLabels.forEach((l) => coveredLabels.add(l))
+      }
+    }
+
+    // Any remaining items not covered by a template go into a synthetic "Custom Items" group
+    const uncovered = initialData.checklistItems.filter(
+      (label: string) => !coveredLabels.has(label)
+    )
+    if (uncovered.length > 0) {
+      attached.push({
+        templateId: "__custom__",
+        templateName: "Custom Items",
+        items: uncovered,
+        autoAdded: false,
+      })
+    }
+
+    return attached
+  })
+  const [checklistSelectorOpen, setChecklistSelectorOpen] = useState(false)
 
   // Notes
   const [internalNote, setInternalNote] = useState(initialData?.internalNote || "")
@@ -255,6 +329,29 @@ export function JobBuilder({
       taxable: service?.taxable ?? true,
     }
     setLineItems([...lineItems, newItem])
+
+    // Auto-populate checklists linked to this service
+    if (service) {
+      const linkedTemplates = checklistTemplates.filter((t) =>
+        t.services.some((s) => s.id === service.id)
+      )
+      if (linkedTemplates.length > 0) {
+        setAttachedChecklists((prev) => {
+          const updated = [...prev]
+          for (const template of linkedTemplates) {
+            if (!updated.some((ac) => ac.templateId === template.id)) {
+              updated.push({
+                templateId: template.id,
+                templateName: template.name,
+                items: template.items.map((i) => i.label),
+                autoAdded: true,
+              })
+            }
+          }
+          return updated
+        })
+      }
+    }
   }
 
   function updateLineItem(id: string, field: keyof LineItem, value: any) {
@@ -264,22 +361,65 @@ export function JobBuilder({
   }
 
   function removeLineItem(id: string) {
-    setLineItems(lineItems.filter((li) => li.id !== id))
+    const removedItem = lineItems.find((li) => li.id === id)
+    const remaining = lineItems.filter((li) => li.id !== id)
+    setLineItems(remaining)
+
+    // If the removed item had a serviceId, check if any other line items still
+    // reference that service. If not, remove any auto-added checklists linked to it.
+    if (removedItem?.serviceId) {
+      const serviceStillPresent = remaining.some(
+        (li) => li.serviceId === removedItem.serviceId
+      )
+      if (!serviceStillPresent) {
+        const linkedTemplateIds = checklistTemplates
+          .filter((t) => t.services.some((s) => s.id === removedItem.serviceId))
+          .map((t) => t.id)
+        if (linkedTemplateIds.length > 0) {
+          setAttachedChecklists((prev) =>
+            prev.filter(
+              (ac) => !(ac.autoAdded && linkedTemplateIds.includes(ac.templateId))
+            )
+          )
+        }
+      }
+    }
   }
 
-  // Checklist handlers
-  function addChecklistItem() {
-    if (!newChecklistItem.trim()) return
-    setChecklistItems([
-      ...checklistItems,
-      { id: generateId(), label: newChecklistItem.trim() },
+  // Checklist template handlers
+  function attachChecklistTemplate(template: ChecklistTemplate) {
+    if (attachedChecklists.some((ac) => ac.templateId === template.id)) return
+    setAttachedChecklists((prev) => [
+      ...prev,
+      {
+        templateId: template.id,
+        templateName: template.name,
+        items: template.items.map((i) => i.label),
+        autoAdded: false,
+      },
     ])
-    setNewChecklistItem("")
   }
 
-  function removeChecklistItem(id: string) {
-    setChecklistItems(checklistItems.filter((item) => item.id !== id))
+  function removeAttachedChecklist(templateId: string) {
+    setAttachedChecklists((prev) =>
+      prev.filter((ac) => ac.templateId !== templateId)
+    )
   }
+
+  // Flatten all attached checklist items for submission (deduplicated)
+  const allChecklistLabels = (() => {
+    const seen = new Set<string>()
+    const labels: string[] = []
+    for (const ac of attachedChecklists) {
+      for (const item of ac.items) {
+        if (!seen.has(item)) {
+          seen.add(item)
+          labels.push(item)
+        }
+      }
+    }
+    return labels
+  })()
 
   // Assignment toggle
   function toggleAssignment(userId: string) {
@@ -342,10 +482,7 @@ export function JobBuilder({
         scheduledStart: scheduledStart.toISOString(),
         scheduledEnd: scheduledEnd.toISOString(),
         assignedUserIds: assignedUserIds.length > 0 ? assignedUserIds : [],
-        checklistItems:
-          checklistItems.length > 0
-            ? checklistItems.map((ci) => ci.label)
-            : [],
+        checklistItems: allChecklistLabels,
         lineItems:
           lineItems.length > 0
             ? lineItems.map((li) => ({
@@ -944,57 +1081,126 @@ export function JobBuilder({
             )}
           </Card>
 
-          {/* Section 7: Checklist */}
+          {/* Section 7: Checklists */}
           <Card className="border-[#E3E8EE]">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold text-[#0A2540]">
-                Checklist
+                Checklists
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {checklistItems.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-2 group"
-                >
-                  <GripVertical className="w-4 h-4 text-[#8898AA] opacity-0 group-hover:opacity-100 cursor-grab" />
-                  <span className="flex-1 text-sm text-[#425466]">
-                    {item.label}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-[#8898AA] opacity-0 group-hover:opacity-100 hover:text-red-500"
-                    onClick={() => removeChecklistItem(item.id)}
-                    aria-label="Remove checklist item"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
+            <CardContent className="space-y-4">
+              {/* Template selector */}
+              {checklistTemplates.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="text-sm text-[#425466]">Add Checklist Template</Label>
+                  <Popover open={checklistSelectorOpen} onOpenChange={setChecklistSelectorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={checklistSelectorOpen}
+                        className="w-full justify-between h-10 border-[#E3E8EE] text-sm font-normal"
+                      >
+                        Select a checklist template...
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search templates..." />
+                        <CommandList>
+                          <CommandEmpty>No templates found.</CommandEmpty>
+                          <CommandGroup>
+                            {checklistTemplates.map((template) => {
+                              const alreadyAttached = attachedChecklists.some(
+                                (ac) => ac.templateId === template.id
+                              )
+                              return (
+                                <CommandItem
+                                  key={template.id}
+                                  value={template.name}
+                                  disabled={alreadyAttached}
+                                  onSelect={() => {
+                                    attachChecklistTemplate(template)
+                                    setChecklistSelectorOpen(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      alreadyAttached ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm">{template.name}</p>
+                                    <p className="text-xs text-[#8898AA]">
+                                      {template.items.length} item{template.items.length !== 1 ? "s" : ""}
+                                      {template.services.length > 0 && (
+                                        <> &middot; Linked to {template.services.map((s) => s.name).join(", ")}</>
+                                      )}
+                                    </p>
+                                  </div>
+                                </CommandItem>
+                              )
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              ))}
-              <div className="flex gap-2">
-                <Input
-                  value={newChecklistItem}
-                  onChange={(e) => setNewChecklistItem(e.target.value)}
-                  placeholder="Add a checklist item..."
-                  className="h-9 text-sm border-[#E3E8EE] focus-visible:ring-[#635BFF]"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      addChecklistItem()
-                    }
-                  }}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 border-[#E3E8EE]"
-                  onClick={addChecklistItem}
-                  aria-label="Add checklist item"
-                >
-                  <Plus className="w-4 h-4" />
-                </Button>
-              </div>
+              )}
+
+              {/* Attached checklists (read-only display) */}
+              {attachedChecklists.length > 0 ? (
+                <div className="space-y-3">
+                  {attachedChecklists.map((ac) => (
+                    <div
+                      key={ac.templateId}
+                      className="p-3 bg-[#F6F8FA] rounded-lg border border-[#E3E8EE]"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-[#0A2540]">
+                            {ac.templateName}
+                          </p>
+                          {ac.autoAdded && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-[#635BFF]/10 text-[#635BFF]">
+                              Auto
+                            </Badge>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-[#8898AA] hover:text-red-500"
+                          onClick={() => removeAttachedChecklist(ac.templateId)}
+                          aria-label={`Remove ${ac.templateName} checklist`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                      <ul className="space-y-1">
+                        {ac.items.map((item, idx) => (
+                          <li
+                            key={idx}
+                            className="flex items-center gap-2 text-sm text-[#425466]"
+                          >
+                            <div className="w-4 h-4 rounded border border-[#E3E8EE] flex-shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-[#8898AA]">
+                  {checklistTemplates.length > 0
+                    ? "No checklists attached. Select a template above or add a service with linked checklists."
+                    : "No checklist templates available. Create templates in Settings to use them here."}
+                </p>
+              )}
             </CardContent>
           </Card>
 

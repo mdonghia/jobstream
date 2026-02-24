@@ -1,17 +1,19 @@
 import { requireAuth } from "@/lib/auth-utils"
 import { getServices, getOrganizationSettings, getTeamMembers } from "@/actions/settings"
 import { getCustomers } from "@/actions/customers"
+import { getChecklistTemplates } from "@/actions/checklists"
 import { JobBuilder } from "@/components/jobs/job-builder"
 
 export default async function NewJobPage() {
   await requireAuth()
 
-  const [servicesResult, customersResult, teamResult, orgResult] =
+  const [servicesResult, customersResult, teamResult, orgResult, checklistResult] =
     await Promise.all([
       getServices(),
       getCustomers({ status: "active", perPage: 50 }),
       getTeamMembers(),
       getOrganizationSettings(),
+      getChecklistTemplates(),
     ])
 
   const services =
@@ -35,6 +37,11 @@ export default async function NewJobPage() {
     currency: org?.currency || "USD",
   }
 
+  const checklistTemplates =
+    checklistResult && "templates" in checklistResult
+      ? checklistResult.templates
+      : []
+
   // Serialize Prisma Dates/Decimals for client component
   const serialize = (obj: any) => JSON.parse(JSON.stringify(obj))
 
@@ -44,6 +51,7 @@ export default async function NewJobPage() {
       customers={serialize(customers)}
       teamMembers={serialize(teamMembers)}
       orgSettings={serialize(orgSettings)}
+      checklistTemplates={serialize(checklistTemplates)}
     />
   )
 }

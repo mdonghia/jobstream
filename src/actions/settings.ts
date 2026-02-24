@@ -92,16 +92,31 @@ export async function updateOrganizationSettings(
 // =============================================================================
 
 export async function updateWorkflowSettings(data: {
-  autoConvertQuoteToJob: boolean
+  autoConvertQuoteToJob?: boolean
+  autoInvoiceOnJobComplete?: boolean
+  invoiceRemindersEnabled?: boolean
+  invoiceReminderDays?: string
 }) {
   try {
     const user = await requireRole(["OWNER", "ADMIN"])
 
+    const updateData: Record<string, unknown> = {}
+    if (data.autoConvertQuoteToJob !== undefined) {
+      updateData.autoConvertQuoteToJob = data.autoConvertQuoteToJob
+    }
+    if (data.autoInvoiceOnJobComplete !== undefined) {
+      updateData.autoInvoiceOnJobComplete = data.autoInvoiceOnJobComplete
+    }
+    if (data.invoiceRemindersEnabled !== undefined) {
+      updateData.invoiceRemindersEnabled = data.invoiceRemindersEnabled
+    }
+    if (data.invoiceReminderDays !== undefined) {
+      updateData.invoiceReminderDays = data.invoiceReminderDays
+    }
+
     await prisma.organization.update({
       where: { id: user.organizationId },
-      data: {
-        autoConvertQuoteToJob: data.autoConvertQuoteToJob,
-      },
+      data: updateData,
     })
 
     return { success: true }
@@ -495,6 +510,11 @@ export async function getServices(
 
     const services = await prisma.service.findMany({
       where,
+      include: {
+        checklists: {
+          select: { id: true, name: true },
+        },
+      },
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     })
 
@@ -512,7 +532,7 @@ export async function getServices(
 // 10. createService - Create a service
 // =============================================================================
 
-export async function createService(data: z.infer<typeof serviceSchema>) {
+export async function createService(data: z.infer<typeof serviceSchema>, checklistIds?: string[]) {
   try {
     const user = await requireAuth()
 
@@ -544,6 +564,9 @@ export async function createService(data: z.infer<typeof serviceSchema>) {
         type: result.data.type ?? "service",
         estimatedMinutes: result.data.estimatedMinutes ?? null,
         sku: result.data.sku ?? null,
+        ...(checklistIds && checklistIds.length > 0
+          ? { checklists: { connect: checklistIds.map((cid) => ({ id: cid })) } }
+          : {}),
       },
     })
 
@@ -563,7 +586,8 @@ export async function createService(data: z.infer<typeof serviceSchema>) {
 
 export async function updateService(
   id: string,
-  data: Partial<z.infer<typeof serviceSchema>>
+  data: Partial<z.infer<typeof serviceSchema>>,
+  checklistIds?: string[]
 ) {
   try {
     const user = await requireAuth()
@@ -589,7 +613,12 @@ export async function updateService(
 
     const service = await prisma.service.update({
       where: { id },
-      data: result.data,
+      data: {
+        ...result.data,
+        ...(checklistIds !== undefined
+          ? { checklists: { set: checklistIds.map((cid) => ({ id: cid })) } }
+          : {}),
+      },
     })
 
     return { service }

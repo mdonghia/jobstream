@@ -860,8 +860,11 @@ async function _internalConvertQuoteToJob(
         description: quote.customerMessage,
         status: "SCHEDULED",
         priority: "MEDIUM",
-        scheduledStart: new Date(), // User will update this
-        scheduledEnd: new Date(Date.now() + 2 * 60 * 60 * 1000), // Default 2 hours
+        // Use far-past placeholder dates to mark the job as "unscheduled".
+        // The isJobUnscheduled() utility detects year <= 2000 and displays
+        // an "Unscheduled" badge. The user will set real dates when scheduling.
+        scheduledStart: new Date("2000-01-01T00:00:00.000Z"),
+        scheduledEnd: new Date("2000-01-01T02:00:00.000Z"),
       },
     })
 

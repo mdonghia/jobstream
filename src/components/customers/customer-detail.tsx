@@ -23,6 +23,7 @@ import {
   CreditCard,
   MessageSquare,
   StickyNote,
+  Send,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -49,8 +50,9 @@ import {
   deleteProperty,
   getAllTags,
 } from "@/actions/customers"
+import { sendOwnerReply } from "@/actions/portal"
 import { CustomerForm } from "@/components/customers/customer-form"
-import { CustomerSubscriptions } from "@/components/customers/customer-subscriptions"
+import { Textarea } from "@/components/ui/textarea"
 
 interface Property {
   id: string
@@ -93,6 +95,14 @@ interface CommunicationEntry {
   createdAt: Date | string
 }
 
+interface PortalMessageEntry {
+  id: string
+  content: string
+  isFromOwner: boolean
+  isRead: boolean
+  createdAt: Date | string
+}
+
 interface CustomerDetailProps {
   customer: {
     id: string
@@ -115,8 +125,7 @@ interface CustomerDetailProps {
   jobs: any[]
   invoices: any[]
   payments: any[]
-  subscriptions?: any[]
-  availablePlans?: any[]
+  portalMessages?: PortalMessageEntry[]
 }
 
 export function CustomerDetail({
@@ -128,8 +137,7 @@ export function CustomerDetail({
   jobs,
   invoices,
   payments,
-  subscriptions = [],
-  availablePlans = [],
+  portalMessages = [],
 }: CustomerDetailProps) {
   const router = useRouter()
   const [notes, setNotes] = useState(initialNotes)
@@ -137,6 +145,9 @@ export function CustomerDetail({
   const [noteSaving, setNoteSaving] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [allTags, setAllTags] = useState<string[]>([])
+  const [messages, setMessages] = useState<PortalMessageEntry[]>(portalMessages)
+  const [replyContent, setReplyContent] = useState("")
+  const [replySending, setReplySending] = useState(false)
 
   // Build a lookup of document numbers -> detail page URLs
   const docLinks = useMemo(() => {
@@ -278,6 +289,40 @@ export function CustomerDetail({
     router.refresh()
   }
 
+  async function handleSendReply() {
+    if (!replyContent.trim()) return
+    setReplySending(true)
+
+    try {
+      // We need the orgId -- derive it from the URL context
+      // The customer page is within the dashboard which requires auth,
+      // so we call the server action which uses requireAuth() internally
+      // We pass a dummy orgId and let the server action validate via requireAuth
+      const result = await sendOwnerReply(customer.id, replyContent.trim())
+      if (result && "error" in result && result.error) {
+        toast.error(result.error)
+      } else {
+        // Optimistically add the message to the local list
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            content: replyContent.trim(),
+            isFromOwner: true,
+            isRead: true,
+            createdAt: new Date().toISOString(),
+          },
+        ])
+        setReplyContent("")
+        toast.success("Reply sent")
+      }
+    } catch {
+      toast.error("Failed to send reply")
+    } finally {
+      setReplySending(false)
+    }
+  }
+
   return (
     <div>
       {/* Header */}
@@ -369,7 +414,7 @@ export function CustomerDetail({
             { value: "jobs", label: "Jobs", count: jobs.length },
             { value: "invoices", label: "Invoices", count: invoices.length },
             { value: "payments", label: "Payments", count: payments.length },
-            { value: "plans", label: "Plans", count: subscriptions.length },
+            { value: "messages", label: "Messages", count: messages.length },
             { value: "communications", label: "Communications" },
             { value: "notes", label: "Notes", count: notes.length },
           ].map((tab) => (
@@ -763,13 +808,81 @@ export function CustomerDetail({
           )}
         </TabsContent>
 
-        {/* Plans Tab */}
-        <TabsContent value="plans" className="mt-6">
-          <CustomerSubscriptions
-            customerId={customer.id}
-            initialSubscriptions={subscriptions}
-            availablePlans={availablePlans}
-          />
+        {/* Messages Tab */}
+        <TabsContent value="messages" className="mt-6">
+          <div className="space-y-4">
+            {/* Message thread */}
+            <div className="bg-white rounded-lg border border-[#E3E8EE] p-4 space-y-3 max-h-[500px] overflow-y-auto">
+              {messages.length === 0 ? (
+                <div className="py-8 text-center">
+                  <MessageSquare className="w-10 h-10 text-[#8898AA] mx-auto mb-2" />
+                  <p className="text-sm text-[#8898AA]">No portal messages yet</p>
+                  <p className="text-xs text-[#8898AA] mt-1">
+                    Messages from the customer portal will appear here
+                  </p>
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.isFromOwner ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[75%] rounded-lg px-4 py-2.5 ${
+                        msg.isFromOwner
+                          ? "bg-[#635BFF] text-white"
+                          : "bg-[#F6F8FA] text-[#0A2540] border border-[#E3E8EE]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs font-medium ${msg.isFromOwner ? "text-white/80" : "text-[#8898AA]"}`}>
+                          {msg.isFromOwner ? "You" : `${customer.firstName} ${customer.lastName}`}
+                        </span>
+                        <span className={`text-xs ${msg.isFromOwner ? "text-white/60" : "text-[#8898AA]"}`}>
+                          {formatRelativeTime(msg.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                      {!msg.isFromOwner && (
+                        <span className={`text-xs mt-1 inline-block ${msg.isRead ? "text-[#8898AA]" : "text-[#635BFF] font-medium"}`}>
+                          {msg.isRead ? "Read" : "Unread"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Reply input */}
+            <div className="flex gap-3 items-end">
+              <Textarea
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder={messages.length === 0 ? "Send a message to this customer..." : "Type your reply..."}
+                rows={2}
+                className="resize-none border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendReply()
+                  }
+                }}
+              />
+              <Button
+                onClick={handleSendReply}
+                disabled={replySending || !replyContent.trim()}
+                className="bg-[#635BFF] hover:bg-[#5851ea] text-white shrink-0"
+              >
+                {replySending ? "Sending..." : (
+                  <>
+                    <Send className="w-4 h-4 mr-1.5" />
+                    {messages.length === 0 ? "Send" : "Reply"}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Communications Tab */}

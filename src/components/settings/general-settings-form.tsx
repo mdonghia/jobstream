@@ -46,6 +46,9 @@ interface OrganizationData {
   quoteValidDays: number
   businessHours: BusinessHours | null
   autoConvertQuoteToJob: boolean
+  autoInvoiceOnJobComplete: boolean
+  invoiceRemindersEnabled: boolean
+  invoiceReminderDays: string | null
   [key: string]: unknown
 }
 
@@ -125,6 +128,15 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
   const [autoConvertQuoteToJob, setAutoConvertQuoteToJob] = useState(
     organization.autoConvertQuoteToJob ?? true
   )
+  const [autoInvoiceOnJobComplete, setAutoInvoiceOnJobComplete] = useState(
+    organization.autoInvoiceOnJobComplete ?? true
+  )
+  const [invoiceRemindersEnabled, setInvoiceRemindersEnabled] = useState(
+    organization.invoiceRemindersEnabled ?? true
+  )
+  const [invoiceReminderDays, setInvoiceReminderDays] = useState(
+    organization.invoiceReminderDays ?? "3,7,14"
+  )
 
   // -----------------------------------------------------------------------
   // Workflow automation handler
@@ -145,6 +157,58 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
     } catch {
       toast.error("Failed to update workflow setting")
       setAutoConvertQuoteToJob(!checked) // revert on error
+    }
+  }
+
+  async function handleAutoInvoiceToggle(checked: boolean) {
+    setAutoInvoiceOnJobComplete(checked)
+    try {
+      const result = await updateWorkflowSettings({
+        autoInvoiceOnJobComplete: checked,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+        setAutoInvoiceOnJobComplete(!checked)
+      } else {
+        toast.success("Workflow setting updated")
+      }
+    } catch {
+      toast.error("Failed to update workflow setting")
+      setAutoInvoiceOnJobComplete(!checked)
+    }
+  }
+
+  async function handleInvoiceRemindersToggle(checked: boolean) {
+    setInvoiceRemindersEnabled(checked)
+    try {
+      const result = await updateWorkflowSettings({
+        invoiceRemindersEnabled: checked,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+        setInvoiceRemindersEnabled(!checked)
+      } else {
+        toast.success("Workflow setting updated")
+      }
+    } catch {
+      toast.error("Failed to update workflow setting")
+      setInvoiceRemindersEnabled(!checked)
+    }
+  }
+
+  async function handleInvoiceReminderDaysChange(value: string) {
+    setInvoiceReminderDays(value)
+    try {
+      const result = await updateWorkflowSettings({
+        invoiceReminderDays: value,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Reminder schedule updated")
+      }
+    } catch {
+      toast.error("Failed to update reminder schedule")
     }
   }
 
@@ -567,22 +631,86 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
           Automate common workflows to save time.
         </p>
 
-        <div className="mt-4 rounded-lg border border-[#E3E8EE] p-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <Label className="text-sm font-medium text-[#0A2540]">
-                Automatically create a job when a quote is approved
-              </Label>
-              <p className="text-sm text-[#8898AA]">
-                When enabled, approved quotes are automatically converted to
-                jobs that appear in your calendar sidebar.
-              </p>
+        <div className="mt-4 space-y-4">
+          <div className="rounded-lg border border-[#E3E8EE] p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-[#0A2540]">
+                  Automatically create a job when a quote is approved
+                </Label>
+                <p className="text-sm text-[#8898AA]">
+                  When enabled, approved quotes are automatically converted to
+                  jobs that appear in your calendar sidebar.
+                </p>
+              </div>
+              <Switch
+                checked={autoConvertQuoteToJob}
+                onCheckedChange={handleAutoConvertToggle}
+                aria-label="Auto-convert quotes to jobs"
+              />
             </div>
-            <Switch
-              checked={autoConvertQuoteToJob}
-              onCheckedChange={handleAutoConvertToggle}
-              aria-label="Auto-convert quotes to jobs"
-            />
+          </div>
+
+          <div className="rounded-lg border border-[#E3E8EE] p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-[#0A2540]">
+                  Automatically create an invoice when a job is completed
+                </Label>
+                <p className="text-sm text-[#8898AA]">
+                  When enabled, completing a job will automatically generate a
+                  draft invoice based on the job line items.
+                </p>
+              </div>
+              <Switch
+                checked={autoInvoiceOnJobComplete}
+                onCheckedChange={handleAutoInvoiceToggle}
+                aria-label="Auto-create invoice on job completion"
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-[#E3E8EE] p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-[#0A2540]">
+                  Send payment reminders for unpaid invoices
+                </Label>
+                <p className="text-sm text-[#8898AA]">
+                  When enabled, automatic reminders will be sent to customers
+                  with outstanding invoices on the schedule below.
+                </p>
+              </div>
+              <Switch
+                checked={invoiceRemindersEnabled}
+                onCheckedChange={handleInvoiceRemindersToggle}
+                aria-label="Enable invoice payment reminders"
+              />
+            </div>
+
+            {invoiceRemindersEnabled && (
+              <div className="mt-4 border-t border-[#E3E8EE] pt-4">
+                <div className="max-w-xs space-y-1.5">
+                  <Label className={labelClass}>
+                    Send reminders after (days)
+                  </Label>
+                  <Input
+                    value={invoiceReminderDays}
+                    onChange={(e) => setInvoiceReminderDays(e.target.value)}
+                    onBlur={(e) =>
+                      handleInvoiceReminderDaysChange(e.target.value)
+                    }
+                    placeholder="3,7,14"
+                    className={inputClass}
+                    aria-label="Invoice reminder days"
+                  />
+                  <p className="text-xs text-[#8898AA]">
+                    Comma-separated list of days after the invoice due date
+                    (e.g. 3,7,14).
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

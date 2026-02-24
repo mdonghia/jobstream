@@ -980,6 +980,7 @@ model PortalMessage {
   customerId      String
   content         String
   isRead          Boolean  @default(false)
+  isFromOwner     Boolean  @default(false)
   createdAt       DateTime @default(now())
 
   // Relations

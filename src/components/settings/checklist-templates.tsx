@@ -95,6 +95,7 @@ export function ChecklistTemplatesManager({
   // Form state
   const [formName, setFormName] = useState("")
   const [formItems, setFormItems] = useState<string[]>([""])
+  const [formServiceIds, setFormServiceIds] = useState<string[]>([])
 
   // Delete state
   const [deleteId, setDeleteId] = useState<string | null>(null)
@@ -124,6 +125,7 @@ export function ChecklistTemplatesManager({
     setEditingTemplate(null)
     setFormName("")
     setFormItems([""])
+    setFormServiceIds([])
     setDialogOpen(true)
   }
 
@@ -135,6 +137,7 @@ export function ChecklistTemplatesManager({
         ? template.items.map((item) => item.label)
         : [""]
     )
+    setFormServiceIds(template.services.map((s) => s.id))
     setDialogOpen(true)
   }
 
@@ -184,6 +187,7 @@ export function ChecklistTemplatesManager({
         const result = await updateChecklistTemplate(editingTemplate.id, {
           name: formName,
           items: filteredItems,
+          serviceIds: formServiceIds,
         })
         if ("error" in result) {
           toast.error(result.error)
@@ -196,6 +200,7 @@ export function ChecklistTemplatesManager({
         const result = await createChecklistTemplate({
           name: formName,
           items: filteredItems,
+          serviceIds: formServiceIds,
         })
         if ("error" in result) {
           toast.error(result.error)
@@ -503,6 +508,7 @@ export function ChecklistTemplatesManager({
             setEditingTemplate(null)
             setFormName("")
             setFormItems([""])
+            setFormServiceIds([])
           }
         }}
       >
@@ -577,6 +583,46 @@ export function ChecklistTemplatesManager({
                 Add Item
               </Button>
             </div>
+
+            {/* Link Services */}
+            {services.length > 0 && (
+              <div className="space-y-1.5 border-t border-[#E3E8EE] pt-4">
+                <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+                  Link to Services
+                </Label>
+                <p className="text-xs text-[#8898AA] mb-2">
+                  When a linked service is added to a job, these checklist items will auto-populate.
+                </p>
+                <div className="max-h-[160px] overflow-y-auto space-y-1 rounded-md border border-[#E3E8EE] p-2">
+                  {services.map((service) => {
+                    const isChecked = formServiceIds.includes(service.id)
+                    return (
+                      <label
+                        key={service.id}
+                        className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-[#F6F8FA] cursor-pointer transition-colors"
+                      >
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setFormServiceIds((prev) => [...prev, service.id])
+                            } else {
+                              setFormServiceIds((prev) =>
+                                prev.filter((id) => id !== service.id)
+                              )
+                            }
+                          }}
+                          className="data-[state=checked]:bg-[#635BFF] data-[state=checked]:border-[#635BFF]"
+                        />
+                        <span className="text-sm font-medium text-[#0A2540]">
+                          {service.name}
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>

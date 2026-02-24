@@ -42,6 +42,7 @@ export async function getChecklistTemplates() {
 export async function createChecklistTemplate(data: {
   name: string
   items: string[]
+  serviceIds?: string[]
 }) {
   try {
     const user = await requireAuth()
@@ -65,6 +66,9 @@ export async function createChecklistTemplate(data: {
             sortOrder: index,
           })),
         },
+        ...(data.serviceIds && data.serviceIds.length > 0
+          ? { services: { connect: data.serviceIds.map((id) => ({ id })) } }
+          : {}),
       },
       include: {
         items: { orderBy: { sortOrder: "asc" } },
@@ -88,7 +92,7 @@ export async function createChecklistTemplate(data: {
 
 export async function updateChecklistTemplate(
   id: string,
-  data: { name: string; items: string[] }
+  data: { name: string; items: string[]; serviceIds?: string[] }
 ) {
   try {
     const user = await requireAuth()
@@ -110,11 +114,16 @@ export async function updateChecklistTemplate(
       return { error: "Template not found" }
     }
 
-    // Transaction: update name, delete old items, create new items
+    // Transaction: update name + service links, delete old items, create new items
     await prisma.$transaction([
       prisma.checklistTemplate.update({
         where: { id },
-        data: { name: data.name.trim() },
+        data: {
+          name: data.name.trim(),
+          ...(data.serviceIds !== undefined
+            ? { services: { set: data.serviceIds.map((sid) => ({ id: sid })) } }
+            : {}),
+        },
       }),
       prisma.checklistTemplateItem.deleteMany({
         where: { templateId: id },

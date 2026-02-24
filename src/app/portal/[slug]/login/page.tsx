@@ -154,7 +154,7 @@ export default function PortalLoginPage() {
 
               {codeSent && (
                 <p className="text-xs text-center text-[#8898AA]">
-                  Check your inbox for the verification code. It expires in 10 minutes.
+                  We&apos;ve sent a verification code to your email. It may take up to a minute to arrive. Check your spam folder if you don&apos;t see it. The code expires in 10 minutes.
                 </p>
               )}
             </form>
