@@ -800,7 +800,7 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
           {/* Tabs: Checklist, Notes, Attachments, Time */}
           <Tabs defaultValue="checklist">
             <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden">
-              <TabsTrigger value="checklist" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+              <TabsTrigger value="checklist" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540]">
                 Checklist
                 {totalChecklistCount > 0 && (
                   <span className="ml-1.5 text-xs text-[#8898AA]">
@@ -808,16 +808,16 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="notes" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+              <TabsTrigger value="notes" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540]">
                 Notes
                 <span className="ml-1.5 text-xs text-[#8898AA]">
                   ({notes.length})
                 </span>
               </TabsTrigger>
-              <TabsTrigger value="attachments" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+              <TabsTrigger value="attachments" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540]">
                 Attachments
               </TabsTrigger>
-              <TabsTrigger value="time" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+              <TabsTrigger value="time" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540]">
                 Time
               </TabsTrigger>
             </TabsList>

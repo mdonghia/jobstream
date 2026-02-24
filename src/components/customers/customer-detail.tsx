@@ -370,7 +370,7 @@ export function CustomerDetail({
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540]"
             >
               {tab.label}
               {tab.count !== undefined && (

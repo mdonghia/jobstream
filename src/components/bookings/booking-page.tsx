@@ -271,19 +271,19 @@ export function BookingPage({
         onValueChange={(v) => setActiveTab(v)}
       >
         <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden mb-4">
-          <TabsTrigger value="PENDING" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="PENDING" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540]">
             Pending
             <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "PENDING" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {pendingCount}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="CONFIRMED" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="CONFIRMED" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540]">
             Confirmed
             <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "CONFIRMED" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {confirmedCount}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="DECLINED" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="DECLINED" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540]">
             Declined
             <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "DECLINED" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {declinedCount}
