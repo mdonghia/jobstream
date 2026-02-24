@@ -462,11 +462,13 @@ export function ScheduleLayout({ initialJobs, teamMembers, unscheduledJobs }: Sc
       <div className="flex h-[calc(100vh-64px)]">
         {/* Main calendar area */}
         <div className="flex-1 min-w-0 p-6 overflow-hidden flex flex-col">
-          <div className="mb-4">
-            <h1 className="text-2xl font-semibold text-[#0A2540]">Schedule</h1>
-            <p className="text-sm text-[#8898AA] mt-0.5">
-              Manage your team&apos;s schedule and job assignments.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl font-semibold text-[#0A2540]">Schedule</h1>
+              <p className="text-sm text-[#8898AA] mt-0.5">
+                Manage your team&apos;s schedule and job assignments.
+              </p>
+            </div>
           </div>
           <div className="flex-1 min-h-0">
             <CalendarView

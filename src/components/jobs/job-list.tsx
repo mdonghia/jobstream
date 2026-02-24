@@ -284,7 +284,7 @@ export function JobList({
         </div>
         <Button asChild className="bg-[#635BFF] hover:bg-[#5851ea] text-white">
           <Link href="/jobs/new">
-            <Plus className="w-4 h-4 mr-1" />
+            <Plus className="w-4 h-4 mr-1.5" />
             New Job
           </Link>
         </Button>

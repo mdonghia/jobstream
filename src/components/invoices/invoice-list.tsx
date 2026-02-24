@@ -253,7 +253,7 @@ export function InvoiceList({
           onClick={() => router.push("/invoices/new")}
           className="mt-4 bg-[#635BFF] hover:bg-[#5851ea] text-white"
         >
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-4 h-4 mr-1.5" />
           New Invoice
         </Button>
       </div>
@@ -272,7 +272,7 @@ export function InvoiceList({
           onClick={() => router.push("/invoices/new")}
           className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
         >
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-4 h-4 mr-1.5" />
           New Invoice
         </Button>
       </div>
