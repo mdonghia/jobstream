@@ -12,6 +12,7 @@ const settingsLinks = [
   { href: "/settings/booking", label: "Booking Widget" },
   { href: "/settings/reviews", label: "Reviews" },
   { href: "/settings/billing", label: "Billing" },
+  { href: "/settings/report-issue", label: "Report Issue" },
 ]
 
 export default function SettingsLayout({
