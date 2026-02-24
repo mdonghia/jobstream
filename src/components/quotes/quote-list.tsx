@@ -281,15 +281,19 @@ export function QuoteList({
 
       {/* Status tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-4">
-        <TabsList className="bg-transparent border-b border-[#E3E8EE] rounded-none w-full justify-start h-10 p-0 gap-0 overflow-x-auto overflow-y-hidden">
+        <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden">
           {STATUS_TABS.map((tab) => (
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#635BFF] data-[state=active]:text-[#635BFF] data-[state=active]:shadow-none px-4 py-2.5 text-sm text-[#8898AA] hover:text-[#425466]"
+              className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none"
             >
               {tab.label}
-              <span className="ml-1.5 text-xs bg-gray-100 px-1.5 py-0.5 rounded-full">
+              <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${
+                activeTab === tab.value
+                  ? "bg-[#635BFF]/10 text-[#635BFF]"
+                  : "bg-gray-100 text-[#8898AA]"
+              }`}>
                 {tabCount(tab.value)}
               </span>
             </TabsTrigger>

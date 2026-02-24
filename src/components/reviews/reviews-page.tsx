@@ -27,21 +27,23 @@ export function ReviewsPage({
   const defaultTab = isGoogleConnected ? "google" : "requests"
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Reviews</h1>
-        <p className="text-muted-foreground">
-          Monitor your online reputation and track review request performance.
-        </p>
+    <>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-[#0A2540]">Reviews</h1>
+          <p className="text-sm text-[#8898AA] mt-0.5">
+            Monitor your online reputation and track review request performance.
+          </p>
+        </div>
       </div>
 
-      <Tabs defaultValue={defaultTab} className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="google">
+      <Tabs defaultValue={defaultTab}>
+        <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden mb-4">
+          <TabsTrigger value="google" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             <Star className="mr-1.5 h-4 w-4" />
             Google Reviews
           </TabsTrigger>
-          <TabsTrigger value="requests">
+          <TabsTrigger value="requests" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             <Mail className="mr-1.5 h-4 w-4" />
             Review Requests
           </TabsTrigger>
@@ -63,6 +65,6 @@ export function ReviewsPage({
           />
         </TabsContent>
       </Tabs>
-    </div>
+    </>
   )
 }

@@ -254,13 +254,15 @@ export function BookingPage({
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-[#0A2540]">Bookings</h1>
-        <p className="text-sm text-[#8898AA] mt-0.5">
-          Manage online booking requests from customers
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-[#0A2540]">Bookings</h1>
+          <p className="text-sm text-[#8898AA] mt-0.5">
+            Manage online booking requests from customers
+          </p>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -268,24 +270,24 @@ export function BookingPage({
         value={activeTab}
         onValueChange={(v) => setActiveTab(v)}
       >
-        <TabsList className="mb-6">
-          <TabsTrigger value="PENDING">
+        <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden mb-4">
+          <TabsTrigger value="PENDING" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             Pending
-            <Badge className="ml-1.5 bg-amber-100 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0">
+            <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "PENDING" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {pendingCount}
-            </Badge>
+            </span>
           </TabsTrigger>
-          <TabsTrigger value="CONFIRMED">
+          <TabsTrigger value="CONFIRMED" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             Confirmed
-            <Badge className="ml-1.5 bg-green-100 text-green-700 border-green-200 text-[10px] px-1.5 py-0">
+            <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "CONFIRMED" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {confirmedCount}
-            </Badge>
+            </span>
           </TabsTrigger>
-          <TabsTrigger value="DECLINED">
+          <TabsTrigger value="DECLINED" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             Declined
-            <Badge className="ml-1.5 bg-red-100 text-red-700 border-red-200 text-[10px] px-1.5 py-0">
+            <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "DECLINED" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {declinedCount}
-            </Badge>
+            </span>
           </TabsTrigger>
         </TabsList>
 
@@ -547,6 +549,6 @@ export function BookingPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
