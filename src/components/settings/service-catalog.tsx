@@ -9,6 +9,10 @@ import {
   Package,
   Check,
   Minus,
+  Tags,
+  Pencil,
+  Trash2,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -55,6 +59,8 @@ import {
   updateService,
   deleteService,
   getServices,
+  renameServiceCategory,
+  deleteServiceCategory,
 } from "@/actions/settings"
 
 // ============================================================================
@@ -107,13 +113,39 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
   const [formTaxable, setFormTaxable] = useState(true)
   const [formActive, setFormActive] = useState(true)
 
-  // Derive existing categories for the combobox-style category input
+  // Manage Categories dialog state
+  const [categoriesDialogOpen, setCategoriesDialogOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState("")
+  const [renamingCategory, setRenamingCategory] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
+  const [categoryLoading, setCategoryLoading] = useState(false)
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null)
+  const [localCategories, setLocalCategories] = useState<string[]>([])
+
+  // Derive existing categories from services in the database
   const existingCategories = useMemo(() => {
     const cats = new Set<string>()
     services.forEach((s) => {
       if (s.category) cats.add(s.category)
     })
     return Array.from(cats).sort()
+  }, [services])
+
+  // Merge database categories with locally-added ones for the full list
+  const allCategories = useMemo(() => {
+    const merged = new Set([...existingCategories, ...localCategories])
+    return Array.from(merged).sort()
+  }, [existingCategories, localCategories])
+
+  // Count services per category
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    services.forEach((s) => {
+      if (s.category) {
+        counts[s.category] = (counts[s.category] || 0) + 1
+      }
+    })
+    return counts
   }, [services])
 
   // -----------------------------------------------------------------------
@@ -251,6 +283,88 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
   }
 
   // -----------------------------------------------------------------------
+  // Category management
+  // -----------------------------------------------------------------------
+
+  function handleAddCategory() {
+    const name = newCategoryName.trim()
+    if (!name) return
+
+    if (allCategories.includes(name)) {
+      toast.error("That category already exists")
+      return
+    }
+
+    setLocalCategories((prev) => [...prev, name].sort())
+    setNewCategoryName("")
+    toast.success(`Category "${name}" added`)
+  }
+
+  async function handleRenameCategory(oldName: string) {
+    const newName = renameValue.trim()
+    if (!newName) {
+      toast.error("Category name cannot be empty")
+      return
+    }
+    if (newName === oldName) {
+      setRenamingCategory(null)
+      return
+    }
+
+    setCategoryLoading(true)
+    try {
+      const result = await renameServiceCategory(oldName, newName)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        // Also rename in localCategories if it was a locally-added one
+        setLocalCategories((prev) =>
+          prev.map((c) => (c === oldName ? newName : c)).sort()
+        )
+        toast.success(
+          `Renamed "${oldName}" to "${newName}" across ${result.updated} service${result.updated !== 1 ? "s" : ""}`
+        )
+        setRenamingCategory(null)
+        await refreshServices()
+      }
+    } catch {
+      toast.error("Failed to rename category")
+    } finally {
+      setCategoryLoading(false)
+    }
+  }
+
+  async function handleDeleteCategory(name: string) {
+    setCategoryLoading(true)
+    try {
+      // If this is a locally-added category (no services use it), just remove locally
+      if (!categoryCounts[name]) {
+        setLocalCategories((prev) => prev.filter((c) => c !== name))
+        toast.success(`Category "${name}" removed`)
+        setDeletingCategory(null)
+        setCategoryLoading(false)
+        return
+      }
+
+      const result = await deleteServiceCategory(name)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        setLocalCategories((prev) => prev.filter((c) => c !== name))
+        toast.success(
+          `Removed "${name}" from ${result.updated} service${result.updated !== 1 ? "s" : ""}`
+        )
+        setDeletingCategory(null)
+        await refreshServices()
+      }
+    } catch {
+      toast.error("Failed to delete category")
+    } finally {
+      setCategoryLoading(false)
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // Empty state
   // -----------------------------------------------------------------------
 
@@ -284,8 +398,9 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
           </Button>
         </div>
 
-        {/* Dialog still available even in empty state */}
+        {/* Dialogs still available even in empty state */}
         {renderDialog()}
+        {renderCategoriesDialog()}
       </div>
     )
   }
@@ -305,13 +420,23 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
             catalog.
           </p>
         </div>
-        <Button
-          onClick={openAddDialog}
-          className="bg-[#635BFF] hover:bg-[#5851ea] text-white flex-shrink-0"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Service
-        </Button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => setCategoriesDialogOpen(true)}
+            className="border-[#E3E8EE] text-[#425466]"
+          >
+            <Tags className="mr-2 h-4 w-4" />
+            Manage Categories
+          </Button>
+          <Button
+            onClick={openAddDialog}
+            className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Service
+          </Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -449,6 +574,9 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
       {/* Add/Edit Dialog */}
       {renderDialog()}
 
+      {/* Manage Categories Dialog */}
+      {renderCategoriesDialog()}
+
       {/* Delete Confirmation */}
       <AlertDialog
         open={!!deleteId}
@@ -480,6 +608,195 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
       </AlertDialog>
     </div>
   )
+
+  // -----------------------------------------------------------------------
+  // Manage Categories dialog render
+  // -----------------------------------------------------------------------
+
+  function renderCategoriesDialog() {
+    return (
+      <>
+        <Dialog
+          open={categoriesDialogOpen}
+          onOpenChange={(open) => {
+            setCategoriesDialogOpen(open)
+            if (!open) {
+              setRenamingCategory(null)
+              setNewCategoryName("")
+              setDeletingCategory(null)
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-[#0A2540]">
+                Manage Categories
+              </DialogTitle>
+              <DialogDescription>
+                Add, rename, or remove service categories. Changes to existing
+                categories apply to all services that use them.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Add new category */}
+              <div className="flex gap-2">
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="New category name..."
+                  className="h-9 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      handleAddCategory()
+                    }
+                  }}
+                />
+                <Button
+                  onClick={handleAddCategory}
+                  disabled={!newCategoryName.trim()}
+                  size="sm"
+                  className="bg-[#635BFF] hover:bg-[#5851ea] text-white h-9 px-3"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Category list */}
+              {allCategories.length === 0 ? (
+                <div className="py-6 text-center text-sm text-[#8898AA]">
+                  No categories yet. Add one above.
+                </div>
+              ) : (
+                <div className="max-h-[300px] overflow-y-auto space-y-1">
+                  {allCategories.map((cat) => (
+                    <div
+                      key={cat}
+                      className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-[#F6F8FA] group"
+                    >
+                      {renamingCategory === cat ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            className="h-8 text-sm border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault()
+                                handleRenameCategory(cat)
+                              }
+                              if (e.key === "Escape") {
+                                setRenamingCategory(null)
+                              }
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleRenameCategory(cat)}
+                            disabled={categoryLoading}
+                            className="h-8 w-8 p-0"
+                          >
+                            {categoryLoading ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Check className="h-3.5 w-3.5 text-green-600" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setRenamingCategory(null)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <X className="h-3.5 w-3.5 text-[#8898AA]" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm font-medium text-[#0A2540] truncate">
+                              {cat}
+                            </span>
+                            <span className="text-xs text-[#8898AA] flex-shrink-0">
+                              {categoryCounts[cat]
+                                ? `${categoryCounts[cat]} service${categoryCounts[cat] !== 1 ? "s" : ""}`
+                                : "unused"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setRenamingCategory(cat)
+                                setRenameValue(cat)
+                              }}
+                              className="h-7 w-7 p-0"
+                              aria-label={`Rename ${cat}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5 text-[#8898AA]" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setDeletingCategory(cat)}
+                              className="h-7 w-7 p-0"
+                              aria-label={`Delete ${cat}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete category confirmation */}
+        <AlertDialog
+          open={!!deletingCategory}
+          onOpenChange={(open) => {
+            if (!open) setDeletingCategory(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Category</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deletingCategory && categoryCounts[deletingCategory]
+                  ? `This will remove the "${deletingCategory}" category from ${categoryCounts[deletingCategory]} service${categoryCounts[deletingCategory] !== 1 ? "s" : ""}. The services themselves will not be deleted.`
+                  : `Remove the "${deletingCategory}" category?`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="border-[#E3E8EE]">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() =>
+                  deletingCategory && handleDeleteCategory(deletingCategory)
+                }
+                disabled={categoryLoading}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {categoryLoading && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    )
+  }
 
   // -----------------------------------------------------------------------
   // Dialog render helper
@@ -550,7 +867,7 @@ export function ServiceCatalog({ initialServices }: ServiceCatalogProps) {
                   className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
                 />
                 <datalist id="category-suggestions">
-                  {existingCategories.map((cat) => (
+                  {allCategories.map((cat) => (
                     <option key={cat} value={cat} />
                   ))}
                 </datalist>

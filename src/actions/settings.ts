@@ -654,7 +654,75 @@ export async function reorderServices(ids: string[]) {
 }
 
 // =============================================================================
-// 14. getPaymentSettings - Fetch Stripe + online payment settings
+// 14. renameServiceCategory - Rename a category across all services
+// =============================================================================
+
+export async function renameServiceCategory(oldName: string, newName: string) {
+  try {
+    const user = await requireAuth()
+
+    const trimmedOld = oldName.trim()
+    const trimmedNew = newName.trim()
+
+    if (!trimmedOld || !trimmedNew) {
+      return { error: "Category name cannot be empty" }
+    }
+
+    if (trimmedOld === trimmedNew) {
+      return { error: "New name is the same as the current name" }
+    }
+
+    const result = await prisma.service.updateMany({
+      where: {
+        organizationId: user.organizationId,
+        category: trimmedOld,
+      },
+      data: { category: trimmedNew },
+    })
+
+    return { updated: result.count }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error
+    }
+    console.error("renameServiceCategory error:", error)
+    return { error: "Failed to rename category" }
+  }
+}
+
+// =============================================================================
+// 15. deleteServiceCategory - Remove a category from all services
+// =============================================================================
+
+export async function deleteServiceCategory(name: string) {
+  try {
+    const user = await requireAuth()
+
+    const trimmed = name.trim()
+    if (!trimmed) {
+      return { error: "Category name cannot be empty" }
+    }
+
+    const result = await prisma.service.updateMany({
+      where: {
+        organizationId: user.organizationId,
+        category: trimmed,
+      },
+      data: { category: null },
+    })
+
+    return { updated: result.count }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error
+    }
+    console.error("deleteServiceCategory error:", error)
+    return { error: "Failed to delete category" }
+  }
+}
+
+// =============================================================================
+// 16. getPaymentSettings - Fetch Stripe + online payment settings
 // =============================================================================
 
 export async function getPaymentSettings() {
