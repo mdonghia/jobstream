@@ -264,6 +264,57 @@ export async function deleteReview(id: string) {
 }
 
 // =============================================================================
+// Review request email template
+// =============================================================================
+
+function buildReviewRequestHtml(
+  firstName: string,
+  orgName: string,
+  googleUrl: string | null,
+  yelpUrl: string | null,
+  facebookUrl: string | null,
+): string {
+  const buttonStyle =
+    "display: inline-block; padding: 12px 24px; margin: 6px 8px 6px 0; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;"
+
+  const buttons: string[] = []
+  if (googleUrl) {
+    buttons.push(
+      `<a href="${googleUrl}" style="${buttonStyle} background-color: #4285F4;">Google Reviews</a>`,
+    )
+  }
+  if (yelpUrl) {
+    buttons.push(
+      `<a href="${yelpUrl}" style="${buttonStyle} background-color: #D32323;">Yelp Reviews</a>`,
+    )
+  }
+  if (facebookUrl) {
+    buttons.push(
+      `<a href="${facebookUrl}" style="${buttonStyle} background-color: #1877F2;">Facebook Reviews</a>`,
+    )
+  }
+
+  const hasLinks = buttons.length > 0
+  const linkPrompt = hasLinks
+    ? "Would you take a moment to leave us a review on one of these platforms?"
+    : "Would you take a moment to leave us a review?"
+  const linkSection = hasLinks
+    ? `<div style="margin: 24px 0;">${buttons.join("\n      ")}</div>`
+    : ""
+
+  return `
+    <div style="font-family: Inter, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 20px; color: #1a1a1a;">
+      <h2 style="color: #111827; margin-bottom: 16px;">Hi ${firstName},</h2>
+      <p style="font-size: 16px; line-height: 1.6;">Thank you for choosing <strong>${orgName}</strong>!</p>
+      <p style="font-size: 16px; line-height: 1.6;">We'd love to hear about your experience. Your feedback helps us improve and helps other customers find us.</p>
+      <p style="font-size: 16px; line-height: 1.6; margin-bottom: 24px;">${linkPrompt}</p>
+      ${linkSection}
+      <p style="font-size: 14px; color: #6b7280; margin-top: 32px;">Thank you for your business!<br/>The ${orgName} Team</p>
+    </div>
+  `
+}
+
+// =============================================================================
 // 5. sendReviewRequest - Trigger a review request for a completed job
 // =============================================================================
 
@@ -289,7 +340,7 @@ export async function sendReviewRequest(jobId: string) {
 
     const org = await prisma.organization.findUnique({
       where: { id: user.organizationId },
-      select: { name: true, slug: true },
+      select: { name: true, slug: true, reviewGoogleUrl: true, reviewYelpUrl: true, reviewFacebookUrl: true },
     })
 
     const { isNotificationEnabled } = await import("@/lib/notification-check")
@@ -307,14 +358,7 @@ export async function sendReviewRequest(jobId: string) {
               name: org?.name || "JobStream",
             },
             subject: `How did we do? - ${org?.name}`,
-            html: `
-              <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
-                <h2>Hi ${job.customer.firstName},</h2>
-                <p>Thank you for choosing <strong>${org?.name}</strong>!</p>
-                <p>We'd love to hear about your experience. Your feedback helps us improve and helps other customers find us.</p>
-                <p>Would you take a moment to leave us a review?</p>
-              </div>
-            `,
+            html: buildReviewRequestHtml(job.customer.firstName, org?.name || "Our Company", org?.reviewGoogleUrl || null, org?.reviewYelpUrl || null, org?.reviewFacebookUrl || null),
           })
         } catch (e) {
           console.error("Failed to send review request email:", e)
