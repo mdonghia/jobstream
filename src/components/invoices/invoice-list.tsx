@@ -352,7 +352,7 @@ export function InvoiceList({
             </span>
           </TabsTrigger>
           <TabsTrigger value="OVERDUE" className="text-xs data-[state=active]:bg-white">
-            Overdue <span className="ml-1 text-red-500">({statusCounts.OVERDUE ?? 0})</span>
+            Overdue <span className="ml-1 text-[#8898AA]">({statusCounts.OVERDUE ?? 0})</span>
           </TabsTrigger>
           <TabsTrigger value="PAID" className="text-xs data-[state=active]:bg-white">
             Paid <span className="ml-1 text-[#8898AA]">({statusCounts.PAID ?? 0})</span>

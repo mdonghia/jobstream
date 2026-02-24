@@ -35,7 +35,18 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import { format } from "date-fns"
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  startOfQuarter,
+  endOfQuarter,
+  startOfYear,
+  endOfYear,
+} from "date-fns"
 import { formatCurrency } from "@/lib/utils"
 
 // ---------------------------------------------------------------------------
@@ -144,6 +155,51 @@ const defaultSummary: PaymentSummary = {
   overdue: 0,
 }
 
+type DatePreset = "this_week" | "this_month" | "last_month" | "this_quarter" | "this_year" | "last_12_months" | "custom"
+
+function getDateRange(preset: DatePreset, customFrom?: string, customTo?: string): { dateFrom: string; dateTo: string } {
+  const now = new Date()
+  switch (preset) {
+    case "this_week":
+      return {
+        dateFrom: format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+        dateTo: format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+      }
+    case "this_month":
+      return {
+        dateFrom: format(startOfMonth(now), "yyyy-MM-dd"),
+        dateTo: format(endOfMonth(now), "yyyy-MM-dd"),
+      }
+    case "last_month": {
+      const last = subMonths(now, 1)
+      return {
+        dateFrom: format(startOfMonth(last), "yyyy-MM-dd"),
+        dateTo: format(endOfMonth(last), "yyyy-MM-dd"),
+      }
+    }
+    case "this_quarter":
+      return {
+        dateFrom: format(startOfQuarter(now), "yyyy-MM-dd"),
+        dateTo: format(endOfQuarter(now), "yyyy-MM-dd"),
+      }
+    case "this_year":
+      return {
+        dateFrom: format(startOfYear(now), "yyyy-MM-dd"),
+        dateTo: format(endOfYear(now), "yyyy-MM-dd"),
+      }
+    case "last_12_months":
+      return {
+        dateFrom: format(subMonths(now, 12), "yyyy-MM-dd"),
+        dateTo: format(now, "yyyy-MM-dd"),
+      }
+    case "custom":
+      return {
+        dateFrom: customFrom || format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+        dateTo: customTo || format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+      }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -162,8 +218,11 @@ export function PaymentsPage({
   const [search, setSearch] = useState("")
   const [methodFilter, setMethodFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [dateFrom, setDateFrom] = useState("")
-  const [dateTo, setDateTo] = useState("")
+  const [datePreset, setDatePreset] = useState<DatePreset>("this_month")
+  const [customDateFrom, setCustomDateFrom] = useState("")
+  const [customDateTo, setCustomDateTo] = useState("")
+
+  const dateRange = getDateRange(datePreset, customDateFrom, customDateTo)
 
   // Add Payment dialog state
   const [addPaymentOpen, setAddPaymentOpen] = useState(false)
@@ -197,8 +256,8 @@ export function PaymentsPage({
           search: search || undefined,
           method: methodFilter !== "all" ? methodFilter : undefined,
           status: statusFilter !== "all" ? statusFilter : undefined,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined,
+          dateFrom: dateRange.dateFrom,
+          dateTo: dateRange.dateTo,
         })
         if (result && !("error" in result)) {
           setPayments((result.payments ?? []).map((p: any) => ({
@@ -219,7 +278,7 @@ export function PaymentsPage({
     } catch {
       // Server actions not yet available
     }
-  }, [search, methodFilter, statusFilter, dateFrom, dateTo])
+  }, [search, methodFilter, statusFilter, dateRange.dateFrom, dateRange.dateTo])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -521,23 +580,40 @@ export function PaymentsPage({
               />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-9 w-[140px] border-[#E3E8EE] text-sm"
-                placeholder="From"
-                aria-label="Date from"
-              />
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-9 w-[140px] border-[#E3E8EE] text-sm"
-                placeholder="To"
-                aria-label="Date to"
-              />
+            <div className="flex flex-wrap gap-2 items-end">
+              <Select value={datePreset} onValueChange={(v) => setDatePreset(v as DatePreset)}>
+                <SelectTrigger className="w-[160px] h-9 border-[#E3E8EE] text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="this_week">This Week</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
+                  <SelectItem value="this_quarter">This Quarter</SelectItem>
+                  <SelectItem value="this_year">This Year</SelectItem>
+                  <SelectItem value="last_12_months">Last 12 Months</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
+              {datePreset === "custom" && (
+                <>
+                  <Input
+                    type="date"
+                    value={customDateFrom}
+                    onChange={(e) => setCustomDateFrom(e.target.value)}
+                    className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+                    aria-label="Date from"
+                  />
+                  <span className="text-sm text-[#8898AA]">to</span>
+                  <Input
+                    type="date"
+                    value={customDateTo}
+                    onChange={(e) => setCustomDateTo(e.target.value)}
+                    className="h-9 w-[150px] border-[#E3E8EE] text-sm"
+                    aria-label="Date to"
+                  />
+                </>
+              )}
 
               <Select
                 value={methodFilter}
