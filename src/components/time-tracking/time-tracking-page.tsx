@@ -584,9 +584,9 @@ export function TimeTrackingPage({
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-[#0A2540]">
             Time Tracking
@@ -598,7 +598,6 @@ export function TimeTrackingPage({
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            size="sm"
             onClick={handleExport}
             className="border-[#E3E8EE] text-[#425466]"
           >
@@ -607,7 +606,6 @@ export function TimeTrackingPage({
           </Button>
           <Button
             onClick={openAddDialog}
-            size="sm"
             className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
           >
             <Plus className="w-4 h-4 mr-1.5" />
@@ -1202,6 +1200,6 @@ export function TimeTrackingPage({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   )
 }
