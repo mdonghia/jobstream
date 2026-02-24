@@ -177,9 +177,9 @@ There is no click-to-edit detail view for team members. Role changes and deactiv
     category: "getting-started",
     title: "Adding Your Services",
     excerpt: "Set up your service catalog so you can quickly add line items to quotes and jobs.",
-    lastUpdated: "2026-02-01",
+    lastUpdated: "2026-02-24",
     readingTime: 3,
-    keywords: ["services", "catalog", "line items", "pricing", "setup"],
+    keywords: ["services", "catalog", "line items", "pricing", "setup", "checklist templates"],
     content: `## What Are Services?
 
 Services are the predefined line items that represent the work your business offers. By setting up a service catalog, you can quickly add items to quotes and invoices without retyping descriptions and prices every time.
@@ -201,6 +201,16 @@ Each service includes the following information:
 - **Tax** -- Whether this service is taxable. When enabled, the default tax rate from your business settings is applied.
 - **Category** -- Optionally group services into categories like "Maintenance," "Repair," or "Installation" for easier organization. You can also manage categories (add, rename, or delete) using the **Manage Categories** button at the top of the Services tab.
 
+## Linking Checklist Templates to Services
+
+You can link a checklist template to any service. When a service with a linked checklist is added to a job, the checklist items auto-populate on the job -- saving time and ensuring consistency. To link a template:
+
+1. Edit a service from the Services settings page.
+2. Select a checklist template from the **Checklist Template** dropdown.
+3. Save the service.
+
+Checklist templates are created and managed in **Settings > Checklists**. See the "Using Job Checklists" article for more details on creating templates.
+
 ## Using Services on Quotes and Invoices
 
 Once your catalog is set up, adding services to documents is fast:
@@ -219,7 +229,8 @@ You can edit any service at any time from the Services settings page. Changes ap
 
 - Be specific with names: "2-Ton AC Unit Installation" is more helpful than "Installation."
 - Review your pricing quarterly to keep rates current.
-- Use categories to keep a large catalog organized.`,
+- Use categories to keep a large catalog organized.
+- Link checklist templates to your most common services so jobs are set up with the right tasks automatically.`,
   },
   {
     slug: "connecting-stripe",
@@ -336,7 +347,7 @@ Once saved, the customer appears in your customer list and is available for sele
     category: "managing-customers",
     title: "Understanding the Customer Detail Page",
     excerpt: "A tour of the customer profile page and all its tabs.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 3,
     keywords: ["customer profile", "customer detail", "tabs", "overview", "history"],
     content: `## Customer Detail Overview
@@ -380,9 +391,9 @@ View all payments associated with this customer, including online and manually r
 
 View and manage internal notes for this customer. Notes are private and visible only to your team.
 
-## Communications Tab
+## Messages Tab
 
-This tab is a placeholder that says "Communication history will appear here." Full communication history integration is planned for a future update.
+The Messages tab shows a two-way conversation thread between your business and the customer. Messages sent by the customer through the client portal appear here. You can read and reply to portal messages directly from this tab. Replies you send appear in the customer's portal Messages page, creating a seamless communication channel without leaving JobStream.
 
 ### Tips
 
@@ -501,9 +512,9 @@ To edit a property's details, use the **Edit Customer** form (side sheet). Prope
     category: "quotes-estimates",
     title: "Creating a Quote",
     excerpt: "Step-by-step walkthrough of building a professional quote in JobStream.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 4,
-    keywords: ["create quote", "estimate", "quote builder", "line items", "pricing"],
+    keywords: ["create quote", "estimate", "quote builder", "line items", "pricing", "multi-option", "options"],
     content: `## Overview
 
 Quotes allow you to present your pricing to customers before work begins. A well-crafted quote sets clear expectations and helps close the deal.
@@ -523,6 +534,10 @@ Start by choosing who the quote is for. The customer field is a combobox (cmdk-b
 Line items are the individual services or products on your quote. Click **Add Line Item** to add a new row. Each row has a **Service** dropdown -- select a service from the dropdown to auto-fill the item name, price, and tax setting. Choose **Custom Item** from the dropdown to enter your own description and price.
 
 For each line item, set the **quantity** and **unit price**. Taxability is determined automatically when you select a service from the catalog based on the service's tax setting. The subtotal, tax, and total are calculated automatically as you add items.
+
+## Multi-Option Quotes
+
+You can present your customer with multiple pricing options on a single quote. Click the **Add Options** button to enable multi-option mode. You can create up to 4 named options (e.g., "Basic," "Standard," "Premium"), each with its own set of line items and pricing. This is ideal for offering tiered service levels -- for example, a basic cleaning vs. a deep cleaning vs. a deep cleaning with add-ons. Each option displays its own subtotal, tax, and total. When the customer views the quote in the portal, they select which option they want before approving.
 
 ## Setting Quote Details
 
@@ -599,7 +614,7 @@ The Quotes list page lets you filter by status. Use the "Sent" filter to see quo
     category: "quotes-estimates",
     title: "Customer Approval and Decline Process",
     excerpt: "What happens when a customer approves or declines a quote.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 2,
     keywords: ["approve", "decline", "accept", "reject", "response"],
     content: `## How Customers Respond to Quotes
@@ -608,9 +623,10 @@ When a customer opens a quote in the client portal, they see the full details of
 
 ## When a Customer Approves
 
-1. The customer clicks **Approve** on the quote.
-2. The quote status changes to **Approved** in the database.
-3. The quote is now ready to be converted into a job.
+1. For multi-option quotes, the customer first selects which option they want before approving.
+2. The customer clicks **Approve** on the quote.
+3. The quote status changes to **Approved** in the database. For multi-option quotes, the selected option is recorded.
+4. The quote is now ready to be converted into a job.
 
 Note: No email or in-app notification is sent when a quote is approved. The status update happens in the database only. Check your quotes list periodically for status changes.
 
@@ -640,8 +656,8 @@ The approval and decline experience is designed to be simple and mobile-friendly
     slug: "converting-quote-to-job",
     category: "quotes-estimates",
     title: "Converting a Quote to a Job",
-    excerpt: "Turn an approved quote into a scheduled job with one click.",
-    lastUpdated: "2026-02-22",
+    excerpt: "Turn an approved quote into an unscheduled job with one click.",
+    lastUpdated: "2026-02-24",
     readingTime: 2,
     keywords: ["convert", "quote to job", "approved", "create job"],
     content: `## One-Click Conversion
@@ -654,7 +670,7 @@ One of the most time-saving features in JobStream is the ability to convert an a
 2. Click the **Convert to Job** button at the top of the quote.
 3. The job is created directly in the database with all details from the quote (customer, line items, amounts) and you are redirected to the new job's detail page.
 
-This is a one-click operation -- no intermediate form opens. The job is created immediately with the quote's customer and line items. The job defaults to starting "now" with a 2-hour duration window.
+This is a one-click operation -- no intermediate form opens. The job is created immediately with the quote's customer and line items. The job is created as **Unscheduled** so the business owner can set a proper date and time.
 
 ## Requirements
 
@@ -666,11 +682,11 @@ After conversion, the original quote is marked with a "Converted" badge and link
 
 ## After Conversion
 
-Since the job is created with default scheduling, you may want to edit the job afterward to set the correct date, time, team member assignment, and any additional details like notes or checklists.
+The converted job appears as **Unscheduled** in your Jobs list and in the unscheduled jobs sidebar on the Schedule page. From there, you can set the correct date, time, team member assignment, and any additional details like notes or checklists. Drag-and-drop the job from the unscheduled sidebar onto a calendar time slot for quick scheduling.
 
 ### Tips
 
-- Edit the job after conversion to set the correct schedule and team member assignment.
+- Schedule the unscheduled job promptly after conversion so the customer gets an appointment confirmation.
 - Review the line items after conversion to add any internal details that were not on the customer-facing quote.
 - Use the link between the quote and job to quickly reference original pricing if questions arise.`,
   },
@@ -859,7 +875,7 @@ Colors are set at invite time when a team member is first added. Team member col
     category: "scheduling-calendar",
     title: "Managing Unscheduled Jobs",
     excerpt: "Use the unscheduled jobs sidebar to keep track of work that needs scheduling.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 2,
     keywords: ["unscheduled", "sidebar", "backlog", "pending", "schedule"],
     content: `## What Are Unscheduled Jobs?
@@ -868,7 +884,7 @@ Unscheduled jobs are jobs that have been created but do not yet have a date and 
 
 ## Common Reasons for Unscheduled Jobs
 
-- A quote was converted to a job but no date was set yet.
+- A quote was converted to a job -- converted jobs always start as unscheduled so you can set a proper date and time.
 - A booking was confirmed, which creates an unscheduled job automatically.
 - A customer requested work but you are waiting to confirm availability.
 - A job was created as a placeholder while details are being finalized.
@@ -963,7 +979,7 @@ If you accidentally move or resize a job, a toast notification appears for 5 sec
     category: "job-management",
     title: "Creating a Job",
     excerpt: "Full walkthrough of the job creation form and all available options.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 4,
     keywords: ["create job", "new job", "job form", "line items"],
     content: `## Overview
@@ -985,12 +1001,14 @@ Select the customer this job is for. Start typing their name to search. If the c
 A brief description of the work, such as "Quarterly HVAC Maintenance" or "Kitchen Faucet Replacement." This title appears on the calendar and in lists.
 
 ### Line Items
-Add the services and materials for this job. Services from your catalog appear as clickable buttons (up to 8 displayed, e.g., "+ HVAC Repair"). Click a service button to add it as a line item. You can also click the **+ Custom Item** button to add a custom line item with your own description and price. Set the quantity and price for each line item.
+Add the services for this job. Services from your catalog appear as clickable buttons (up to 8 displayed, e.g., "+ HVAC Repair"). Click a service button to add it as a line item. You can also click the **+ Custom Item** button to add a custom line item with your own description and price. Set the quantity and price for each line item. If a service has a linked checklist template, the checklist auto-populates when the service is added.
 
 ### Schedule
 - **Start Date** (optional) -- When the job should be performed. If left blank, the job is created as unscheduled and appears in the unscheduled jobs sidebar on the Schedule page.
 - **Start Time** -- The appointment start time.
 - **Duration** -- A dropdown to set the job duration. The end time is calculated automatically from the start time plus the selected duration.
+
+The arrival window (start time through end time) is displayed on the job detail page and is also visible to customers in the customer portal.
 
 ### Priority
 Set the job priority level: **Low**, **Medium**, **High**, or **Urgent**. Priority helps your team understand which jobs need immediate attention.
@@ -1002,7 +1020,7 @@ Select one or more team members to perform the job. The job appears on their ind
 Add internal notes for your team. These are not visible to the customer and are perfect for instructions like "Enter through the side gate" or "Customer prefers morning appointments."
 
 ### Checklist
-Add a checklist of items to complete during the job. Technicians can check these off as they work, ensuring nothing is missed.
+Select from your existing checklist templates to add a predefined set of items for the job. If you added a service with a linked checklist template, the checklist is already populated automatically. Technicians can check items off as they work, ensuring nothing is missed.
 
 ## Saving the Job
 
@@ -1069,21 +1087,21 @@ When you click **Complete Job**, a modal appears. If any checklist items are inc
     slug: "working-on-a-job",
     category: "job-management",
     title: "Working on a Job",
-    excerpt: "Use checklists, notes, file attachments, and time tracking during active jobs.",
-    lastUpdated: "2026-02-22",
+    excerpt: "Use checklists, notes, file attachments, On My Way notifications, and time tracking during active jobs.",
+    lastUpdated: "2026-02-24",
     readingTime: 4,
-    keywords: ["checklist", "notes", "photos", "field", "technician", "file upload", "attachments", "drag and drop"],
+    keywords: ["checklist", "notes", "photos", "field", "technician", "file upload", "attachments", "drag and drop", "on my way", "arrival"],
     content: `## In the Field
 
 Once a job is in progress, your field technicians can use JobStream to track their work, communicate with the office, and document the job. The job detail page organizes this information into tabs: **Checklist**, **Notes**, **Attachments**, and **Time**.
 
+## On My Way Notifications
+
+Before heading to a job site, you can send an "On My Way" notification to the customer. This sends an email and/or SMS message that reads: "[Name] from [Company] is on the way, performing [Job Title] at [Address]." This keeps the customer informed that a technician is en route without requiring a phone call.
+
 ## Checklists
 
-If the job has a checklist, technicians see it on the job detail page under the Checklist tab. Each item has a checkbox that can be toggled to mark it as completed or not completed. The checklist persists on the server, so progress is saved immediately.
-
-### Adding Checklist Items
-
-Checklist items can only be added during job creation or via the Edit form (\`/jobs/{id}/edit\`). When building a new job or editing an existing one, add checklist items in the Checklist section of the job form by typing a label and clicking the **+** button or pressing Enter to add each item. The Checklist tab on the job detail page only displays and toggles existing items -- you cannot add new items from there.
+If the job has a checklist, technicians see it on the job detail page under the Checklist tab. Each item has a checkbox that can be toggled to mark it as completed or not completed. The checklist persists on the server, so progress is saved immediately. Checklists are populated from checklist templates -- either selected during job creation or auto-populated when a service with a linked checklist template is added to the job. See the "Using Job Checklists" article for full details on creating and linking templates.
 
 ### Toggling Completion
 
@@ -1132,7 +1150,7 @@ The Time tab on the job detail page displays the actual start and end timestamps
     category: "job-management",
     title: "Completing a Job",
     excerpt: "How to mark a job complete and the options for creating an invoice.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 2,
     keywords: ["complete", "finish", "close", "invoice", "completion"],
     content: `## Marking a Job Complete
@@ -1161,6 +1179,8 @@ After completing the job, a separate prompt appears asking if you want to create
 - **Create Invoice** -- Generates an invoice from the job's line items. The invoice is created in Draft status so you can review it before sending.
 - **Not Now** -- Skips invoice creation. You can always create an invoice from the job later.
 
+**Note:** If you have the **Auto-create invoice when job completed** toggle enabled in Settings > General > Workflow Automation (it is ON by default), an invoice is created automatically when the job is completed and you will not see this prompt.
+
 ## After Completion
 
 Once completed, the job moves to the Completed status. It remains accessible in your job list and in the customer's history. Completed jobs are removed from the calendar view to keep the schedule focused on upcoming and active work. The job remains accessible from the Jobs list and the customer's history.
@@ -1178,12 +1198,23 @@ If you created an invoice, navigate to **Invoices** to review and send it to the
     category: "job-management",
     title: "Setting Up Recurring Jobs",
     excerpt: "Automate scheduling for repeat services like weekly maintenance.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 3,
-    keywords: ["recurring", "repeat", "schedule", "automatic", "maintenance"],
+    keywords: ["recurring", "repeat", "schedule", "automatic", "maintenance", "cycling"],
     content: `## What Are Recurring Jobs?
 
-Recurring jobs automatically generate new job entries on a set schedule. This is ideal for repeat services like weekly lawn care, monthly cleaning, quarterly inspections, or annual maintenance contracts.
+Recurring jobs automate scheduling for repeat services like weekly lawn care, monthly cleaning, quarterly inspections, or annual maintenance contracts. Rather than generating multiple separate job entries, a recurring job is a single job that cycles between Scheduled and Completed on a set schedule.
+
+## How the Cycling Model Works
+
+A recurring job works as follows:
+
+1. The job is scheduled for its first occurrence and appears on the calendar as normal.
+2. When the job is completed, an invoice is automatically created for that visit.
+3. The job then automatically reschedules itself to the next occurrence based on the recurrence pattern.
+4. This cycle repeats -- Scheduled, Completed (invoice created), rescheduled to next date -- until the end date is reached or you stop the recurrence.
+
+This means you always have one job record that represents the ongoing service, rather than dozens of separate job instances.
 
 ## Creating a Recurring Job
 
@@ -1203,29 +1234,34 @@ Select a frequency to set how often the job repeats.
 - **Never** -- The recurrence continues indefinitely until you manually stop it.
 - **On a date** -- Specify a specific date when the recurrence should stop.
 
-4. Click **Create Job** (for new jobs) or **Save Changes** (for editing existing jobs) to save the recurring series.
+4. Click **Create Job** (for new jobs) or **Save Changes** (for editing existing jobs) to save the recurring job.
 
-## Generating Recurring Instances
+## What Happens on Completion
 
-After setting up a recurring job, click the **Generate Schedule** button on the job detail page to create the individual job instances. This button appears in the recurring section of the job details and generates the next batch of occurrences based on your recurrence pattern.
+Each time a recurring job is marked as completed:
 
-## How Recurring Jobs Appear
+- An invoice is automatically created for that visit's line items.
+- The job status resets to **Scheduled** with the next occurrence date based on the recurrence pattern.
+- The job reappears on the calendar at its next scheduled date.
 
-Each generated instance appears on the calendar as its own independent job that can be individually edited, reassigned, or rescheduled.
+## Editing a Recurring Job
 
-## Editing Recurring Job Instances
+Since there is only one job record, any edits you make (line items, notes, team member assignment) carry forward to future occurrences. You can adjust the recurrence pattern at any time from the job edit form.
 
-Each generated instance is edited independently. There is no option to edit "this and all future" or "all jobs in the series." To make changes, open the individual job instance and edit it like any other job.
+## Stopping a Recurring Job
 
-## Cancelling Recurring Jobs
+To stop a recurring job from continuing:
 
-There is no "Cancel Series" option. To stop recurring jobs, cancel each individual job instance separately.
+- Edit the job and set an **end date** to stop at a specific date.
+- Edit the job and disable the **Recurring** toggle to stop it after the current occurrence.
+- Cancel the job to stop it immediately.
 
 ### Tips
 
 - Set up recurring jobs for all your maintenance contract customers to ensure nothing falls through the cracks.
-- Review recurring series quarterly to adjust for seasonal changes (for example, pausing lawn care in winter).
-- Assign the same team member to recurring jobs for service consistency.`,
+- Review recurring jobs quarterly to adjust for seasonal changes (for example, pausing lawn care in winter).
+- Assign the same team member to recurring jobs for service consistency.
+- Check the invoices generated from recurring jobs to make sure pricing stays current.`,
   },
   // ============================================
   // INVOICING & PAYMENTS
@@ -1268,7 +1304,7 @@ For billing that is not tied to a specific job (such as a consultation fee or de
 - **Invoice Number** -- Auto-generated sequentially. You can customize the prefix in Settings.
 - **Invoice Date** -- When the invoice was issued. Defaults to today.
 - **Due Date** -- When payment is expected. Defaults to the number of days configured in your Default Invoice Due (days) setting.
-- **Line Items** -- Services and materials with quantities and prices.
+- **Line Items** -- Services with quantities and prices.
 - **Tax** -- Applied automatically based on your settings, or adjustable per line item.
 - **Discount** -- Add a percentage or fixed amount discount if applicable.
 - **Customer Note (visible on invoice)** -- Notes or payment instructions that appear on the customer-facing invoice.
@@ -1555,9 +1591,9 @@ Manual payments (cash, check, etc.) show edit (pencil) and delete (trash) icons 
     category: "client-portal",
     title: "How the Client Portal Works",
     excerpt: "Understand how customers access and use the self-service portal.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 4,
-    keywords: ["portal", "client portal", "access", "customer portal", "self-service", "invoice portal", "quote portal", "booking form"],
+    keywords: ["portal", "client portal", "access", "customer portal", "self-service", "invoice portal", "quote portal", "booking form", "messaging", "login"],
     content: `## What Is the Client Portal?
 
 The client portal is a secure, customer-facing website where your customers can view quotes, pay invoices, and download PDF documents. It provides a professional, self-service experience that reduces phone calls and speeds up approvals and payments.
@@ -1583,15 +1619,17 @@ Anyone can access this page to request a service booking. The form allows visito
 
 ## How Customers Access the Portal
 
-Customers access the portal through links in the emails they receive from you. Every quote email and invoice email includes a link that opens the relevant document in the portal.
+Customers can access the portal in two ways:
 
-There is no separate login required. Each link contains a secure, unique access token that authenticates the customer automatically. This means customers do not need to remember a username or password.
+1. **Email links** -- Every quote email and invoice email includes a link that opens the relevant document in the portal. These links contain a secure, unique access token that authenticates the customer automatically.
+2. **Portal login** -- Customers can log in to the portal using email verification. They enter their email address and receive a verification code to access their full portal dashboard, including messages.
 
 ## What Customers Can Do
 
 - **View and approve or decline quotes** -- with full line item detail and PDF download.
 - **View and pay invoices** -- with line item detail, PDF download, and online payment via Stripe Checkout.
 - **Request new service** -- through the public booking form at your unique booking URL.
+- **Send and receive messages** -- the Messages page shows a two-way conversation between the customer and your business. Customers can send messages and see your replies in a threaded view.
 
 ## Portal Branding
 
@@ -1608,9 +1646,9 @@ The client portal displays your business name, contact information, and logo. It
     category: "client-portal",
     title: "Portal Pages Overview",
     excerpt: "A tour of the different portal pages your customers can access.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 3,
-    keywords: ["portal pages", "customer view", "portal home", "invoice portal", "quote portal"],
+    keywords: ["portal pages", "customer view", "portal home", "invoice portal", "quote portal", "messages"],
     content: `## How Portal Pages Work
 
 The JobStream client portal is document-based. Rather than a single dashboard, each quote and invoice has its own dedicated portal page with a unique access token URL. Customers access these pages through links in the emails they receive.
@@ -1645,13 +1683,16 @@ Each quote has a portal page at \`/portal/{your-slug}/quotes/{token}\`. Customer
 
 The public booking form at \`/book/{your-slug}\` lets anyone request a service. It is not tied to a specific document -- it is a standalone form for new booking requests. See the "Public Booking Form" article for full details.
 
+## Messages Page
+
+Customers who log in to the portal with email verification can access the Messages page. This page shows a two-way conversation thread between the customer and your business. Customers can type and send new messages, and see replies from your team. Business owners read and reply to portal messages from the **Messages** tab on the customer detail page in JobStream.
+
 ## Security
 
-Each portal page URL contains a unique access token that serves as authentication. This means:
+Portal pages use two authentication methods:
 
-- No login or account creation is required from customers.
-- Each token grants access to only one specific document.
-- Tokens are generated when quotes and invoices are created and included in notification emails.
+- **Token-based access** -- Each quote and invoice URL contains a unique access token that grants access to that specific document. No login is required.
+- **Email verification login** -- Customers can log in with their email address to access the full portal dashboard, including messages. A verification code is sent to their email for authentication.
 
 ### Tips
 
@@ -1720,7 +1761,7 @@ If a customer reports they cannot pay:
     category: "client-portal",
     title: "Customers Approving Quotes",
     excerpt: "How the quote approval and decline process works from the customer's side.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 3,
     keywords: ["approve quote", "customer approval", "portal approval", "accept quote", "decline quote", "pdf"],
     content: `## Customer Quote Experience
@@ -1742,10 +1783,15 @@ Understanding what your customers see when they receive a quote helps you commun
 
 Note: Your customer message (if included) appears below the line items and totals section.
 
+### Multi-Option Quotes
+
+If the quote includes multiple options, the customer sees each option displayed with its own name, line items, and total. Before approving, the customer selects which option they want. Only one option can be selected.
+
 ## Approving a Quote
 
 When the customer clicks **Approve**:
 
+- For multi-option quotes, the customer must first select their preferred option before the Approve button becomes active.
 - A confirmation message appears thanking them for their approval.
 - The quote status updates to "Approved" immediately on the page and in the database.
 
@@ -2619,10 +2665,10 @@ Password requirements:
     slug: "business-settings",
     category: "account-settings",
     title: "Business Settings",
-    excerpt: "Configure your business info, tax rates, document prefixes, and operating hours.",
-    lastUpdated: "2026-02-22",
-    readingTime: 3,
-    keywords: ["business settings", "company", "tax", "hours", "configuration", "prefixes"],
+    excerpt: "Configure your business info, tax rates, document prefixes, operating hours, and workflow automation.",
+    lastUpdated: "2026-02-24",
+    readingTime: 4,
+    keywords: ["business settings", "company", "tax", "hours", "configuration", "prefixes", "workflow automation", "auto-invoice", "payment reminders"],
     content: `## Accessing Business Settings
 
 1. Click **Settings** in the left sidebar.
@@ -2670,10 +2716,24 @@ Customize the prefixes for your document numbers:
 - **Default Invoice Due (days)** -- A number input that sets how many days after the invoice date payment is due. Enter a number like 15 or 30.
 - **Default Quote Validity (days)** -- A number input that sets how many days a quote remains valid before expiring.
 
+## Workflow Automation
+
+The General settings page includes a **Workflow Automation** section with three toggles that automate common business tasks. All three default to ON for new accounts.
+
+### Auto-Create Invoice When Job Completed
+When enabled, an invoice is automatically created in Draft status whenever a job is marked as completed. This speeds up your billing cycle by eliminating the manual step of creating invoices after each job.
+
+### Send Payment Reminders for Unpaid Invoices
+When enabled, JobStream automatically sends reminder emails to customers with unpaid invoices. This helps reduce outstanding balances without manual follow-up.
+
+### Reminder Schedule (Days)
+Configure when payment reminders are sent. The default schedule sends reminders at **3 days**, **7 days**, and **14 days** after the invoice due date. You can adjust these intervals to match your collection process.
+
 ### Tips
 
 - Review your tax settings with your accountant to ensure compliance with local regulations.
-- Update business hours seasonally if your schedule changes (extended summer hours, holiday closures).`,
+- Update business hours seasonally if your schedule changes (extended summer hours, holiday closures).
+- Leave workflow automation toggles enabled unless you prefer manual control over invoicing and payment reminders.`,
   },
   {
     slug: "managing-your-team",
@@ -3245,25 +3305,39 @@ Click **Save Changes** to save your changes. The job detail page updates immedia
     slug: "job-checklists",
     category: "job-management",
     title: "Using Job Checklists",
-    excerpt: "Add checklist items during job creation and track completion in the field.",
-    lastUpdated: "2026-02-22",
-    readingTime: 2,
-    keywords: ["checklist", "tasks", "items", "completion", "toggle", "job creation"],
+    excerpt: "Create checklist templates in Settings, link them to services, and track completion in the field.",
+    lastUpdated: "2026-02-24",
+    readingTime: 3,
+    keywords: ["checklist", "tasks", "items", "completion", "toggle", "job creation", "checklist templates", "settings"],
     content: `## What Are Job Checklists?
 
 Job checklists are task lists attached to individual jobs. They help ensure that every step of a job is completed consistently, especially for complex or multi-step services.
 
-## Adding Checklist Items During Job Creation
+## Creating Checklist Templates
 
-When creating a new job (or editing an existing one):
+Checklist templates are created and managed in **Settings > Checklists**. A template is a reusable set of checklist items that you can apply to jobs.
 
-1. Scroll to the **Checklist** section of the job form.
-2. Type a label for the checklist item in the input field.
-3. Click the **+** button (or press Enter) to add the item.
-4. Repeat for each item you want to include.
-5. To remove an item before saving, click the **trash can** (Trash2) icon next to it.
+1. Go to **Settings** in the left sidebar.
+2. Click the **Checklists** tab.
+3. Click **Add Template** to create a new checklist template.
+4. Give the template a name (e.g., "HVAC Inspection" or "Move-Out Cleaning").
+5. Add individual checklist items to the template.
+6. Save the template.
 
-Checklist items are saved when you create or update the job.
+You can edit or delete templates at any time from this page.
+
+## Linking Services to Checklist Templates
+
+Checklist templates and services can be linked bidirectionally:
+
+- **From a service:** Edit a service in Settings > Services and select a checklist template from the Checklist Template dropdown.
+- **From a template:** Edit a checklist template in Settings > Checklists and link it to one or more services.
+
+When a service with a linked checklist template is added to a job, the checklist items auto-populate on the job automatically. This saves time and ensures every job has the right tasks from the start.
+
+## Adding Checklists in the Job Builder
+
+When creating or editing a job, the Checklist section lets you select from your existing checklist templates. Choose a template to populate the job with its predefined items. If a service with a linked checklist is already on the job, that checklist is applied automatically.
 
 ## Tracking Completion on the Job Detail Page
 
@@ -3280,7 +3354,7 @@ The Checklist tab header shows the completion count in a compact format (e.g., "
 
 ## Best Practices for Checklists
 
-- **Standard checklists** -- Create consistent checklists for each service type (e.g., "HVAC Inspection" always includes "Check filters," "Test thermostat," "Inspect ductwork").
+- **Use templates** -- Create a checklist template for each service type (e.g., "HVAC Inspection" always includes "Check filters," "Test thermostat," "Inspect ductwork") and link it to the corresponding service.
 - **Safety items** -- Include safety checks as checklist items to ensure compliance.
 - **Quality control** -- Add final inspection items like "Clean work area" and "Test all fixtures."
 - **Documentation** -- Include "Take before photo" and "Take after photo" as checklist items.
@@ -3288,6 +3362,7 @@ The Checklist tab header shows the completion count in a compact format (e.g., "
 ### Tips
 
 - Keep checklist items short and actionable.
+- Link checklist templates to services so checklists auto-populate whenever those services are added to a job.
 - Use checklists to train new team members on your standard procedures.
 - Review completed checklists before marking a job as complete to ensure nothing was missed.`,
   },
@@ -3424,7 +3499,7 @@ The Pay button does not appear if:
     category: "client-portal",
     title: "Quote Portal Page",
     excerpt: "Detailed look at what customers see on the quote portal page.",
-    lastUpdated: "2026-02-22",
+    lastUpdated: "2026-02-24",
     readingTime: 3,
     keywords: ["quote portal", "portal", "approve", "decline", "pdf", "customer view"],
     content: `## Quote Portal Overview
@@ -3463,12 +3538,15 @@ A detailed table showing every line item:
 ### Customer Message
 If you included a personal message when creating the quote, it appears below the line items and totals section.
 
+### Multi-Option Quotes
+If the quote includes multiple options, each option is displayed with its own name, line items, and total. The customer reviews all available options and selects the one they want before approving.
+
 ## Action Buttons
 
 ### When Awaiting Response (Status: Sent)
 Two prominent action buttons appear:
 
-- **Approve** -- Clicking this immediately updates the quote status to Approved. A success confirmation appears on the page, and you receive a notification in JobStream.
+- **Approve** -- For multi-option quotes, the customer must first select their preferred option. Clicking Approve then immediately updates the quote status to Approved with the selected option recorded. A success confirmation appears on the page, and you receive a notification in JobStream.
 - **Decline** -- Clicking this opens a text area where the customer can optionally explain why they are declining. After entering a reason (or leaving it blank), they click **Confirm Decline** to confirm. The quote status updates to Declined.
 
 ### After Action Taken
