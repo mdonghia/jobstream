@@ -16,26 +16,33 @@ export async function submitIssue(formData: FormData) {
       return { error: "Description is required" }
     }
 
-    // Upload screenshot if provided
+    // Upload screenshot if provided (non-fatal -- still send email if upload fails)
     let screenshotUrl: string | null = null
     if (screenshot && screenshot.size > 0) {
-      const { uploadFile } = await import("@/lib/s3")
-      const sanitizedName = screenshot.name.replace(/[^a-zA-Z0-9.-]/g, "_")
-      const fileName = `${Date.now()}-${sanitizedName}`
-      const key = `${user.organizationId}/issues/${fileName}`
-      const buffer = Buffer.from(await screenshot.arrayBuffer())
-      screenshotUrl = await uploadFile(buffer, key, screenshot.type)
-
-      // Resolve to accessible URL
-      const { getFileUrl } = await import("@/lib/s3")
-      screenshotUrl = await getFileUrl(screenshotUrl)
+      try {
+        const { uploadFile, getFileUrl } = await import("@/lib/s3")
+        const sanitizedName = screenshot.name.replace(/[^a-zA-Z0-9.-]/g, "_")
+        const fileName = `${Date.now()}-${sanitizedName}`
+        const key = `${user.organizationId}/issues/${fileName}`
+        const buffer = Buffer.from(await screenshot.arrayBuffer())
+        const rawUrl = await uploadFile(buffer, key, screenshot.type)
+        screenshotUrl = await getFileUrl(rawUrl)
+      } catch (uploadErr) {
+        console.error("Screenshot upload failed (continuing without it):", uploadErr)
+      }
     }
 
     // Get organization name for context
-    const org = await prisma.organization.findUnique({
-      where: { id: user.organizationId },
-      select: { name: true },
-    })
+    let orgName = "Unknown"
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: user.organizationId },
+        select: { name: true },
+      })
+      orgName = org?.name || "Unknown"
+    } catch (orgErr) {
+      console.error("Failed to fetch org name:", orgErr)
+    }
 
     const subjectPreview = description.length > 50
       ? description.substring(0, 50) + "..."
@@ -58,7 +65,7 @@ export async function submitIssue(formData: FormData) {
           </tr>
           <tr>
             <td style="padding: 8px 12px; font-weight: 600; vertical-align: top; color: #425466;">Organization</td>
-            <td style="padding: 8px 12px;">${org?.name || "Unknown"}</td>
+            <td style="padding: 8px 12px;">${orgName}</td>
           </tr>
           ${pageUrl ? `
           <tr>
