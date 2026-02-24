@@ -753,7 +753,9 @@ export async function verifyStripeConnection() {
     }
 
     const account = await stripe.accounts.retrieve(org.stripeAccountId)
-    const isOnboarded = !!(account.charges_enabled && account.payouts_enabled)
+    const isOnboarded = !!(
+      account.details_submitted || (account.charges_enabled && account.payouts_enabled)
+    )
 
     await prisma.organization.update({
       where: { id: user.organizationId },

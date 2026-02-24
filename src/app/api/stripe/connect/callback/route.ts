@@ -24,9 +24,11 @@ export async function GET() {
       )
     }
 
-    // Verify the account is fully onboarded
+    // Verify the account has completed onboarding
     const account = await stripe.accounts.retrieve(org.stripeAccountId)
-    const isOnboarded = !!(account.charges_enabled && account.payouts_enabled)
+    const isOnboarded = !!(
+      account.details_submitted || (account.charges_enabled && account.payouts_enabled)
+    )
 
     await prisma.organization.update({
       where: { id: user.organizationId },
