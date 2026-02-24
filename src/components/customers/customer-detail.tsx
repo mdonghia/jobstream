@@ -357,7 +357,7 @@ export function CustomerDetail({
 
       {/* Tabs */}
       <Tabs defaultValue="overview">
-        <TabsList className="bg-transparent border-b border-[#E3E8EE] rounded-none w-full justify-start h-auto p-0 gap-0 overflow-x-auto overflow-y-hidden">
+        <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden">
           {[
             { value: "overview", label: "Overview" },
             { value: "quotes", label: "Quotes", count: quotes.length },
@@ -370,7 +370,7 @@ export function CustomerDetail({
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="rounded-none border-b-2 border-transparent data-[state=active]:border-[#635BFF] data-[state=active]:text-[#635BFF] data-[state=active]:shadow-none px-4 py-2.5 text-sm text-[#8898AA] hover:text-[#425466]"
+              className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none"
             >
               {tab.label}
               {tab.count !== undefined && (

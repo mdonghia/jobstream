@@ -339,37 +339,37 @@ export function InvoiceList({
       {/* Status Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-4">
         <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden">
-          <TabsTrigger value="ALL" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="ALL" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             All
             <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "ALL" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {allCount}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="DRAFT" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="DRAFT" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             Draft
             <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "DRAFT" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {statusCounts.DRAFT ?? 0}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="OUTSTANDING" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="OUTSTANDING" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             Outstanding
             <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "OUTSTANDING" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {(statusCounts.SENT ?? 0) + (statusCounts.VIEWED ?? 0) + (statusCounts.PARTIALLY_PAID ?? 0) + (statusCounts.OVERDUE ?? 0)}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="OVERDUE" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="OVERDUE" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             Overdue
             <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "OVERDUE" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {statusCounts.OVERDUE ?? 0}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="PAID" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="PAID" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             Paid
             <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "PAID" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {statusCounts.PAID ?? 0}
             </span>
           </TabsTrigger>
-          <TabsTrigger value="VOID" className="rounded-none border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+          <TabsTrigger value="VOID" className="rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-3 py-2 h-auto flex-none -mb-px after:hidden text-sm font-medium text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] data-[state=active]:bg-transparent data-[state=active]:shadow-none">
             Void
             <span className={`ml-1.5 text-xs rounded-full px-1.5 py-0.5 ${activeTab === "VOID" ? "bg-[#635BFF]/10 text-[#635BFF]" : "bg-gray-100 text-[#8898AA]"}`}>
               {statusCounts.VOID ?? 0}
