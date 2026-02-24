@@ -57,7 +57,7 @@ When you log in, you land on the main Dashboard. The left sidebar provides acces
 12. **Bookings** -- Online booking requests from customers.
 13. **Help** -- Access the Help Center articles.
 
-The top bar includes a notification bell icon (with an unread count badge) and a user avatar dropdown with **Profile** and **Sign Out** options. Your personal profile and sign-out are accessed from this top bar dropdown, not from the sidebar.
+The top bar includes a notification bell icon (with an unread count badge) and a user avatar dropdown with **Profile**, **Settings**, **Help Center**, and **Log Out** options. Your personal profile, settings access, help center, and sign-out are accessed from this top bar dropdown, not from the sidebar.
 
 ## Next Steps
 
@@ -199,7 +199,7 @@ Each service includes the following information:
 - **Default Price** -- The standard price you charge for this service. You can always adjust the price on individual quotes or invoices.
 - **Unit** -- How the service is measured. Common options include "per visit," "per hour," "per square foot," or "flat rate."
 - **Tax** -- Whether this service is taxable. When enabled, the default tax rate from your business settings is applied.
-- **Category** -- Optionally group services into categories like "Maintenance," "Repair," or "Installation" for easier organization.
+- **Category** -- Optionally group services into categories like "Maintenance," "Repair," or "Installation" for easier organization. You can also manage categories (add, rename, or delete) using the **Manage Categories** button at the top of the Services tab.
 
 ## Using Services on Quotes and Invoices
 
@@ -246,11 +246,11 @@ Before you begin, you need:
 1. Go to **Settings** in the left sidebar.
 2. Click the **Payments** tab.
 3. Click the **Connect with Stripe** button.
-4. You will be redirected to Stripe's secure onboarding flow.
+4. The Stripe onboarding flow opens in a new browser tab.
 5. Log into your existing Stripe account, or create a new one.
 6. Follow Stripe's prompts to verify your identity and business information.
 7. Authorize JobStream to process payments on your behalf.
-8. You will be redirected back to JobStream with a success confirmation.
+8. Return to the JobStream tab and click the **Verify Connection** button. JobStream checks your Stripe account status and confirms the connection.
 
 ## What Happens After Connection
 
@@ -869,6 +869,7 @@ Unscheduled jobs are jobs that have been created but do not yet have a date and 
 ## Common Reasons for Unscheduled Jobs
 
 - A quote was converted to a job but no date was set yet.
+- A booking was confirmed, which creates an unscheduled job automatically.
 - A customer requested work but you are waiting to confirm availability.
 - A job was created as a placeholder while details are being finalized.
 - A previously scheduled job was unassigned and returned to the backlog.
@@ -879,8 +880,9 @@ On the **Schedule** page, look for the unscheduled jobs panel. It shows a list o
 
 - Job title
 - Priority badge (if set)
-- Customer name
+- Customer name (clickable link to customer profile)
 - Job number
+- Preferred date and time (if the job originated from a booking)
 
 ## Scheduling an Unscheduled Job
 
@@ -922,7 +924,7 @@ To move a job to a different time or day:
 3. Drag it to the desired new time slot.
 4. Release to drop it in place.
 
-A confirmation dialog appears asking you to confirm the new date and time. Click **Confirm** to apply the change. The assigned team member and all other details remain unchanged.
+A confirmation dialog appears asking you to confirm the new date and time. The dialog notes that the customer will be notified of the change. Click **Confirm** to apply the change, and the customer receives an email about the rescheduled appointment. The assigned team member and all other details remain unchanged.
 
 ## Reassigning a Job
 
@@ -940,7 +942,7 @@ This is useful when a job takes longer or shorter than originally estimated.
 
 ## Undo Changes
 
-If you accidentally move or resize a job, use the undo notification that briefly appears after any drag action. Click **Undo** to revert the change.
+If you accidentally move or resize a job, a toast notification appears for 5 seconds after any drag action. Click **Undo** to revert the schedule change. Note that while the schedule change is undone, the customer notification email (if sent) cannot be recalled.
 
 ## Limitations
 
@@ -986,7 +988,7 @@ A brief description of the work, such as "Quarterly HVAC Maintenance" or "Kitche
 Add the services and materials for this job. Services from your catalog appear as clickable buttons (up to 8 displayed, e.g., "+ HVAC Repair"). Click a service button to add it as a line item. You can also click the **+ Custom Item** button to add a custom line item with your own description and price. Set the quantity and price for each line item.
 
 ### Schedule
-- **Start Date** (required) -- When the job should be performed. This field is required.
+- **Start Date** (optional) -- When the job should be performed. If left blank, the job is created as unscheduled and appears in the unscheduled jobs sidebar on the Schedule page.
 - **Start Time** -- The appointment start time.
 - **Duration** -- A dropdown to set the job duration. The end time is calculated automatically from the start time plus the selected duration.
 
@@ -1029,6 +1031,9 @@ Every job in JobStream moves through a series of statuses that reflect its curre
 ### 1. Scheduled
 The job has a confirmed date, time, and team member assignment. It appears on the calendar and the assigned team member can see it in their schedule. This is the starting status for new jobs.
 
+### Unscheduled
+Jobs that have the Scheduled status but do not yet have a date assigned are shown with an amber "Unscheduled" badge. These jobs appear in the unscheduled sidebar on the Schedule page and in the Unscheduled tab on the Jobs page. Once a date is assigned (via drag-and-drop or editing), the badge changes to Scheduled.
+
 ### 2. In Progress
 A team member has started working on the job. This status indicates active on-site work. The transition to In Progress happens by manually changing the status from the job detail page.
 
@@ -1036,7 +1041,9 @@ A team member has started working on the job. This status indicates active on-si
 The work is finished. Completing a job triggers the option to create an invoice and can also trigger automated actions like review requests.
 
 ### 4. Cancelled
-The job has been cancelled and will not be performed. Cancelled jobs are removed from the active calendar view but remain in your records for reference.
+The job has been cancelled and will not be performed. Cancelled jobs are removed from the calendar view but remain in your records for reference.
+
+> **Note:** Completed jobs are also hidden from the calendar, since they represent finished work.
 
 ## Changing a Job's Status
 
@@ -1156,7 +1163,7 @@ After completing the job, a separate prompt appears asking if you want to create
 
 ## After Completion
 
-Once completed, the job moves to the Completed status. It remains accessible in your job list and in the customer's history. The calendar slot shows the job as completed with a visual indicator.
+Once completed, the job moves to the Completed status. It remains accessible in your job list and in the customer's history. Completed jobs are removed from the calendar view to keep the schedule focused on upcoming and active work. The job remains accessible from the Jobs list and the customer's history.
 
 If you created an invoice, navigate to **Invoices** to review and send it to the customer.
 
@@ -1362,7 +1369,7 @@ If a customer makes a partial payment, record the amount received. The invoice s
 
 ## Payment History
 
-The payment history table on invoices is display-only. Once a payment is recorded, it cannot be edited or deleted.
+Manual payments (cash, check, etc.) can be edited or deleted from the Payments page. Use the pencil icon to edit or the trash icon to delete. Stripe-processed payments cannot be modified.
 
 ### Tips
 
@@ -1387,10 +1394,10 @@ When you have Stripe connected, customers can pay invoices directly through the 
 1. The customer receives an invoice email with a **View & Pay** button.
 2. Clicking the button opens the invoice in the client portal at \`/portal/{your-slug}/invoices/{token}\`.
 3. They review the invoice details, line items, and amount due. They can also download a PDF of the invoice.
-4. They click the **Pay Now** button.
+4. They click the **Pay $X.XX Now** button (the button shows the exact amount due).
 5. The customer is redirected to **Stripe Checkout**, a secure, hosted payment page managed entirely by Stripe.
 6. On the Stripe Checkout page, they enter their card details and complete the payment.
-7. After successful payment, a webhook from Stripe notifies JobStream automatically.
+7. After successful payment, the customer is redirected back to the invoice page where JobStream verifies the payment directly with Stripe and updates the status immediately. A "Payment received! Thank you for your payment." banner is displayed.
 8. The invoice status updates to Paid without any manual action required from you.
 
 ## What Happens in JobStream
@@ -1484,10 +1491,9 @@ The Payments page gives you a financial overview of all money coming into your b
 
 ## Summary Cards
 
-At the top of the page, you will see four summary cards displaying key financial metrics:
+At the top of the page, you will see three summary cards displaying key financial metrics:
 
 - **Received This Month** -- The total amount of all payments received in the current month.
-- **Received Last Month** -- The total amount of all payments received in the previous month.
 - **Outstanding** -- The total amount of unpaid invoices.
 - **Overdue** -- The portion of outstanding invoices that are past their due date.
 
@@ -1523,6 +1529,18 @@ Click the **Export** button to download your payment data as a CSV file. This is
 
 The export includes all visible payments based on your current filters, so filter first if you need a specific subset.
 
+## Recording Payments
+
+Click the **Add Payment** button in the top-right corner to record a manual payment. A two-step dialog walks you through:
+1. **Select Invoice** -- Search and select an outstanding invoice.
+2. **Enter Payment Details** -- Fill in the amount, method (Cash, Check, or Other), date, and optional reference and notes.
+
+Click **Record Payment** to save. The payment appears in the list and the invoice balance updates automatically.
+
+## Editing and Deleting Payments
+
+Manual payments (cash, check, etc.) show edit (pencil) and delete (trash) icons in the Actions column. Stripe-processed payments cannot be modified. Editing a payment lets you change the amount, method, reference, and notes. Deleting a payment removes it and recalculates the invoice balance.
+
 ### Tips
 
 - Review the Payments dashboard weekly to catch any issues early.
@@ -1551,7 +1569,7 @@ The client portal consists of three main areas, each with its own URL pattern:
 ### Invoice Portal
 URL pattern: \`/portal/{org-slug}/invoices/{token}\`
 
-Customers can view invoice details including line items, subtotals, tax, and total amount due. If you have Stripe connected and there is an outstanding balance, a **Pay Now** button appears that takes the customer through Stripe Checkout. Customers can also download a professional PDF of the invoice.
+Customers can view invoice details including line items, subtotals, tax, and total amount due. If there is an outstanding balance, a **Pay Now** button appears. If Stripe is connected, clicking it takes the customer through Stripe Checkout. If Stripe is not set up, clicking it shows a message asking the customer to contact the business directly. Customers can also download a professional PDF of the invoice.
 
 ### Quote Portal
 URL pattern: \`/portal/{org-slug}/quotes/{token}\`
@@ -1561,7 +1579,7 @@ Customers can view the full quote with all line items and pricing. Two prominent
 ### Public Booking Form
 URL pattern: \`/book/{org-slug}\`
 
-Anyone can access this page to request a service booking. The form allows visitors to select a service from your catalog, pick a date, choose an available time slot based on your business hours, and submit their contact information. This is ideal for embedding on your website or sharing on social media.
+Anyone can access this page to request a service booking. The form allows visitors to select a service from your catalog, pick a date, choose a preferred time (Morning or Afternoon), and submit their contact information. This is ideal for embedding on your website or sharing on social media.
 
 ## How Customers Access the Portal
 
@@ -1608,7 +1626,7 @@ Each invoice has a portal page at \`/portal/{your-slug}/invoices/{token}\`. When
 - Subtotal, tax, discount, and grand total.
 - Payment history (if any payments have been made).
 - A **Download PDF** button to save a professional copy.
-- A **Pay Now** button (if Stripe is connected and there is an outstanding balance) that redirects to Stripe Checkout.
+- A **Pay Now** button (if there is an outstanding balance) that redirects to Stripe Checkout. If Stripe is not connected, clicking the button displays a message asking the customer to contact the business directly.
 
 ## Quote Portal Pages
 
@@ -1658,9 +1676,9 @@ Here is exactly what your customer experiences when paying an invoice through th
 1. **Receive Email** -- The customer gets an email from your business with the invoice summary and a "View & Pay" button.
 2. **Open Invoice** -- Clicking the button opens the full invoice in the client portal at a URL like \`/portal/{your-slug}/invoices/{token}\`. They see all line items, tax, discount (if any), and the total amount due.
 3. **Download PDF (Optional)** -- A **Download PDF** button lets the customer save a professional PDF copy of the invoice for their records.
-4. **Click Pay Now** -- If Stripe is connected and there is an outstanding balance, the customer clicks the **Pay Now** button on the invoice.
+4. **Click Pay Now** -- If there is an outstanding balance, the customer clicks the **Pay $X.XX Now** button (displays the exact amount due). If online payments are not set up, clicking it shows a message asking the customer to contact the business directly.
 5. **Stripe Checkout** -- The customer is redirected to Stripe Checkout, a secure, hosted payment page. They enter their credit card or debit card information there.
-6. **Payment Processed** -- After successful payment, a webhook from Stripe automatically updates the invoice status in JobStream.
+6. **Payment Processed** -- After successful payment, the customer is redirected back to the invoice page. JobStream verifies the payment directly with Stripe and immediately shows a confirmation banner. The invoice status updates to Paid right away.
 
 ## Invoice Portal Details
 
@@ -1676,7 +1694,7 @@ The invoice portal page displays:
 
 ## For You (The Business)
 
-When the customer completes payment via Stripe Checkout, the following happens automatically via webhook:
+When the customer completes payment via Stripe Checkout, the following happens automatically when they return to the invoice page:
 
 - The invoice status changes to **Paid**.
 - A payment record is created in your Payments section with method "online."
@@ -1686,7 +1704,7 @@ When the customer completes payment via Stripe Checkout, the following happens a
 
 If a customer reports they cannot pay:
 
-- **No Pay Now button** -- Verify that Stripe is connected in Settings > Payments and that there is an outstanding balance on the invoice.
+- **"Online payments are not yet set up" message** -- If a customer sees this after clicking Pay, verify that Stripe is connected in Settings > Payments. The Pay button always appears when there is an outstanding balance, but payment only works when Stripe is connected.
 - **Card declined** -- Ask them to verify their card details or try a different card on the Stripe Checkout page.
 - **Page not loading** -- Confirm their internet connection and suggest a different browser.
 - **Link expired** -- Resend the invoice from JobStream to generate a fresh email with the portal link.
@@ -1772,8 +1790,7 @@ The public booking form is a standalone page where anyone -- existing customers 
 2. Click the **Booking Widget** tab.
 3. Toggle **Online Booking** to on.
 4. Select which services from your catalog should appear on the booking form by checking the boxes next to each service.
-5. Set the **Slot Duration** (15, 30, 45, 60, 90, or 120 minutes) to control the time slot intervals displayed.
-6. Click **Save Changes**.
+5. Click **Save Changes**.
 
 Your booking URL is displayed on the settings page and can be copied with the **Copy Link** button.
 
@@ -1783,9 +1800,9 @@ The public booking form at \`/book/{your-slug}\` walks the customer through a si
 
 1. **Select Service** -- A dropdown lists the services you have enabled for online booking. Each service shows its name and default price.
 2. **Pick Date** -- A date input lets them choose their preferred date.
-3. **Pick Time Slot** -- Available time slots are generated based on your business hours for that day of the week. If the selected day is outside your business hours (e.g., a day you are closed), no time slots appear.
+3. **Pick Preferred Time** -- A dropdown lets the customer choose Morning or Afternoon.
 4. **Enter Contact Information** -- The customer enters their name (a single "Your Name" field), email, and optionally their phone number. Phone is not required.
-5. **Service Address** -- The customer can enter their service address.
+5. **Service Address** -- The customer enters their address using separate fields for street, city, state (US state dropdown), and ZIP code.
 6. **Add Notes (Optional)** -- A text area for any additional details about the work needed.
 6. **Submit** -- The customer clicks **Request Booking** to submit.
 
@@ -1802,7 +1819,7 @@ When a customer submits a booking:
 
 From the Bookings page, you can:
 
-- **Confirm & Create Job** -- Accept the booking and create a job on your calendar.
+- **Confirm & Create Job** -- Accept the booking and create an unscheduled job. The job can then be scheduled from the calendar page.
 - **Decline** -- Decline the booking with an optional reason.
 
 ## Sharing Your Booking URL
@@ -1817,7 +1834,6 @@ Your booking URL follows the pattern \`/book/{your-org-slug}\`. You can share th
 ### Tips
 
 - Keep the service list short and clear to avoid overwhelming visitors.
-- Make sure your business hours are configured in Settings > General so that time slots display correctly.
 - Respond to booking requests promptly -- speed of response is a major factor in winning new business.`,
   },
   // ============================================
@@ -1833,7 +1849,7 @@ Your booking URL follows the pattern \`/book/{your-org-slug}\`. You can share th
     keywords: ["booking widget", "online booking", "configuration", "setup", "booking url", "slot duration"],
     content: `## What Is Online Booking?
 
-Online booking gives your business a public booking page where potential customers can select a service, choose a date and time slot, enter their contact information, and submit a booking request. The page is hosted at \`/book/{your-org-slug}\` and does not require any login.
+Online booking gives your business a public booking page where potential customers can select a service, choose a preferred date and time (Morning or Afternoon), enter their contact information, and submit a booking request. The page is hosted at \`/book/{your-org-slug}\` and does not require any login.
 
 ## Configuring Online Booking
 
@@ -1847,29 +1863,14 @@ Toggle the **Online Booking** switch to turn the feature on or off. When disable
 ### Available Services
 A checklist displays all services from your service catalog. Check the boxes next to services you want to offer for online booking. You might want to offer a subset of your services while handling complex projects through direct consultation.
 
-### Slot Duration
-Select the default appointment length from the dropdown. Available options are:
-
-- 15 minutes
-- 30 minutes
-- 45 minutes
-- 60 minutes
-- 90 minutes
-- 120 minutes
-
-This setting controls how time slots are spaced on the booking form. For example, a 60-minute duration shows slots at 8:00, 9:00, 10:00, etc., while 30-minute shows 8:00, 8:30, 9:00, etc.
-
 ### Booking URL
 Your unique booking URL is displayed on the settings page. Use the **Copy Link** button to copy it to your clipboard for sharing. The URL follows the pattern \`/book/{your-org-slug}\`.
 
 4. Click **Save Changes** to apply your configuration.
 
-## How Time Slots Work
+## How Preferred Time Works
 
-Time slots on the booking form are generated automatically from your **business hours** (configured in Settings > General). For each day of the week:
-
-- If the day is marked as open, slots are generated from the start time to the end time at intervals matching your slot duration.
-- If the day is marked as closed, no time slots are shown and customers cannot book on that day.
+The booking form offers two time preferences: Morning and Afternoon. These are static options that do not depend on your business hours configuration.
 
 ## After a Customer Books
 
@@ -1878,7 +1879,6 @@ All booking requests arrive in your **Bookings** section as pending requests. Yo
 ### Tips
 
 - Keep the service list short and clear -- too many options can overwhelm visitors.
-- Set your business hours accurately in Settings > General before enabling online booking.
 - Share your booking URL on your website, social media, email signatures, and printed materials.
 - Review pending bookings promptly to provide a responsive customer experience.`,
   },
@@ -1967,7 +1967,7 @@ Each booking request shows:
 
 - Customer name and contact information.
 - Selected service.
-- Requested date and time.
+- Requested date and preferred time (Morning or Afternoon).
 - Any notes the customer provided in the message field.
 
 ## Taking Action
@@ -1975,7 +1975,7 @@ Each booking request shows:
 You have two options for each booking request:
 
 ### Confirm
-Click **Confirm & Create Job** to accept the booking. A confirmation dialog appears with a team member dropdown (defaults to "Unassigned") so you can optionally assign the job. This creates a job on your calendar for the requested date and time.
+Click **Confirm & Create Job** to accept the booking. A confirmation dialog appears showing the booking details. This creates an unscheduled job that you can later schedule from the calendar page.
 
 ### Decline
 Click **Decline** if you cannot fulfill the request. A decline dialog appears with a reason textarea where you can explain why the booking cannot be fulfilled.
@@ -2022,15 +2022,12 @@ After job completion, an automated message invites the customer to leave a revie
 
 ## Delivery Channels
 
-Each automated message can be sent via:
+Each automated notification has independent Email and SMS toggles:
 
 - **Email** -- Professional HTML emails with your branding.
 - **SMS** -- Short text messages for time-sensitive notifications like appointment reminders.
-- **Both** -- Send via both channels for maximum visibility.
 
-## Enabling and Disabling
-
-Each message type can be individually enabled or disabled in **Settings > Communications**. You have full control over what your customers receive.
+You enable or disable each channel separately per notification type in **Settings > Communications** using the Notification Preferences table. You have full control over what your customers receive.
 
 ### Tips
 
@@ -2041,77 +2038,35 @@ Each message type can be individually enabled or disabled in **Settings > Commun
   {
     slug: "configuring-automation-rules",
     category: "communications",
-    title: "Configuring Automation Rules",
-    excerpt: "Set up automation rules with triggers, channels, templates, and timing.",
-    lastUpdated: "2026-02-22",
-    readingTime: 3,
-    keywords: ["templates", "automation rules", "timing", "configuration", "rules", "triggers", "sms", "email"],
+    title: "Configuring Notification Preferences",
+    excerpt: "Control which automated notifications are sent to customers via Email and SMS.",
+    lastUpdated: "2026-02-24",
+    readingTime: 2,
+    keywords: ["notification preferences", "configuration", "sms", "email", "toggles"],
     content: `## Accessing Communications Settings
 
 1. Go to **Settings** in the left sidebar.
 2. Click the **Communications** tab.
-3. The page has two sections: global SMS/Email toggles at the top, and an Automation Rules table below.
 
-## Global Channel Toggles
+## Notification Preferences
 
-At the top of the page, two switches control global messaging capabilities:
+The Communications settings page shows a table of notification types with per-notification **Email** and **SMS** toggle switches. Each row represents a specific customer-facing notification event:
 
-- **SMS Notifications** -- Enable or disable all SMS messaging across JobStream.
-- **Email Notifications** -- Enable or disable all email messaging across JobStream.
+- **New Quote** -- Notifies the customer when a new quote is ready to view.
+- **New Invoice** -- Notifies the customer when a new invoice is issued.
+- **Payment Reminder** -- Reminds the customer about an outstanding invoice balance.
+- **Job Scheduled** -- Notifies the customer when a job is first added to their schedule.
+- **Job Rescheduled** -- Notifies the customer when their scheduled job date or time changes.
+- **Booking Confirmed** -- Notifies the customer that their booking request has been approved.
+- **Booking Declined** -- Notifies the customer that their booking request could not be accommodated.
+- **Review Request** -- Asks the customer for feedback after a job is completed.
 
-These are master switches. If SMS is disabled globally, no automation rules can send SMS even if individually configured to do so.
-
-## Automation Rules Table
-
-Below the toggles, a table lists all your automation rules. Each row shows the rule name, trigger event, channel (Email, SMS, or Both), delay, and an active/inactive Switch toggle.
-
-## Creating a New Automation Rule
-
-1. Click the **Add Rule** button above the table.
-2. A dialog opens with the following fields:
-
-### Rule Name
-A descriptive name for the automation, such as "Appointment Reminder 24h" or "Post-Job Review Request."
-
-### Trigger
-Select the event that fires this automation. Available triggers include:
-
-- **Job Scheduled** -- Fires when a job is scheduled.
-- **Job Completed** -- Fires when a job is marked complete.
-- **Invoice Sent** -- Fires when an invoice is sent.
-- **Invoice Overdue** -- Fires when an invoice becomes overdue.
-- **Quote Sent** -- Fires when a quote is sent.
-- **Booking Received** -- Fires when a new booking request comes in.
-- **Booking Confirmed** -- Fires when a booking request is confirmed.
-
-### Channel
-Choose the delivery channel: **Email**, **SMS**, or **Both**.
-
-### Subject (Email Only)
-If the channel includes email, enter the subject line for the email.
-
-### Template Content
-Write the message body. This is the content of the email or SMS that will be sent.
-
-### Delay (Minutes)
-Set the delay in minutes between when the trigger fires and when the message is sent. For example, set 1440 for a 24-hour delay (useful for review requests sent a day after job completion) or 0 for immediate delivery.
-
-3. Click **Save** to create the rule. It is active by default.
-
-## Editing and Deleting Rules
-
-- Click the **pencil icon** on any row to edit the rule. The same dialog opens with the current values pre-filled.
-- Click the **trash icon** to delete a rule. A confirmation dialog appears before deletion.
-
-## Activating and Deactivating Rules
-
-Each rule has an active/inactive status shown as a **Switch toggle**. When editing a rule, you can toggle the **Active** switch to enable or disable it without deleting it. Inactive rules remain in your list but do not fire.
+For each notification type, toggle the **Email** and **SMS** switches to control which channels are used. Click **Save Preferences** to apply your changes.
 
 ### Tips
 
-- Start with the most impactful automations: appointment reminders and invoice payment reminders.
-- Use meaningful names so your team can understand what each rule does at a glance.
-- Set delays thoughtfully -- a 24-hour delay for review requests gives customers time to evaluate your work before being asked for feedback.`,
+- Enable email for all notification types as a baseline, then selectively enable SMS for time-sensitive notifications like job scheduling and booking confirmations.
+- Review your notification preferences periodically to ensure they match your communication strategy.`,
   },
   {
     slug: "appointment-reminders",
@@ -2134,15 +2089,15 @@ Appointment reminders are automated messages sent to your customers before a sch
 ## Configuring Reminders
 
 1. Go to **Settings > Communications**.
-2. Find the **Appointment Reminder** automation rule.
-3. Toggle it to **Enabled**.
-4. Set your preferred timing (e.g., 24 hours before, 2 hours before).
-5. Choose the delivery channel: Email, SMS, or Both.
-6. Write your message template. Available merge fields are: {{customerName}}, {{jobNumber}}, {{invoiceNumber}}, {{quoteNumber}}, and {{businessName}}.
+2. Find the **Job Scheduled** notification in the Notification Preferences table.
+3. Toggle the **Email** and/or **SMS** switches to enable your preferred channels.
+4. Click **Save Preferences**.
+
+Note: There is no configurable timing delay, custom template, or merge fields. Notifications are sent when the triggering event occurs, using system-generated content.
 
 ## What the Customer Receives
 
-The customer receives the freeform template content you have written, with the merge fields replaced by actual values. The message content is entirely determined by your template -- there are no automatically structured appointment details added beyond what you include in the template.
+The customer receives a system-generated notification when the job is scheduled. The message content is determined by the system -- there is no customizable template.
 
 ## Best Practices
 
@@ -2170,11 +2125,11 @@ Click **Communications** in the left sidebar to view the full message history fo
 
 ## What the Log Shows
 
-The communications log displays a chronological list of all messages sent and received, including:
+The communications log displays a paginated chronological list of all messages sent and received, including:
 
 - **Date and time** of the message.
 - **Direction** -- whether it was sent (outbound) or received (inbound).
-- **Customer** -- the customer name.
+- **Customer** -- the customer name, displayed as a clickable link that navigates to the customer's detail page.
 - **Channel** -- Email or SMS.
 - **Type** -- The channel type (SMS or EMAIL).
 - **Status** -- Queued, Sent, Delivered, Failed, or Bounced.
@@ -2186,7 +2141,7 @@ Use the filter controls to narrow down your view:
 
 - **Type** -- Filter by message type: SMS or Email.
 - **Direction** -- Filter by direction: Sent or Received.
-- **Status** -- Filter by delivery status: Queued, Sent, Delivered, Failed, or Bounced.
+- **Date Range** -- Select a preset time period (This Week, This Month, Last Month, This Quarter, This Year, Last 12 Months) or choose Custom Range to enter specific dates. The default view is This Week.
 
 ## Customer-Level History
 
@@ -2226,13 +2181,13 @@ Two-way SMS means that when your customer receives a text message from JobStream
 
 ## Viewing Inbound Messages
 
-Inbound messages appear in the Communications log with an "Inbound" indicator in a flat chronological table. They show:
+Inbound messages appear in the Communications log with an inbound arrow icon. The log uses a paginated table with date range presets (defaulting to This Week) and can be filtered by type and direction. Inbound messages show:
 
-- The customer's name (matched by phone number).
+- The customer's name (matched by phone number), displayed as a clickable link to the customer's detail page.
 - The message content.
 - The timestamp.
 
-Note: The communications page is read-only. There is no reply functionality, conversation threading, or context linking between inbound and outbound messages. The UI displays all messages in a flat chronological list.
+Note: The communications page is read-only. There is no reply functionality, conversation threading, or context linking between inbound and outbound messages. The UI displays all messages in a paginated chronological table.
 
 ## Common Customer Responses
 
@@ -2262,19 +2217,16 @@ Customers often reply to automated messages with questions or confirmations:
     keywords: ["review links", "google", "yelp", "facebook", "setup", "auto-request", "delay"],
     content: `## Why Review Links Matter
 
-When JobStream sends automated review requests to your customers, those messages include a direct link to your review page. Setting up these links correctly ensures customers land on the right page with minimal friction.
+When JobStream sends automated review requests to your customers, those messages include styled buttons for each review platform you have configured (Google, Yelp, Facebook). If no platform URLs are set, the email shows a generic request without platform buttons. Setting up these links correctly ensures customers land on the right page with minimal friction.
 
 ## Adding Your Review Links
 
 1. Go to **Settings** in the left sidebar.
 2. Click the **Reviews** tab.
-3. The page has two sections: Review Platform URLs and Auto-Request Settings.
+3. The page has three sections: Google Business Profile (connection), Review Platforms, and Automatic Review Requests.
 
-### Google Business Profile URL
-1. Search for your business on Google Maps.
-2. Click your business listing.
-3. Click **Write a Review** and copy the URL from your browser's address bar.
-4. Paste this URL into the Google Review URL field in JobStream.
+### Google Review URL
+If you connected your Google Business Profile in the section above, this URL is filled in automatically. Otherwise, paste a direct Google review link into the Google Reviews field.
 
 ### Yelp URL
 1. Go to your Yelp business page.
@@ -2344,7 +2296,7 @@ Review requests are sent via **email only**. SMS delivery is not available for r
 
 ### Template
 
-The review request message template is hardcoded and not customizable. It includes a link to your review platform URLs configured in the Settings > Reviews tab.
+The review request message template is hardcoded and not customizable. It includes styled buttons for each review platform (Google, Yelp, Facebook) that has a URL configured. If no URLs are configured, the email shows a generic review request without platform buttons.
 
 ### Tips
 
@@ -2366,7 +2318,7 @@ Click **Reviews** in the left sidebar to access your reviews dashboard. The page
 
 ### Google Reviews Tab
 
-If you have connected your Google Business Profile (in Settings > Reviews), this tab shows your real Google reviews. Each review displays the star rating, reviewer name, review text, and a status badge.
+If you have connected your Google Business Profile (in Settings > Reviews), this tab shows your real Google reviews, synced automatically once daily at 6 AM ET. You can also click **Refresh from Google** to manually trigger a sync at any time (limited to once per hour). Each review displays the star rating, reviewer name, review text, and a status badge.
 
 **Review statuses:**
 - **New** -- A review you have not yet looked at.
@@ -2528,6 +2480,7 @@ The reports page uses a date preset filter to narrow the time period. Available 
 - **This Quarter** -- Current quarter's data.
 - **This Year** -- Year-to-date data.
 - **Last 12 Months** -- Data from the past 12 months.
+- **Custom Range** -- Enter specific start and end dates using date pickers.
 
 ## Exporting
 
@@ -2602,7 +2555,7 @@ Access this from **Reports > Customers**. Understand your customer base:
 
 ## Report Tabs Summary
 
-The Reports page has five tabs: **Revenue**, **Jobs**, **Quotes**, **Team**, and **Customers**. Each tab uses the same date preset filter (This Week, This Month, etc.) to control the time period.
+The Reports page has five tabs: **Revenue**, **Jobs**, **Quotes**, **Team**, and **Customers**. Each tab uses the same date preset filter (This Week, This Month, Last Month, This Quarter, This Year, Last 12 Months, or Custom Range) to control the time period.
 
 ### Tips
 
@@ -2944,20 +2897,28 @@ Both invoice and quote PDFs include a professional layout with:
 The top of the page shows your current Stripe connection status:
 
 ### Not Connected
-If Stripe is not connected, you see a **Connect with Stripe** button. Clicking it initiates the Stripe Connect onboarding flow (see the "Connecting Stripe for Payments" article for full details).
+If Stripe is not connected, you see a **Connect with Stripe** button. Clicking it opens the Stripe onboarding flow in a new browser tab (see the "Connecting Stripe for Payments" article for full details). After completing setup in Stripe, return to this page and click **Verify Connection** to confirm.
+
+### Pending Verification
+After completing Stripe onboarding in the new tab, the page shows a pending verification state with:
+- A clock icon and "Stripe onboarding in progress" message.
+- A **Verify Connection** button to check your Stripe account status.
+- A **Cancel** button to abandon the connection attempt.
+
+Click **Verify Connection** to confirm that Stripe setup is complete.
 
 ### Connected
-If Stripe is connected and onboarded, you see:
+If Stripe is connected and verified, you see:
 - A green "Connected" badge.
 - Your masked Stripe account ID (first 4 and last 4 characters visible).
 - A **Disconnect** button to remove the Stripe connection.
 
 ## Online Payments Toggle
 
-Below the connection status, a **Online Payments** switch controls whether customers see the "Pay Now" button on invoices in the client portal.
+Below the connection status, a **Online Payments** switch controls whether online payments are active.
 
-- **Enabled** -- Invoices in the portal display a Pay Now button that initiates Stripe Checkout.
-- **Disabled** -- Invoices are viewable in the portal but no payment button is shown.
+- **Enabled** -- Clicking the Pay button on portal invoices initiates Stripe Checkout.
+- **Disabled** -- The Pay button still appears when there is an outstanding balance, but clicking it shows a message that online payments are not set up, asking the customer to contact the business directly.
 
 This toggle requires Stripe to be connected. If Stripe is not connected, the toggle is not functional.
 
@@ -2981,68 +2942,52 @@ After disconnecting, the online payments toggle is automatically turned off and 
     slug: "communications-settings",
     category: "account-settings",
     title: "Communications Settings",
-    excerpt: "Configure SMS, email, and automation rules for customer communications.",
+    excerpt: "Configure notification preferences for customer communications.",
     lastUpdated: "2026-02-22",
     readingTime: 3,
-    keywords: ["communications settings", "sms", "email", "automation", "rules", "templates"],
+    keywords: ["communications settings", "sms", "email", "notification preferences", "toggles"],
     content: `## Accessing Communications Settings
 
 1. Click **Settings** in the left sidebar.
 2. Click the **Communications** tab.
 
-## Global Channel Toggles
+## Notification Preferences
 
-At the top of the page, two switches control messaging at a global level:
+The Communications settings page displays a Notification Preferences table listing all notification types with independent Email and SMS toggles for each. The table has three columns: **Notification** (the event name), **Email** (toggle switch), and **SMS** (toggle switch).
 
-- **SMS Notifications** -- Master switch for all SMS messaging. When disabled, no SMS messages are sent regardless of individual automation rule settings.
-- **Email Notifications** -- Master switch for all email messaging. When disabled, no email messages are sent.
+### Available Notification Types
 
-Toggling either switch and clicking **Save Channel Settings** applies the change immediately.
+- **New Quote** -- Sent when a new quote is created and sent to the customer.
+- **New Invoice** -- Sent when a new invoice is created and sent to the customer.
+- **Payment Reminder** -- Sent as a reminder for outstanding invoice payments.
+- **Job Scheduled** -- Sent when a job is scheduled or assigned a date.
+- **Job Rescheduled** -- Sent when a scheduled job's date or time is changed.
+- **Booking Confirmed** -- Sent when a booking request is confirmed.
+- **Booking Declined** -- Sent when a booking request is declined.
+- **Review Request** -- Sent after a job is completed to request a customer review.
 
-## Automation Rules
+### Configuring Preferences
 
-Below the global toggles, a table lists all your automation rules. Each row displays:
+1. Toggle the **Email** switch on or off for each notification type.
+2. Toggle the **SMS** switch on or off for each notification type.
+3. Click **Save Preferences** at the bottom of the table to apply your changes.
 
-- **Rule name** -- A descriptive label you choose.
-- **Trigger** -- The event that fires the rule (e.g., Job Completed, Invoice Sent).
-- **Channel** -- Email, SMS, or Both.
-- **Delay** -- How many minutes after the trigger the message is sent.
-- **Status** -- An Active or Inactive Switch toggle.
-- **Actions** -- Edit (pencil icon) and Delete (trash icon) buttons.
-
-## Creating Rules
-
-Click **Add Rule** to create a new automation rule. The dialog includes:
-
-- **Name** -- Required. A descriptive name for the rule.
-- **Trigger** -- Required. Select from: Job Scheduled, Job Completed, Invoice Sent, Invoice Overdue, Quote Sent, Booking Received, or Booking Confirmed.
-- **Channel** -- Required. Choose Email, SMS, or Both.
-- **Subject** -- The email subject line (only shown when channel includes Email).
-- **Template Content** -- Required. The message body.
-- **Delay (Minutes)** -- How many minutes to wait after the trigger fires. Use 0 for immediate, 60 for one hour, 1440 for one day.
-- **Active** -- A toggle to enable or disable the rule. Active by default.
-
-Click **Save** to create the rule. It appears immediately in the table.
-
-## Editing and Deleting Rules
-
-- Click the pencil icon to edit any rule. All fields can be modified.
-- Click the trash icon to delete a rule. A confirmation dialog appears before permanent deletion.
+Each notification type can have Email enabled, SMS enabled, both enabled, or both disabled independently.
 
 ### Tips
 
-- Create separate rules for different timing scenarios (e.g., one appointment reminder 24 hours before and another 2 hours before).
-- Use the global SMS toggle to quickly disable all text messaging if needed (e.g., during off-hours).
-- Start with a few essential rules and add more as you learn which automations are most valuable for your business.`,
+- Enable both Email and SMS for important notifications like Job Scheduled and Booking Confirmed for maximum customer visibility.
+- Review Request notifications are email-only by default since they contain styled platform buttons.
+- Review your notification preferences periodically to ensure they match your current customer communication strategy.`,
   },
   {
     slug: "booking-widget-settings",
     category: "account-settings",
     title: "Booking Widget Settings",
-    excerpt: "Configure your online booking form, available services, slot duration, and shareable URL.",
+    excerpt: "Configure your online booking form, available services, and shareable URL.",
     lastUpdated: "2026-02-22",
     readingTime: 2,
-    keywords: ["booking settings", "booking widget", "slot duration", "booking url", "services"],
+    keywords: ["booking settings", "booking widget", "booking url", "services"],
     content: `## Accessing Booking Settings
 
 1. Click **Settings** in the left sidebar.
@@ -3055,18 +3000,6 @@ A switch to enable or disable the public booking form. When disabled, the bookin
 
 ### Available Services
 A checklist of all services in your catalog. Check the services you want to make available for online booking. Customers will see these services in a dropdown on the booking form.
-
-### Slot Duration
-A dropdown to set the interval between available time slots. Options include:
-
-- 15 minutes
-- 30 minutes
-- 45 minutes
-- 60 minutes (default)
-- 90 minutes
-- 120 minutes
-
-The slot duration determines how time slots are spaced based on your business hours. For example, if your hours are 8:00 AM to 5:00 PM and the slot duration is 60 minutes, slots appear at 8:00, 9:00, 10:00, etc.
 
 ### Booking URL
 Your unique booking URL is displayed on the page. Two copy buttons are available:
@@ -3081,8 +3014,7 @@ Click **Save Changes** at the bottom of the form to apply your configuration. Ch
 ### Tips
 
 - Only enable services that have predictable durations and pricing for online booking. Complex services are better handled through direct quotes.
-- Set the slot duration to match the average length of your most common service.
-- Make sure your business hours are configured in Settings > General before enabling online booking.`,
+- The booking form uses simple Morning/Afternoon time preferences rather than specific time slots.`,
   },
   {
     slug: "review-settings",
@@ -3099,13 +3031,19 @@ Click **Save Changes** at the bottom of the form to apply your configuration. Ch
 
 ## Review Platform URLs
 
+### Google Business Profile
+
+If you have a Google Business Profile, you can connect it here to automatically populate your Google review URL and sync your Google reviews. Click **Connect Google Business** to search for and link your business via the Google Places API.
+
+### Review Platform URLs
+
 Enter the URLs for each review platform where you want to collect customer reviews:
 
-- **Google Review URL** -- The direct link to your Google Business Profile review page.
-- **Yelp Review URL** -- The link to your Yelp business listing.
-- **Facebook Review URL** -- The link to your Facebook page reviews section.
+- **Google Reviews** -- The direct link to your Google review page. This is auto-populated if you connected your Google Business Profile above.
+- **Yelp Reviews** -- The link to your Yelp business listing.
+- **Facebook Reviews** -- The link to your Facebook page reviews section.
 
-These URLs are included in review request messages sent to customers. Leave a field blank if you do not use that platform.
+These URLs are included as styled buttons in review request emails sent to customers. Leave a field blank if you do not use that platform.
 
 ## Auto-Request Settings
 
@@ -3470,11 +3408,11 @@ Any customer-visible notes included on the invoice appear at the bottom.
 Two primary actions are available:
 
 - **Download PDF** -- Generates and downloads a professional PDF of the invoice.
-- **Pay Now** -- Visible when Stripe is connected and the invoice has an outstanding balance. Clicking this button redirects the customer to Stripe Checkout where they can enter payment information securely.
+- **Pay $X.XX Now** -- Visible when the invoice has an outstanding balance (the button shows the exact amount due). If online payments are set up (Stripe connected), clicking this button redirects the customer to Stripe Checkout. If online payments are not set up, clicking it shows an informational message asking the customer to contact the business directly.
 
-The Pay Now button does not appear if:
-- Stripe is not connected.
+The Pay button does not appear if:
 - The invoice is already fully paid.
+- The invoice has no outstanding balance.
 
 ### Tips
 
@@ -3571,19 +3509,15 @@ A dropdown lists all services you have enabled for online booking (configured in
 ### 2. Choose Date
 A date input lets the customer pick their preferred date. The form uses a standard date picker.
 
-### 3. Choose Time Slot
-After selecting a date, available time slots appear based on your business hours for that day of the week:
-
-- If the day is open, slots are generated from your start time to your end time at intervals matching your configured slot duration.
-- If the day is closed (e.g., Sunday), no time slots appear and a message indicates no availability.
-- Slot duration options (set in Settings > Booking Widget) control the spacing: 15, 30, 45, 60, 90, or 120 minutes.
+### 3. Choose Preferred Time
+A dropdown lets the customer choose their preferred time: Morning or Afternoon. This does not depend on business hours.
 
 ### 4. Contact Information
 The customer enters:
 - **Your Name** (required) -- A single name field.
 - **Email** (required)
 - **Phone** (optional)
-- **Service Address** -- The address where the service will be performed.
+- **Service Address** -- Separate fields for street address, city, state (US state dropdown), and ZIP code.
 
 ### 5. Additional Notes
 An optional text area where the customer can describe their needs, provide access instructions, or add any other relevant details.
@@ -3594,7 +3528,7 @@ The customer clicks **Request Booking** to submit. A success confirmation page a
 ## What Happens After Submission
 
 1. A new booking record is created in your **Bookings** section with a "Pending" status.
-2. The booking captures: customer name, email, phone (if provided), service address, selected service, requested date, time, and notes.
+2. The booking captures: customer name, email, phone (if provided), street address, city, state, ZIP, selected service, requested date, preferred time (Morning/Afternoon), and notes.
 3. If the customer is new (email not already in your system), their information is stored with the booking for you to create a customer record.
 
 ## Inactive State
@@ -3604,7 +3538,6 @@ If online booking is disabled in Settings > Booking Widget, the booking page dis
 ### Tips
 
 - Test your booking form by visiting \`/book/{your-slug}\` to see exactly what customers experience.
-- Make sure your business hours are set correctly since they directly control available time slots.
 - Share the booking URL prominently on your website and marketing materials.`,
   },
   // ============================================
