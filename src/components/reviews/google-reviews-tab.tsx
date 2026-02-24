@@ -227,11 +227,11 @@ export function GoogleReviewsTab({ initialStats, initialReviews, initialTotal }:
           <div className="rounded-full bg-muted p-4 mb-4">
             <Star className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold mb-2">Connect Google Business Profile</h3>
+          <h3 className="text-lg font-semibold mb-2">Connect Your Google Business</h3>
           <p className="text-muted-foreground max-w-md mb-6">
-            Connect your Google Business Profile to see your real Google reviews here.
-            You&apos;ll be able to track new reviews, mark them as handled, and click
-            through to respond on Google.
+            Search for your business in Review Settings to start seeing your real
+            Google reviews here. You&apos;ll be able to track new reviews, mark them
+            as handled, and click through to respond on Google.
           </p>
           <Button asChild>
             <a href="/settings/reviews">

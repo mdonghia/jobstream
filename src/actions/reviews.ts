@@ -209,8 +209,6 @@ export async function getGoogleReviewStats() {
         where: { id: user.organizationId },
         select: {
           googlePlaceId: true,
-          googleAccountId: true,
-          googleLocationId: true,
           googleLastSyncAt: true,
         },
       }),
@@ -222,7 +220,7 @@ export async function getGoogleReviewStats() {
         : 0,
       totalReviews,
       newCount,
-      isConnected: !!(org?.googleAccountId && org?.googleLocationId),
+      isConnected: !!org?.googlePlaceId,
       lastSyncAt: org?.googleLastSyncAt?.toISOString() || null,
     }
   } catch (error: any) {
@@ -424,18 +422,13 @@ export async function syncGoogleReviews() {
     const org = await prisma.organization.findUnique({
       where: { id: user.organizationId },
       select: {
-        googleAccountId: true,
-        googleLocationId: true,
         googlePlaceId: true,
-        googleAccessToken: true,
-        googleRefreshToken: true,
-        googleTokenExpiry: true,
         googleLastSyncAt: true,
       },
     })
 
-    if (!org?.googleAccountId || !org?.googleLocationId) {
-      return { error: "Google Business Profile not connected" }
+    if (!org?.googlePlaceId) {
+      return { error: "Google Business not connected" }
     }
 
     // Import the sync service

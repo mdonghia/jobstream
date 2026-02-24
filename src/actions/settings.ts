@@ -1121,9 +1121,9 @@ export async function getReviewSettings() {
         reviewFacebookUrl: true,
         reviewAutoRequest: true,
         reviewRequestDelay: true,
-        googleAccountId: true,
-        googleLocationId: true,
         googlePlaceId: true,
+        googleBusinessName: true,
+        googleBusinessAddr: true,
       },
     })
 
@@ -1132,7 +1132,7 @@ export async function getReviewSettings() {
     return {
       settings: {
         ...org,
-        googleConnected: !!(org.googleAccountId && org.googleLocationId),
+        googleConnected: !!org.googlePlaceId,
       },
     }
   } catch (error: any) {
@@ -1176,41 +1176,60 @@ export async function updateReviewSettings(data: {
 }
 
 // =============================================================================
-// 26. getGoogleConnectUrl - Generate Google OAuth authorization URL
+// 26. searchGoogleBusiness - Search for a business on Google Places
 // =============================================================================
 
-export async function getGoogleConnectUrl() {
+export async function searchGoogleBusiness(query: string) {
   try {
     await requireRole(["OWNER", "ADMIN"])
 
-    const clientId = process.env.GOOGLE_CLIENT_ID
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI
-
-    if (!clientId || !redirectUri) {
-      return { error: "Google OAuth is not configured. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI environment variables." }
-    }
-
-    const scope = "https://www.googleapis.com/auth/business.manage"
-
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope,
-      access_type: "offline",
-      prompt: "consent",
-    })
-
-    return { url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}` }
+    const { searchGooglePlaces } = await import("@/lib/google-reviews")
+    return await searchGooglePlaces(query)
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
-    console.error("getGoogleConnectUrl error:", error)
-    return { error: "Failed to generate Google connect URL" }
+    console.error("searchGoogleBusiness error:", error)
+    return { error: "Failed to search for business" }
   }
 }
 
 // =============================================================================
-// 27. disconnectGoogle - Remove Google Business Profile connection
+// 27. connectGoogleBusiness - Connect a Google Place by ID
+// =============================================================================
+
+export async function connectGoogleBusiness(
+  placeId: string,
+  businessName: string,
+  businessAddress: string,
+) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: {
+        googlePlaceId: placeId,
+        googleBusinessName: businessName,
+        googleBusinessAddr: businessAddress,
+        googleLastSyncAt: null,
+        // Also auto-populate the Google review URL for review request emails
+        reviewGoogleUrl: `https://search.google.com/local/writereview?placeid=${placeId}`,
+      },
+    })
+
+    // Trigger an initial sync of reviews
+    const { fetchAndSyncGoogleReviews } = await import("@/lib/google-reviews")
+    await fetchAndSyncGoogleReviews(user.organizationId)
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("connectGoogleBusiness error:", error)
+    return { error: "Failed to connect Google Business" }
+  }
+}
+
+// =============================================================================
+// 28. disconnectGoogle - Remove Google Business connection
 // =============================================================================
 
 export async function disconnectGoogle() {
@@ -1220,12 +1239,9 @@ export async function disconnectGoogle() {
     await prisma.organization.update({
       where: { id: user.organizationId },
       data: {
-        googleAccessToken: null,
-        googleRefreshToken: null,
-        googleTokenExpiry: null,
-        googleAccountId: null,
-        googleLocationId: null,
         googlePlaceId: null,
+        googleBusinessName: null,
+        googleBusinessAddr: null,
         googleLastSyncAt: null,
       },
     })

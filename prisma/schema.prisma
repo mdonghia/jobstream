@@ -154,13 +154,10 @@ model Organization {
   reviewAutoRequest   Boolean  @default(false)
   reviewRequestDelay  Int      @default(24)
 
-  // Google Business Profile OAuth
+  // Google Reviews (Places API)
   googlePlaceId       String?
-  googleAccountId     String?
-  googleLocationId    String?
-  googleAccessToken   String?
-  googleRefreshToken  String?
-  googleTokenExpiry   DateTime?
+  googleBusinessName  String?
+  googleBusinessAddr  String?
   googleLastSyncAt    DateTime?
 
   // Communication settings

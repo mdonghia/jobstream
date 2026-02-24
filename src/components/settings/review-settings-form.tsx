@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { toast } from "sonner"
-import { Loader2, Star, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, Star, CheckCircle2, Search, MapPin, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +22,17 @@ interface ReviewSettingsFormProps {
     reviewAutoRequest: boolean
     reviewRequestDelay: number
     googleConnected?: boolean
+    googleBusinessName?: string | null
+    googleBusinessAddr?: string | null
   }
+}
+
+type SearchResult = {
+  id: string
+  displayName: string
+  formattedAddress: string
+  rating: number | null
+  userRatingCount: number | null
 }
 
 // ============================================================================
@@ -33,35 +43,104 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
   const [saving, setSaving] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
   const [googleConnected, setGoogleConnected] = useState(settings.googleConnected || false)
+  const [connectedName, setConnectedName] = useState(settings.googleBusinessName || "")
+  const [connectedAddr, setConnectedAddr] = useState(settings.googleBusinessAddr || "")
+
+  // Business search state
+  const [searchQuery, setSearchQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [showResults, setShowResults] = useState(false)
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Review platform URLs
   const [googleUrl, setGoogleUrl] = useState(settings.reviewGoogleUrl || "")
   const [yelpUrl, setYelpUrl] = useState(settings.reviewYelpUrl || "")
-  const [facebookUrl, setFacebookUrl] = useState(
-    settings.reviewFacebookUrl || ""
-  )
+  const [facebookUrl, setFacebookUrl] = useState(settings.reviewFacebookUrl || "")
 
   // Auto-request settings
   const [autoRequest, setAutoRequest] = useState(settings.reviewAutoRequest)
   const [requestDelay, setRequestDelay] = useState(
-    String(settings.reviewRequestDelay)
+    String(settings.reviewRequestDelay),
   )
 
   const orgName = settings.name
 
-  async function handleConnectGoogle() {
+  // -----------------------------------------------------------------------
+  // Business search (debounced)
+  // -----------------------------------------------------------------------
+
+  function handleSearchInput(value: string) {
+    setSearchQuery(value)
+
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current)
+    }
+
+    if (value.trim().length < 3) {
+      setSearchResults([])
+      setShowResults(false)
+      return
+    }
+
+    searchTimeout.current = setTimeout(async () => {
+      setIsSearching(true)
+      setShowResults(true)
+      try {
+        const { searchGoogleBusiness } = await import("@/actions/settings")
+        const result = await searchGoogleBusiness(value)
+        if ("error" in result) {
+          toast.error(result.error)
+          setSearchResults([])
+        } else {
+          setSearchResults(result.results)
+        }
+      } catch {
+        toast.error("Failed to search for business")
+        setSearchResults([])
+      } finally {
+        setIsSearching(false)
+      }
+    }, 500)
+  }
+
+  // -----------------------------------------------------------------------
+  // Connect a business
+  // -----------------------------------------------------------------------
+
+  async function handleSelectBusiness(business: SearchResult) {
+    setIsConnecting(true)
     try {
-      const { getGoogleConnectUrl } = await import("@/actions/settings")
-      const result = await getGoogleConnectUrl()
+      const { connectGoogleBusiness } = await import("@/actions/settings")
+      const result = await connectGoogleBusiness(
+        business.id,
+        business.displayName,
+        business.formattedAddress,
+      )
       if ("error" in result) {
         toast.error(result.error)
-      } else if (result.url) {
-        window.location.href = result.url
+      } else {
+        setGoogleConnected(true)
+        setConnectedName(business.displayName)
+        setConnectedAddr(business.formattedAddress)
+        // Auto-set the Google review URL
+        setGoogleUrl(`https://search.google.com/local/writereview?placeid=${business.id}`)
+        setSearchQuery("")
+        setSearchResults([])
+        setShowResults(false)
+        toast.success(`Connected to ${business.displayName}`)
       }
     } catch {
-      toast.error("Failed to initiate Google connection")
+      toast.error("Failed to connect business")
+    } finally {
+      setIsConnecting(false)
     }
   }
+
+  // -----------------------------------------------------------------------
+  // Disconnect
+  // -----------------------------------------------------------------------
 
   async function handleDisconnectGoogle() {
     setDisconnecting(true)
@@ -72,7 +151,9 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
         toast.error(result.error)
       } else {
         setGoogleConnected(false)
-        toast.success("Google Business Profile disconnected")
+        setConnectedName("")
+        setConnectedAddr("")
+        toast.success("Google Business disconnected")
       }
     } catch {
       toast.error("Failed to disconnect Google")
@@ -124,42 +205,31 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
   return (
     <div className="space-y-8">
       {/* ----------------------------------------------------------------- */}
-      {/* Google Business Profile Connection */}
+      {/* Google Business Connection */}
       {/* ----------------------------------------------------------------- */}
       <section>
         <h2 className="text-lg font-semibold text-[#0A2540]">
           Google Business Profile
         </h2>
         <p className="mt-1 text-sm text-[#425466]">
-          Connect your Google Business Profile to pull real Google reviews into JobStream.
+          Connect your Google Business listing to pull in your real Google reviews.
+          Just search for your business name below.
         </p>
 
-        <div className="mt-4 flex items-center justify-between rounded-lg border border-[#E3E8EE] p-4">
-          <div className="flex items-center gap-3">
-            {googleConnected ? (
-              <>
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-sm font-medium text-[#0A2540]">Connected</p>
-                  <p className="text-xs text-[#8898AA]">
-                    Google reviews will sync automatically.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <XCircle className="h-5 w-5 text-[#8898AA]" />
-                <div>
-                  <p className="text-sm font-medium text-[#0A2540]">Not Connected</p>
-                  <p className="text-xs text-[#8898AA]">
-                    Connect to see your Google reviews in the Reviews tab.
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-
-          {googleConnected ? (
+        {googleConnected ? (
+          /* Connected state */
+          <div className="mt-4 flex items-center justify-between rounded-lg border border-[#E3E8EE] p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-[#0A2540]">
+                  {connectedName || "Connected"}
+                </p>
+                <p className="text-xs text-[#8898AA]">
+                  {connectedAddr || "Google reviews will sync automatically."}
+                </p>
+              </div>
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -169,16 +239,102 @@ export function ReviewSettingsForm({ settings }: ReviewSettingsFormProps) {
               {disconnecting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Disconnect
             </Button>
-          ) : (
-            <Button
-              size="sm"
-              onClick={handleConnectGoogle}
-              className="bg-[#4285F4] hover:bg-[#3367d6] text-white"
-            >
-              Connect Google
-            </Button>
-          )}
-        </div>
+          </div>
+        ) : (
+          /* Search UI */
+          <div className="mt-4 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8898AA]" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => handleSearchInput(e.target.value)}
+                placeholder="Search for your business (e.g. Mike's Plumbing, Austin TX)"
+                className={`${inputClass} pl-9`}
+                disabled={isConnecting}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8898AA] hover:text-[#0A2540]"
+                  onClick={() => {
+                    setSearchQuery("")
+                    setSearchResults([])
+                    setShowResults(false)
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Search results */}
+            {showResults && (
+              <div className="rounded-lg border border-[#E3E8EE] overflow-hidden">
+                {isSearching ? (
+                  <div className="flex items-center justify-center gap-2 p-4 text-sm text-[#8898AA]">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Searching Google Places...
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div className="p-4 text-sm text-[#8898AA] text-center">
+                    No businesses found. Try a more specific search (include city/state).
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-[#E3E8EE]">
+                    {searchResults.map((result) => (
+                      <li key={result.id}>
+                        <button
+                          type="button"
+                          className="w-full px-4 py-3 text-left hover:bg-[#F6F8FA] transition-colors disabled:opacity-50"
+                          onClick={() => handleSelectBusiness(result)}
+                          disabled={isConnecting}
+                        >
+                          <div className="flex items-start gap-3">
+                            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#635BFF]" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-[#0A2540]">
+                                {result.displayName}
+                              </p>
+                              <p className="text-xs text-[#8898AA] truncate">
+                                {result.formattedAddress}
+                              </p>
+                              {result.rating && (
+                                <div className="mt-1 flex items-center gap-1.5">
+                                  <div className="flex gap-0.5">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                      <Star
+                                        key={s}
+                                        className={`h-3 w-3 ${
+                                          s <= Math.round(result.rating!)
+                                            ? "fill-yellow-400 text-yellow-400"
+                                            : "fill-muted text-muted"
+                                        }`}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-xs text-[#8898AA]">
+                                    {result.rating} ({result.userRatingCount} reviews)
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {isConnecting && (
+              <div className="flex items-center gap-2 text-sm text-[#635BFF]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Connecting and syncing reviews...
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       {/* ----------------------------------------------------------------- */}
