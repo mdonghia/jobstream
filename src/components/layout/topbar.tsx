@@ -8,6 +8,7 @@ import {
   Menu,
   User as UserIcon,
   Settings,
+  HelpCircle,
   LogOut,
 } from "lucide-react"
 import { NotificationBell } from "@/components/layout/notification-bell"
@@ -154,6 +155,17 @@ export function Topbar({ user, onMenuClick }: TopbarProps) {
                 <Settings className="w-4 h-4" />
                 Settings
               </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a
+                href="/help"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2"
+              >
+                <HelpCircle className="w-4 h-4" />
+                Help Center
+              </a>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
