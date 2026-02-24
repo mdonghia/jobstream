@@ -69,7 +69,8 @@ import {
   isJobUnscheduled,
 } from "@/lib/utils"
 import { toast } from "sonner"
-import { updateJobStatus, addJobNote, toggleChecklistItem, uploadJobAttachment, generateRecurringInstances, sendOnMyWay } from "@/actions/jobs"
+import { updateJobStatus, addJobNote, toggleChecklistItem, uploadJobAttachment, sendOnMyWay } from "@/actions/jobs"
+import { getArrivalWindowLabel } from "@/lib/format-helpers"
 
 // ---- Types ----
 
@@ -171,6 +172,8 @@ interface Job {
   cancelReason: string | null
   isRecurring: boolean
   recurrenceRule: string | null
+  recurrenceEndDate: string | null
+  arrivalWindowMinutes: number | null
   onMyWaySentAt: string | null
   customer: JobCustomer
   property: JobProperty | null
@@ -225,9 +228,6 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [attachments, setAttachments] = useState(initialJob.attachments)
-
-  // Recurring instances
-  const [generatingInstances, setGeneratingInstances] = useState(false)
 
   // On My Way
   const [onMyWayModalOpen, setOnMyWayModalOpen] = useState(false)
@@ -434,25 +434,6 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
     }
   }
 
-  // ---- Generate Recurring Instances ----
-
-  async function handleGenerateRecurring() {
-    setGeneratingInstances(true)
-    try {
-      const result = await generateRecurringInstances(job.id)
-      if ("error" in result) {
-        toast.error(result.error)
-      } else {
-        toast.success(`Generated ${result.created} recurring job instances`)
-        router.refresh()
-      }
-    } catch {
-      toast.error("Failed to generate recurring instances")
-    } finally {
-      setGeneratingInstances(false)
-    }
-  }
-
   // ---- Activity Timeline (computed from job data) ----
   type ActivityItem = {
     id: string
@@ -595,17 +576,12 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
             </Button>
           )}
 
-          {/* Generate Recurring Instances button */}
-          {job.isRecurring && (
-            <Button
-              onClick={handleGenerateRecurring}
-              disabled={generatingInstances}
-              variant="outline"
-              className="border-[#E3E8EE] text-[#425466]"
-            >
-              <RotateCcw className="w-4 h-4 mr-1.5" />
-              {generatingInstances ? "Generating..." : "Generate Schedule"}
-            </Button>
+          {/* Recurring badge */}
+          {job.isRecurring && job.recurrenceRule && (
+            <Badge variant="outline" className="border-[#635BFF]/30 text-[#635BFF] bg-[#635BFF]/5 font-medium">
+              <RotateCcw className="w-3.5 h-3.5 mr-1" />
+              Recurring: {job.recurrenceRule.charAt(0) + job.recurrenceRule.slice(1).toLowerCase()}
+            </Badge>
           )}
 
           {/* 3-dot menu */}
@@ -707,23 +683,43 @@ export function JobDetail({ job: initialJob, currentUserId }: JobDetailProps) {
                 {/* Schedule */}
                 <div>
                   <p className="text-xs uppercase font-semibold text-[#8898AA] mb-2">
-                    Scheduled
+                    {job.isRecurring && job.status === "SCHEDULED" ? "Next Occurrence" : "Scheduled"}
                   </p>
                   {!isJobUnscheduled(job.scheduledStart) ? (
                     <div className="flex items-start gap-1.5">
                       <CalendarIcon className="w-3.5 h-3.5 text-[#8898AA] mt-0.5" />
                       <div className="text-sm text-[#425466]">
-                        <p>{formatDate(job.scheduledStart!)}</p>
+                        <p className={job.isRecurring && job.status === "SCHEDULED" ? "font-semibold text-[#0A2540]" : ""}>
+                          {formatDate(job.scheduledStart!)}
+                        </p>
                         <p className="text-xs text-[#8898AA]">
                           {formatTime(job.scheduledStart!)}
                           {job.scheduledEnd &&
                             ` - ${formatTime(job.scheduledEnd)}`}
                         </p>
+                        {job.isRecurring && job.recurrenceEndDate && (
+                          <p className="text-xs text-[#8898AA] mt-1">
+                            Series ends: {formatDate(job.recurrenceEndDate)}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ) : (
                     <p className="text-sm text-amber-600 font-medium">Unscheduled</p>
                   )}
+                </div>
+
+                {/* Arrival Window */}
+                <div>
+                  <p className="text-xs uppercase font-semibold text-[#8898AA] mb-2">
+                    Arrival Window
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#8898AA]" />
+                    <span className="text-sm text-[#425466]">
+                      {getArrivalWindowLabel(job.arrivalWindowMinutes)}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Assigned */}

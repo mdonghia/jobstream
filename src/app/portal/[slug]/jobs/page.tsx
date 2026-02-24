@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { getPortalSession, getPortalJobs } from "@/actions/portal"
 import { formatDate, formatDateTime, formatCurrency } from "@/lib/utils"
+import { formatArrivalTime } from "@/lib/format-helpers"
 
 export default async function PortalJobsPage({
   params,
@@ -72,7 +73,21 @@ export default async function PortalJobsPage({
                       </p>
                     ) : null}
                     <p className="text-sm text-[#8898AA] mt-2">
-                      {formatDateTime(job.scheduledStart as string)}
+                      {(() => {
+                        const scheduledStart = new Date(job.scheduledStart as string)
+                        const dateStr = scheduledStart.toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })
+                        const windowMin = (job.arrivalWindowMinutes as number | null)
+                          ?? (organization as any).defaultArrivalWindow
+                          ?? 0
+                        const timeStr = windowMin > 0
+                          ? formatArrivalTime(scheduledStart, windowMin)
+                          : formatArrivalTime(scheduledStart, 0)
+                        return `${dateStr} ${timeStr}`
+                      })()}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2">

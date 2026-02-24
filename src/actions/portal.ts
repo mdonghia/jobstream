@@ -1,6 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/db"
+import { requireAuth } from "@/lib/auth-utils"
 import crypto from "crypto"
 
 // =============================================================================
@@ -180,6 +181,7 @@ export async function getPortalSession(orgSlug: string, sessionToken: string) {
             logo: true,
             phone: true,
             email: true,
+            defaultArrivalWindow: true,
           },
         },
       },
@@ -374,7 +376,7 @@ export async function sendPortalMessage(customerId: string, orgId: string, conte
           userId: owner.id,
           title: "New Portal Message",
           message: `New message from ${customer.firstName} ${customer.lastName}`,
-          linkUrl: "/customers",
+          linkUrl: `/customers/${customerId}`,
         },
       })
     }
@@ -387,7 +389,7 @@ export async function sendPortalMessage(customerId: string, orgId: string, conte
 }
 
 // =============================================================================
-// 9. getPortalMessages - Get all messages for a customer
+// 9. getPortalMessages - Get all messages for a customer (both directions)
 // =============================================================================
 
 export async function getPortalMessages(customerId: string, orgId: string) {
@@ -397,13 +399,51 @@ export async function getPortalMessages(customerId: string, orgId: string) {
         customerId,
         organizationId: orgId,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
     })
 
     return JSON.parse(JSON.stringify(messages))
   } catch (error: unknown) {
     console.error("getPortalMessages error:", error)
     return []
+  }
+}
+
+// =============================================================================
+// 9b. sendOwnerReply - Send a reply from the business owner to a customer
+// =============================================================================
+
+export async function sendOwnerReply(customerId: string, content: string) {
+  try {
+    const user = await requireAuth()
+    const orgId = user.organizationId
+
+    if (!content || !content.trim()) {
+      return { error: "Message cannot be empty" }
+    }
+
+    // Verify the customer belongs to the org
+    const customer = await prisma.customer.findFirst({
+      where: { id: customerId, organizationId: orgId },
+      select: { id: true },
+    })
+
+    if (!customer) return { error: "Customer not found" }
+
+    // Create the message from the owner
+    await prisma.portalMessage.create({
+      data: {
+        organizationId: orgId,
+        customerId,
+        content: content.trim(),
+        isFromOwner: true,
+      },
+    })
+
+    return { success: true }
+  } catch (error: unknown) {
+    console.error("sendOwnerReply error:", error)
+    return { error: "Failed to send reply" }
   }
 }
 

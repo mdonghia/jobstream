@@ -473,6 +473,50 @@ export async function updateJobStatus(
           console.error("Failed to create auto-invoicing failure notification")
         }
       }
+
+      // -----------------------------------------------------------------------
+      // Recurring job cycling: when a recurring parent job is completed,
+      // calculate the next occurrence and cycle it back to SCHEDULED.
+      // This replaces the old model of generating child job instances.
+      // -----------------------------------------------------------------------
+      if (job.isRecurring && !job.parentJobId && job.recurrenceRule) {
+        try {
+          const duration = job.scheduledEnd.getTime() - job.scheduledStart.getTime()
+          const nextStart = calculateNextOccurrence(job.scheduledStart, job.recurrenceRule)
+
+          // Check if the series is done (past the end date)
+          const seriesDone = job.recurrenceEndDate && nextStart > job.recurrenceEndDate
+
+          if (!seriesDone) {
+            // Cycle the job back to SCHEDULED with new dates
+            await prisma.job.update({
+              where: { id },
+              data: {
+                status: "SCHEDULED",
+                scheduledStart: nextStart,
+                scheduledEnd: new Date(nextStart.getTime() + duration),
+                actualStart: null,
+                actualEnd: null,
+                completionNotes: null,
+                onMyWaySentAt: null,
+              },
+            })
+
+            // Reset checklist items for the next occurrence
+            await prisma.jobChecklistItem.updateMany({
+              where: { jobId: id },
+              data: {
+                isCompleted: false,
+                completedAt: null,
+                completedByUserId: null,
+              },
+            })
+          }
+        } catch (e) {
+          // Don't fail the status update if recurring cycling fails
+          console.error("Recurring job cycling failed:", e)
+        }
+      }
     }
 
     return { success: true }
@@ -481,6 +525,41 @@ export async function updateJobStatus(
     console.error("updateJobStatus error:", error)
     return { error: "Failed to update job status" }
   }
+}
+
+/**
+ * Calculate the next occurrence date for a recurring job.
+ * Uses proper Date methods for month/year boundaries.
+ */
+function calculateNextOccurrence(currentStart: Date, recurrenceRule: string): Date {
+  const next = new Date(currentStart)
+
+  switch (recurrenceRule) {
+    case "DAILY":
+      next.setDate(next.getDate() + 1)
+      break
+    case "WEEKLY":
+      next.setDate(next.getDate() + 7)
+      break
+    case "BIWEEKLY":
+      next.setDate(next.getDate() + 14)
+      break
+    case "MONTHLY":
+      next.setMonth(next.getMonth() + 1)
+      break
+    case "QUARTERLY":
+      next.setMonth(next.getMonth() + 3)
+      break
+    case "ANNUALLY":
+      next.setFullYear(next.getFullYear() + 1)
+      break
+    default:
+      // Fallback to weekly
+      next.setDate(next.getDate() + 7)
+      break
+  }
+
+  return next
 }
 
 // =============================================================================
@@ -1040,143 +1119,12 @@ export async function uploadJobAttachment(jobId: string, formData: FormData) {
 }
 
 // =============================================================================
-// 13. generateRecurringInstances - Create child job instances from a recurring parent
+// 13. generateRecurringInstances - DEPRECATED
+// Recurring jobs now cycle automatically via updateJobStatus() when completed.
+// This function is no longer used. The old model of generating child job
+// instances has been replaced with a single job that cycles between
+// SCHEDULED and COMPLETED states.
 // =============================================================================
-
-export async function generateRecurringInstances(parentJobId: string) {
-  try {
-    const user = await requireAuth()
-
-    const parentJob = await prisma.job.findFirst({
-      where: {
-        id: parentJobId,
-        organizationId: user.organizationId,
-        isRecurring: true,
-      },
-      include: { lineItems: true, assignments: true, checklistItems: true },
-    })
-    if (!parentJob) return { error: "Recurring job not found" }
-    if (!parentJob.recurrenceRule) return { error: "No recurrence rule set" }
-
-    const duration =
-      parentJob.scheduledEnd.getTime() - parentJob.scheduledStart.getTime()
-    const endDate = parentJob.recurrenceEndDate
-      ? new Date(parentJob.recurrenceEndDate)
-      : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) // Default: 90 days out
-
-    const intervalMs: Record<string, number> = {
-      DAILY: 1 * 24 * 60 * 60 * 1000,
-      WEEKLY: 7 * 24 * 60 * 60 * 1000,
-      BIWEEKLY: 14 * 24 * 60 * 60 * 1000,
-      MONTHLY: 30 * 24 * 60 * 60 * 1000,
-      QUARTERLY: 91 * 24 * 60 * 60 * 1000,
-      BIANNUALLY: 182 * 24 * 60 * 60 * 1000,
-      ANNUALLY: 365 * 24 * 60 * 60 * 1000,
-    }
-    const interval = intervalMs[parentJob.recurrenceRule] || intervalMs.WEEKLY
-
-    // Find latest child to continue from (instead of blocking re-generation)
-    const existingChildren = await prisma.job.count({
-      where: { parentJobId: parentJob.id },
-    })
-    const latestChild = existingChildren > 0
-      ? await prisma.job.findFirst({
-          where: { parentJobId: parentJob.id },
-          orderBy: { scheduledStart: "desc" },
-        })
-      : null
-
-    // Check recurrenceCount limit
-    if (parentJob.recurrenceCount && existingChildren >= parentJob.recurrenceCount) {
-      return { error: "Recurrence count limit already reached" }
-    }
-
-    let created = 0
-    let nextDate = latestChild
-      ? new Date(latestChild.scheduledStart.getTime() + interval)
-      : new Date(parentJob.scheduledStart.getTime() + interval)
-
-    while (nextDate <= endDate && created < 52) {
-      // Check recurrenceCount limit dynamically
-      if (parentJob.recurrenceCount) {
-        const currentTotal = existingChildren + created
-        if (currentTotal >= parentJob.recurrenceCount) break
-      }
-
-      const org = await prisma.organization.update({
-        where: { id: user.organizationId },
-        data: { nextJobNum: { increment: 1 } },
-        select: { nextJobNum: true, jobPrefix: true },
-      })
-
-      const newJob = await prisma.job.create({
-        data: {
-          organizationId: user.organizationId,
-          customerId: parentJob.customerId,
-          propertyId: parentJob.propertyId,
-          parentJobId: parentJob.id,
-          jobNumber: `${org.jobPrefix}-${org.nextJobNum - 1}`,
-          title: parentJob.title,
-          description: parentJob.description,
-          status: "SCHEDULED",
-          priority: parentJob.priority,
-          scheduledStart: new Date(nextDate),
-          scheduledEnd: new Date(nextDate.getTime() + duration),
-          isRecurring: false,
-        },
-      })
-
-      // Copy line items from parent to child (CRITICAL FIX)
-      if (parentJob.lineItems.length > 0) {
-        await prisma.jobLineItem.createMany({
-          data: parentJob.lineItems.map((li) => ({
-            jobId: newJob.id,
-            serviceId: li.serviceId,
-            name: li.name,
-            description: li.description,
-            quantity: li.quantity,
-            unitPrice: li.unitPrice,
-            total: li.total,
-            taxable: li.taxable,
-            sortOrder: li.sortOrder,
-          })),
-        })
-      }
-
-      // Copy assignments to child job
-      if (parentJob.assignments.length > 0) {
-        await prisma.jobAssignment.createMany({
-          data: parentJob.assignments.map((a) => ({
-            jobId: newJob.id,
-            userId: a.userId,
-            organizationId: user.organizationId,
-          })),
-        })
-      }
-
-      // Copy checklist items (fresh uncompleted copies)
-      if (parentJob.checklistItems.length > 0) {
-        await prisma.jobChecklistItem.createMany({
-          data: parentJob.checklistItems.map((ci) => ({
-            jobId: newJob.id,
-            label: ci.label,
-            sortOrder: ci.sortOrder,
-            isCompleted: false,
-          })),
-        })
-      }
-
-      created++
-      nextDate = new Date(nextDate.getTime() + interval)
-    }
-
-    return { created }
-  } catch (error: any) {
-    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
-    console.error("generateRecurringInstances error:", error)
-    return { error: "Failed to generate recurring instances" }
-  }
-}
 
 // =============================================================================
 // 13b. cancelRecurringSeries - Stop recurrence and cancel future scheduled children
@@ -1225,11 +1173,12 @@ export async function sendOnMyWay(jobId: string) {
   try {
     const user = await requireAuth()
 
-    // Find job with customer and assignments
+    // Find job with customer, property, and assignments
     const job = await prisma.job.findFirst({
       where: { id: jobId, organizationId: user.organizationId },
       include: {
         customer: true,
+        property: true,
         assignments: {
           include: {
             user: { select: { id: true, firstName: true, lastName: true } },
@@ -1274,12 +1223,14 @@ export async function sendOnMyWay(jobId: string) {
       const techName = user.firstName || "Your technician"
       const orgName = org.name || "JobStream"
 
-      // Calculate arrival time text
-      const { formatArrivalTime } = await import("@/lib/format-helpers")
-      const windowMin = job.arrivalWindowMinutes ?? org.defaultArrivalWindow ?? 60
-      const arrivalText = formatArrivalTime(job.scheduledStart, windowMin)
+      // Build address string from property if available
+      const address = job.property
+        ? `${job.property.addressLine1}${job.property.addressLine2 ? ", " + job.property.addressLine2 : ""}, ${job.property.city}, ${job.property.state} ${job.property.zip}`
+        : null
 
-      const smsMessage = `Hi ${customer.firstName}, ${techName} from ${orgName} is on the way! Expected arrival: ${arrivalText}. See you soon!`
+      const smsMessage = address
+        ? `Hi ${customer.firstName}, ${techName} from ${orgName} is on the way! Job: ${job.title} at ${address}. See you soon!`
+        : `Hi ${customer.firstName}, ${techName} from ${orgName} is on the way! Job: ${job.title}. See you soon!`
 
       // Check notification preferences
       const { isNotificationEnabled } = await import("@/lib/notification-check")
@@ -1334,6 +1285,10 @@ export async function sendOnMyWay(jobId: string) {
 
             const subject = `${techName} from ${orgName} is on the way!`
 
+            const addressHtml = address
+              ? ` at <strong>${address}</strong>`
+              : ""
+
             await sgMail.default.send({
               to: customer.email,
               from: {
@@ -1345,9 +1300,8 @@ export async function sendOnMyWay(jobId: string) {
                 <div style="font-family: Inter, sans-serif; max-width: 560px; margin: 0 auto;">
                   <h2>Hi ${customer.firstName},</h2>
                   <p><strong>${techName}</strong> from <strong>${orgName}</strong> is on the way to you!</p>
-                  <p>Expected arrival: <strong>${arrivalText}</strong></p>
+                  <p>They'll be performing <strong>${job.title}</strong>${addressHtml}.</p>
                   <p>If you have any questions, please don't hesitate to contact us.</p>
-                  <p>See you soon!</p>
                   <br />
                   <p style="color: #666;">- ${orgName}</p>
                 </div>
@@ -1365,7 +1319,7 @@ export async function sendOnMyWay(jobId: string) {
                 direction: "OUTBOUND",
                 recipientAddress: customer.email,
                 subject,
-                content: `On My Way notification sent to ${customer.firstName} ${customer.lastName}. ${techName} arriving ${arrivalText}.`,
+                content: `On My Way notification sent to ${customer.firstName} ${customer.lastName}. ${techName} on the way for ${job.title}${address ? " at " + address : ""}.`,
                 status: "SENT",
                 triggeredBy: "on_my_way",
               },
