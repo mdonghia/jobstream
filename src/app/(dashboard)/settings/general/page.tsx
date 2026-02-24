@@ -24,6 +24,7 @@ export default async function SettingsGeneralPage() {
     name: org.name,
     email: org.email,
     phone: org.phone,
+    website: org.website,
     address: org.address,
     city: org.city,
     state: org.state,

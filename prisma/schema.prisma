@@ -127,6 +127,7 @@ model Organization {
   city            String?
   state           String?
   zip             String?
+  website         String?
   logo            String?
   timezone        String   @default("America/New_York")
   businessHours   Json?

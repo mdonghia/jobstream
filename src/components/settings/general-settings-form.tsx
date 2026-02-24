@@ -31,6 +31,7 @@ interface OrganizationData {
   name: string
   email: string
   phone?: string | null
+  website?: string | null
   address?: string | null
   city?: string | null
   state?: string | null
@@ -78,9 +79,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
   const [name, setName] = useState(organization.name || "")
   const [email, setEmail] = useState(organization.email || "")
   const [phone, setPhone] = useState(organization.phone || "")
-  const [website, setWebsite] = useState(
-    (organization as any).website || ""
-  )
+  const [website, setWebsite] = useState(organization.website || "")
 
   // Address
   const [address, setAddress] = useState(organization.address || "")
@@ -159,6 +158,7 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim() || undefined,
+        website: website.trim() || undefined,
         address: address.trim() || undefined,
         city: city.trim() || undefined,
         state: state || undefined,

@@ -61,6 +61,7 @@ export async function updateOrganizationSettings(
         name: result.data.name,
         email: result.data.email,
         phone: result.data.phone || null,
+        website: result.data.website || null,
         address: result.data.address || null,
         city: result.data.city || null,
         state: result.data.state || null,
