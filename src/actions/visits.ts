@@ -278,6 +278,58 @@ export async function getCalendarVisits(params: {
 }
 
 // =============================================================================
+// 6b. getUnscheduledVisits - Get visits with schedulingType UNSCHEDULED
+// =============================================================================
+
+export async function getUnscheduledVisits(params?: { userIds?: string[] }) {
+  try {
+    const user = await requireAuth()
+
+    const where: any = {
+      organizationId: user.organizationId,
+      status: { not: "CANCELLED" },
+      schedulingType: "UNSCHEDULED",
+    }
+
+    if (params?.userIds && params.userIds.length > 0) {
+      where.assignments = { some: { userId: { in: params.userIds } } }
+    }
+
+    const visits = await prisma.visit.findMany({
+      where,
+      include: {
+        job: {
+          select: {
+            id: true,
+            title: true,
+            jobNumber: true,
+            priority: true,
+            customer: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+        },
+        assignments: {
+          include: {
+            user: {
+              select: { id: true, firstName: true, lastName: true, color: true },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    })
+
+    return { visits }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getUnscheduledVisits error:", error)
+    return { error: "Failed to fetch unscheduled visits" }
+  }
+}
+
+// =============================================================================
 // 7. sendOnMyWayForVisit - Send "On My Way" notification for a visit
 // =============================================================================
 
@@ -523,7 +575,94 @@ export async function getVisit(visitId: string) {
 }
 
 // =============================================================================
-// 9. getTechVisits - Get visits assigned to the current user for a date
+// 9a. createVisitFromApprovedQuote - Internal helper (no auth) for v2 flow
+// When a quote with a jobId is approved, create a new Visit on the existing Job
+// =============================================================================
+
+export async function createVisitFromApprovedQuote(
+  organizationId: string,
+  quoteId: string,
+  jobId: string
+): Promise<{ visitId: string } | { error: string }> {
+  try {
+    // Look up the quote's line items
+    const quote = await prisma.quote.findFirst({
+      where: { id: quoteId, organizationId },
+      include: {
+        lineItems: { orderBy: { sortOrder: "asc" } },
+      },
+    })
+    if (!quote) return { error: "Quote not found" }
+
+    // Get the job to verify it exists and belongs to the org
+    const job = await prisma.job.findFirst({
+      where: { id: jobId, organizationId },
+    })
+    if (!job) return { error: "Job not found" }
+
+    // Determine which line items to copy:
+    // If the quote has a selectedOptionId, only copy line items from that option.
+    // Otherwise, copy all line items with quoteOptionId = null.
+    let lineItemsToCopy = quote.lineItems
+    if (quote.selectedOptionId) {
+      lineItemsToCopy = quote.lineItems.filter(
+        (li) => li.quoteOptionId === quote.selectedOptionId
+      )
+    } else {
+      lineItemsToCopy = quote.lineItems.filter(
+        (li) => li.quoteOptionId === null
+      )
+    }
+
+    // Count existing visits on the job for visitNumber
+    const existingCount = await prisma.visit.count({
+      where: { jobId },
+    })
+    const visitNumber = existingCount + 1
+
+    // Create the Visit and copy line items in a transaction
+    const visit = await prisma.$transaction(async (tx) => {
+      const newVisit = await tx.visit.create({
+        data: {
+          jobId,
+          organizationId,
+          visitNumber,
+          purpose: "SERVICE",
+          status: "SCHEDULED",
+          schedulingType: "UNSCHEDULED",
+        },
+      })
+
+      // Copy quote line items to JobLineItems linked to the new visit
+      if (lineItemsToCopy.length > 0) {
+        await tx.jobLineItem.createMany({
+          data: lineItemsToCopy.map((li) => ({
+            jobId,
+            visitId: newVisit.id,
+            serviceId: li.serviceId,
+            name: li.name,
+            description: li.description,
+            quantity: li.quantity,
+            unitPrice: li.unitPrice,
+            total: li.total,
+            taxable: li.taxable,
+            sortOrder: li.sortOrder,
+          })),
+        })
+      }
+
+      return newVisit
+    })
+
+    return { visitId: visit.id }
+  } catch (error: any) {
+    console.error("createVisitFromApprovedQuote error:", error)
+    return { error: "Failed to create visit from approved quote" }
+  }
+}
+
+// =============================================================================
+// 9b. getTechVisits - Get visits assigned to the current user for a date
 // =============================================================================
 
 export async function getTechVisits(params: { date: string; tomorrow?: boolean }) {

@@ -1016,3 +1016,113 @@ export async function sendInvoiceReminder(id: string) {
     return { error: "Failed to send reminder" }
   }
 }
+
+// =============================================================================
+// 11. getInvoicesV2 - Invoice list with 6 tab filters for v2 UI
+// =============================================================================
+
+type InvoiceTab = "draft" | "sent" | "overdue" | "partially_paid" | "paid" | "cancelled"
+
+const TAB_STATUS_MAP: Record<InvoiceTab, string[]> = {
+  draft: ["DRAFT"],
+  sent: ["SENT", "VIEWED"],
+  overdue: ["OVERDUE"],
+  partially_paid: ["PARTIALLY_PAID"],
+  paid: ["PAID"],
+  cancelled: ["VOID"],
+}
+
+export async function getInvoicesV2(params: {
+  tab: InvoiceTab
+  search?: string
+  page?: number
+  perPage?: number
+}) {
+  try {
+    const user = await requireAuth()
+    const { tab, search, page = 1, perPage = 25 } = params
+
+    const statuses = TAB_STATUS_MAP[tab]
+    const where: any = {
+      organizationId: user.organizationId,
+      status: { in: statuses },
+    }
+
+    // Split on whitespace so multi-word searches match across fields
+    if (search && search.trim()) {
+      const words = search.trim().split(/\s+/)
+      where.AND = [
+        ...(where.AND || []),
+        ...words.map((word: string) => ({
+          OR: [
+            { invoiceNumber: { contains: word, mode: "insensitive" } },
+            { customer: { firstName: { contains: word, mode: "insensitive" } } },
+            { customer: { lastName: { contains: word, mode: "insensitive" } } },
+          ],
+        })),
+      ]
+    }
+
+    const skip = (page - 1) * perPage
+
+    const [total, invoices, statusCounts] = await Promise.all([
+      prisma.invoice.count({ where }),
+      prisma.invoice.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: perPage,
+        include: {
+          customer: { select: { id: true, firstName: true, lastName: true } },
+          job: { select: { id: true, jobNumber: true } },
+          payments: { orderBy: { createdAt: "desc" } },
+        },
+      }),
+      // Get counts per status for all tabs
+      prisma.invoice.groupBy({
+        by: ["status"],
+        where: { organizationId: user.organizationId },
+        _count: true,
+      }),
+    ])
+
+    // Build tab counts from status group-by
+    const rawCounts: Record<string, number> = {}
+    statusCounts.forEach((s) => {
+      rawCounts[s.status] = s._count
+    })
+
+    const tabCounts: Record<InvoiceTab, number> = {
+      draft: rawCounts.DRAFT ?? 0,
+      sent: (rawCounts.SENT ?? 0) + (rawCounts.VIEWED ?? 0),
+      overdue: rawCounts.OVERDUE ?? 0,
+      partially_paid: rawCounts.PARTIALLY_PAID ?? 0,
+      paid: rawCounts.PAID ?? 0,
+      cancelled: rawCounts.VOID ?? 0,
+    }
+
+    return {
+      invoices: invoices.map((i) => ({
+        ...i,
+        total: Number(i.total),
+        amountPaid: Number(i.amountPaid),
+        amountDue: Number(i.amountDue),
+        subtotal: Number(i.subtotal),
+        taxAmount: Number(i.taxAmount),
+        discountAmount: Number(i.discountAmount),
+        payments: i.payments.map((p) => ({
+          ...p,
+          amount: Number(p.amount),
+        })),
+      })),
+      total,
+      page,
+      totalPages: Math.ceil(total / perPage),
+      tabCounts,
+    }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getInvoicesV2 error:", error)
+    return { error: "Failed to fetch invoices" }
+  }
+}

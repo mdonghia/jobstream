@@ -682,46 +682,60 @@ export async function approveQuote(accessToken: string) {
       return { error: "Quote was already processed" }
     }
 
-    // Check org setting for auto-conversion
-    try {
-      const org = await prisma.organization.findUnique({
-        where: { id: quote.organizationId },
-        select: { autoConvertQuoteToJob: true },
-      })
+    // V2: If quote has jobId, create Visit on existing Job instead of new Job
+    if (quote.jobId) {
+      // The quote was created from a visit (from the tech's completion menu)
+      // So approval should create a new Visit on the same Job
+      try {
+        const { createVisitFromApprovedQuote } = await import("@/actions/visits")
+        await createVisitFromApprovedQuote(quote.organizationId, quote.id, quote.jobId)
+      } catch (e) {
+        console.error("Failed to create visit from approved quote:", e)
+        // Don't fail the approval
+      }
+    } else {
+      // No jobId = standalone quote. Use existing auto-convert logic
+      // Check org setting for auto-conversion
+      try {
+        const org = await prisma.organization.findUnique({
+          where: { id: quote.organizationId },
+          select: { autoConvertQuoteToJob: true },
+        })
 
-      if (org?.autoConvertQuoteToJob) {
-        const conversionResult = await _internalConvertQuoteToJob(
-          quote.organizationId,
-          quote.id
-        )
-
-        if ("error" in conversionResult) {
-          // Auto-conversion failed -- create a notification for the org owner
-          // so approval still succeeds but they know conversion didn't happen
-          console.error(
-            `Auto-conversion failed for Quote ${quote.quoteNumber}:`,
-            conversionResult.error
+        if (org?.autoConvertQuoteToJob) {
+          const conversionResult = await _internalConvertQuoteToJob(
+            quote.organizationId,
+            quote.id
           )
-          const owner = await prisma.user.findFirst({
-            where: { organizationId: quote.organizationId, role: "OWNER" },
-            select: { id: true },
-          })
-          if (owner) {
-            await prisma.notification.create({
-              data: {
-                organizationId: quote.organizationId,
-                userId: owner.id,
-                title: "Auto-conversion failed",
-                message: `Auto-conversion failed for Quote ${quote.quoteNumber}. You can convert it manually from the quote detail page.`,
-                linkUrl: `/quotes/${quote.id}`,
-              },
+
+          if ("error" in conversionResult) {
+            // Auto-conversion failed -- create a notification for the org owner
+            // so approval still succeeds but they know conversion didn't happen
+            console.error(
+              `Auto-conversion failed for Quote ${quote.quoteNumber}:`,
+              conversionResult.error
+            )
+            const owner = await prisma.user.findFirst({
+              where: { organizationId: quote.organizationId, role: "OWNER" },
+              select: { id: true },
             })
+            if (owner) {
+              await prisma.notification.create({
+                data: {
+                  organizationId: quote.organizationId,
+                  userId: owner.id,
+                  title: "Auto-conversion failed",
+                  message: `Auto-conversion failed for Quote ${quote.quoteNumber}. You can convert it manually from the quote detail page.`,
+                  linkUrl: `/quotes/${quote.id}`,
+                },
+              })
+            }
           }
         }
+      } catch (autoConvertError) {
+        // Approval succeeded; log but don't fail
+        console.error("Auto-conversion error (approval still succeeded):", autoConvertError)
       }
-    } catch (autoConvertError) {
-      // Approval succeeded; log but don't fail
-      console.error("Auto-conversion error (approval still succeeded):", autoConvertError)
     }
 
     return { success: true }

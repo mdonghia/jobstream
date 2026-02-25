@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/auth-utils"
+import { featureFlags } from "@/lib/feature-flags"
 import {
   getDashboardStats,
   getRevenueChart,
@@ -12,6 +13,14 @@ import { DashboardPage as DashboardPageClient } from "@/components/dashboard/das
 
 export default async function DashboardPage() {
   const user = await requireAuth()
+
+  // If v2Nav is enabled and the user is a technician, render the tech pipeline
+  // instead of the standard dashboard. Dynamic import keeps the bundle lean for
+  // non-tech users.
+  if (featureFlags.v2Nav && user.role === "TECHNICIAN") {
+    const TechPipeline = (await import("@/components/tech/tech-pipeline")).default
+    return <TechPipeline />
+  }
 
   const [
     statsResult,
