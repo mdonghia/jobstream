@@ -300,6 +300,33 @@ export async function createJob(data: {
         })
       }
 
+      // V2 dual-write: create Visit record
+      const isUnscheduled = new Date(data.scheduledStart).getTime() < new Date("2000-01-01").getTime()
+      const visit = await tx.visit.create({
+        data: {
+          jobId: newJob.id,
+          organizationId: user.organizationId,
+          visitNumber: 1,
+          purpose: "SERVICE",
+          status: "SCHEDULED",
+          schedulingType: isUnscheduled ? "UNSCHEDULED" : "SCHEDULED",
+          scheduledStart: new Date(data.scheduledStart),
+          scheduledEnd: new Date(data.scheduledEnd),
+          arrivalWindowMinutes: data.arrivalWindowMinutes ?? null,
+        },
+      })
+
+      // V2 dual-write: copy assignments to VisitAssignment
+      if (data.assignedUserIds && data.assignedUserIds.length > 0) {
+        await tx.visitAssignment.createMany({
+          data: data.assignedUserIds.map((userId) => ({
+            visitId: visit.id,
+            userId,
+            organizationId: user.organizationId,
+          })),
+        })
+      }
+
       // Create checklist items
       if (data.checklistItems && data.checklistItems.length > 0) {
         await tx.jobChecklistItem.createMany({
@@ -397,6 +424,22 @@ export async function updateJobStatus(
     await prisma.job.update({
       where: { id },
       data: updateData,
+    })
+
+    // V2 dual-write: update Visit status to match
+    const visitStatusMap: Record<string, string> = {
+      SCHEDULED: "SCHEDULED",
+      IN_PROGRESS: "IN_PROGRESS",
+      COMPLETED: "COMPLETED",
+      CANCELLED: "CANCELLED",
+    }
+    await prisma.visit.updateMany({
+      where: { jobId: id },
+      data: {
+        status: visitStatusMap[newStatus] as any,
+        ...(newStatus === "IN_PROGRESS" ? { actualStart: new Date() } : {}),
+        ...(newStatus === "COMPLETED" ? { actualEnd: new Date(), completionNotes: data?.completionNotes || null } : {}),
+      },
     })
 
     // Auto-send review request when job is completed (if enabled)
@@ -895,9 +938,19 @@ export async function rescheduleJob(
       },
     })
 
+    // V2 dual-write: reschedule Visit too
+    const isUndoToUnscheduled = newStartDate.getTime() < new Date("2000-01-01").getTime()
+    await prisma.visit.updateMany({
+      where: { jobId: id },
+      data: {
+        scheduledStart: newStartDate,
+        scheduledEnd: newEndDate,
+        schedulingType: isUndoToUnscheduled ? "UNSCHEDULED" : "SCHEDULED",
+      },
+    })
+
     // Send email notification to the customer (best effort)
     // Skip if the new date is epoch (undo-to-unscheduled) or if there's no customer email
-    const isUndoToUnscheduled = newStartDate.getTime() < new Date("2000-01-01").getTime()
     if (!isUndoToUnscheduled) {
       // Determine if this is a first-time schedule or a reschedule
       // First-time: old start was epoch/placeholder (before year 2000) or within 60s of creation
@@ -1013,6 +1066,26 @@ export async function reassignJob(id: string, userIds: string[]) {
         data: userIds.map((userId) => ({ jobId: id, userId, organizationId: user.organizationId })),
       }),
     ])
+
+    // V2 dual-write: sync visit assignments
+    const visits = await prisma.visit.findMany({
+      where: { jobId: id },
+      select: { id: true },
+    })
+    if (visits.length > 0) {
+      for (const visit of visits) {
+        await prisma.visitAssignment.deleteMany({ where: { visitId: visit.id } })
+        if (userIds.length > 0) {
+          await prisma.visitAssignment.createMany({
+            data: userIds.map((userId) => ({
+              visitId: visit.id,
+              userId,
+              organizationId: user.organizationId,
+            })),
+          })
+        }
+      }
+    }
 
     return { success: true }
   } catch (error: any) {
@@ -1428,6 +1501,16 @@ export async function sendOnMyWay(jobId: string) {
     await prisma.job.update({
       where: { id: jobId },
       data: updateData,
+    })
+
+    // V2 dual-write: update Visit on-my-way status
+    await prisma.visit.updateMany({
+      where: { jobId: jobId, status: { in: ["SCHEDULED", "EN_ROUTE"] } },
+      data: {
+        onMyWaySentAt: now,
+        status: "EN_ROUTE",
+        ...(job.status === "SCHEDULED" ? { actualStart: now } : {}),
+      },
     })
 
     return { success: true, smsSent, emailSent, warnings }

@@ -1,11 +1,17 @@
 import { Suspense } from "react"
 import { requireAuth } from "@/lib/auth-utils"
+import { featureFlags } from "@/lib/feature-flags"
 import { getJobs } from "@/actions/jobs"
 import { getTeamMembers } from "@/actions/settings"
 import { JobList } from "@/components/jobs/job-list"
+import JobListV2 from "@/components/jobs/job-list-v2"
 
 export default async function JobsPage() {
   await requireAuth()
+
+  if (featureFlags.v2Visits) {
+    return <JobListV2 />
+  }
 
   const [jobsResult, teamResult] = await Promise.all([
     getJobs({ page: 1, perPage: 25 }),

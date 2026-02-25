@@ -119,6 +119,38 @@ enum ScheduledStatus {
   CANCELLED
 }
 
+// V2: Visit lifecycle status
+enum VisitStatus {
+  SCHEDULED
+  EN_ROUTE
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// V2: How a visit is scheduled
+enum SchedulingType {
+  SCHEDULED
+  ANYTIME
+  UNSCHEDULED
+}
+
+// V2: Purpose of a visit
+enum VisitPurpose {
+  DIAGNOSTIC
+  SERVICE
+  FOLLOW_UP
+  MAINTENANCE
+}
+
+// V2: How a job was created
+enum JobSource {
+  PHONE
+  BOOKING_TOOL
+  ONLINE
+  OTHER
+}
+
 // ============================================================================
 // Models
 // ============================================================================
@@ -220,6 +252,11 @@ model Organization {
   portalMessages          PortalMessage[]
   servicePlans            ServicePlan[]
   subscriptions           Subscription[]
+
+  // V2 relations
+  visits              Visit[]
+  visitAssignments    VisitAssignment[]
+  activityEvents      ActivityEvent[]
 }
 
 // 2. User
@@ -250,6 +287,10 @@ model User {
   checklistCompletions JobChecklistItem[]   @relation("CompletedBy")
   passwordResetTokens  PasswordResetToken[]
   customerNotes        CustomerNote[]
+
+  // V2 relations
+  visitAssignments     VisitAssignment[]
+  activityEvents       ActivityEvent[]
 
   @@index([organizationId])
 }
@@ -367,13 +408,17 @@ model Quote {
 
   selectedOptionId  String?
 
+  // V2: Link to parent job (when quote created from visit completion)
+  jobId             String?
+
   // Relations
   organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
   property          Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   lineItems         QuoteLineItem[]
   options           QuoteOption[]
-  jobs              Job[]
+  jobsCreatedFromQuote Job[]           @relation("JobCreatedFromQuote")
+  parentJob         Job?               @relation("QuoteCreatedForJob", fields: [jobId], references: [id], onDelete: SetNull)
   scheduledMessages ScheduledMessage[] @relation("QuoteMessages")
 
   @@index([organizationId])
@@ -450,6 +495,9 @@ model Job {
   arrivalWindowMinutes  Int?
   onMyWaySentAt         DateTime?
   subscriptionId        String?
+  // V2 fields
+  isEmergency           Boolean   @default(false)
+  source                JobSource?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -457,7 +505,7 @@ model Job {
   organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
   property          Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  quote             Quote?             @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  quote             Quote?             @relation("JobCreatedFromQuote", fields: [quoteId], references: [id], onDelete: SetNull)
   parentJob         Job?               @relation("RecurringJobs", fields: [parentJobId], references: [id], onDelete: SetNull)
   childJobs         Job[]              @relation("RecurringJobs")
   subscription      Subscription?      @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
@@ -470,6 +518,11 @@ model Job {
   timeEntries       TimeEntry[]
   reviewRequests    ReviewRequest[]
   scheduledMessages ScheduledMessage[] @relation("JobMessages")
+
+  // V2 relations
+  visits            Visit[]
+  quotesInContext   Quote[]            @relation("QuoteCreatedForJob")
+  activityEvents    ActivityEvent[]
 
   @@index([organizationId])
   @@index([customerId])
@@ -550,6 +603,8 @@ model JobLineItem {
   id          String  @id @default(cuid())
   jobId       String
   serviceId   String?
+  // V2: Optional visit link for per-visit line items
+  visitId     String?
   name        String
   description String?
   quantity    Decimal @default(1)
@@ -561,8 +616,10 @@ model JobLineItem {
   // Relations
   job     Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  visit   Visit?   @relation(fields: [visitId], references: [id], onDelete: SetNull)
 
   @@index([jobId])
+  @@index([visitId])
 }
 
 // 14. Invoice
@@ -659,6 +716,8 @@ model TimeEntry {
   organizationId  String
   userId          String
   jobId           String?
+  // V2: Optional visit link for per-visit time tracking
+  visitId         String?
   clockIn         DateTime
   clockOut        DateTime?
   durationMinutes Int?
@@ -670,9 +729,11 @@ model TimeEntry {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   job          Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  visit        Visit?       @relation(fields: [visitId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])
   @@index([jobId])
+  @@index([visitId])
   @@index([organizationId, userId])
 }
 
@@ -1038,4 +1099,91 @@ model Subscription {
 
   @@index([organizationId])
   @@index([customerId])
+}
+
+// ============================================================================
+// V2: Visit Model -- Calendar entry within a Job
+// ============================================================================
+
+model Visit {
+  id              String         @id @default(cuid())
+  jobId           String
+  organizationId  String
+  visitNumber     Int            // Sequential within the job (1, 2, 3...)
+  purpose         VisitPurpose   @default(SERVICE)
+  status          VisitStatus    @default(SCHEDULED)
+  schedulingType  SchedulingType @default(UNSCHEDULED)
+  scheduledStart  DateTime?
+  scheduledEnd    DateTime?
+  actualStart     DateTime?
+  actualEnd       DateTime?
+  arrivalWindowMinutes Int?
+  onMyWaySentAt   DateTime?
+  notes           String?
+  completionNotes String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job               @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  assignments  VisitAssignment[]
+  timeEntries  TimeEntry[]
+  lineItems    JobLineItem[]
+  activityEvents ActivityEvent[]
+
+  @@index([jobId])
+  @@index([organizationId])
+  @@index([jobId, status])
+  @@index([organizationId, scheduledStart])
+  @@index([organizationId, status, scheduledStart])
+}
+
+// ============================================================================
+// V2: VisitAssignment -- Tech assignment per visit
+// ============================================================================
+
+model VisitAssignment {
+  id             String   @id @default(cuid())
+  visitId        String
+  userId         String
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  // Relations
+  visit        Visit        @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([visitId, userId])
+  @@index([visitId])
+  @@index([organizationId])
+  @@index([organizationId, userId])
+}
+
+// ============================================================================
+// V2: ActivityEvent -- Activity feed entries for jobs
+// ============================================================================
+
+model ActivityEvent {
+  id             String    @id @default(cuid())
+  organizationId String
+  jobId          String
+  visitId        String?
+  userId         String?
+  eventType      String    // e.g. "visit_completed", "quote_sent", "note_added"
+  title          String    // e.g. "Visit #2 completed"
+  description    String?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  visit        Visit?       @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([jobId, createdAt])
+  @@index([organizationId])
+  @@index([organizationId, createdAt])
 }
