@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/db"
 import { requireAuth } from "@/lib/auth-utils"
 import { jobSchema } from "@/lib/validations"
+import { featureFlags } from "@/lib/feature-flags"
+import { logActivityEvent, ActivityEventTypes } from "@/lib/activity-logger"
 
 // =============================================================================
 // Types
@@ -519,8 +521,7 @@ export async function updateJobStatus(
 
       // -----------------------------------------------------------------------
       // Recurring job cycling: when a recurring parent job is completed,
-      // calculate the next occurrence and cycle it back to SCHEDULED.
-      // This replaces the old model of generating child job instances.
+      // either cycle the job row (v1) or create a new Visit (v2).
       // -----------------------------------------------------------------------
       if (job.isRecurring && !job.parentJobId && job.recurrenceRule) {
         try {
@@ -531,29 +532,44 @@ export async function updateJobStatus(
           const seriesDone = job.recurrenceEndDate && nextStart > job.recurrenceEndDate
 
           if (!seriesDone) {
-            // Cycle the job back to SCHEDULED with new dates
-            await prisma.job.update({
-              where: { id },
-              data: {
-                status: "SCHEDULED",
-                scheduledStart: nextStart,
-                scheduledEnd: new Date(nextStart.getTime() + duration),
-                actualStart: null,
-                actualEnd: null,
-                completionNotes: null,
-                onMyWaySentAt: null,
-              },
-            })
+            if (featureFlags.v2Visits) {
+              // ---------------------------------------------------------------
+              // V2 path: create a new Visit on the same Job for the next
+              // occurrence. This preserves visit history instead of
+              // overwriting dates on the Job row.
+              // ---------------------------------------------------------------
+              await createNextRecurringVisit({
+                jobId: id,
+                organizationId: user.organizationId,
+                userId: user.id,
+                nextStart,
+                duration,
+              })
+            } else {
+              // V1 path: cycle the job back to SCHEDULED with new dates
+              await prisma.job.update({
+                where: { id },
+                data: {
+                  status: "SCHEDULED",
+                  scheduledStart: nextStart,
+                  scheduledEnd: new Date(nextStart.getTime() + duration),
+                  actualStart: null,
+                  actualEnd: null,
+                  completionNotes: null,
+                  onMyWaySentAt: null,
+                },
+              })
 
-            // Reset checklist items for the next occurrence
-            await prisma.jobChecklistItem.updateMany({
-              where: { jobId: id },
-              data: {
-                isCompleted: false,
-                completedAt: null,
-                completedByUserId: null,
-              },
-            })
+              // Reset checklist items for the next occurrence
+              await prisma.jobChecklistItem.updateMany({
+                where: { jobId: id },
+                data: {
+                  isCompleted: false,
+                  completedAt: null,
+                  completedByUserId: null,
+                },
+              })
+            }
           }
         } catch (e) {
           // Don't fail the status update if recurring cycling fails
@@ -603,6 +619,86 @@ function calculateNextOccurrence(currentStart: Date, recurrenceRule: string): Da
   }
 
   return next
+}
+
+/**
+ * V2: Create the next recurring Visit on a Job when the current visit is completed.
+ *
+ * Instead of overwriting the Job's scheduledStart/scheduledEnd (which destroys
+ * visit history), this creates a brand-new Visit row on the same Job with the
+ * computed next occurrence dates and copies the tech assignments from the most
+ * recently completed visit.
+ */
+async function createNextRecurringVisit(params: {
+  jobId: string
+  organizationId: string
+  userId: string
+  nextStart: Date
+  duration: number
+}): Promise<void> {
+  const { jobId, organizationId, userId, nextStart, duration } = params
+  const nextEnd = new Date(nextStart.getTime() + duration)
+
+  await prisma.$transaction(async (tx) => {
+    // Find the highest visitNumber on this job
+    const lastVisit = await tx.visit.findFirst({
+      where: { jobId },
+      orderBy: { visitNumber: "desc" },
+      select: {
+        id: true,
+        visitNumber: true,
+        arrivalWindowMinutes: true,
+        assignments: { select: { userId: true } },
+      },
+    })
+
+    const nextVisitNumber = (lastVisit?.visitNumber ?? 0) + 1
+
+    // Create the new Visit for the next recurrence
+    const newVisit = await tx.visit.create({
+      data: {
+        jobId,
+        organizationId,
+        visitNumber: nextVisitNumber,
+        purpose: "MAINTENANCE",
+        status: "SCHEDULED",
+        schedulingType: "SCHEDULED",
+        scheduledStart: nextStart,
+        scheduledEnd: nextEnd,
+        arrivalWindowMinutes: lastVisit?.arrivalWindowMinutes ?? null,
+      },
+    })
+
+    // Copy assignments from the completed visit to the new visit
+    if (lastVisit && lastVisit.assignments.length > 0) {
+      await tx.visitAssignment.createMany({
+        data: lastVisit.assignments.map((a) => ({
+          visitId: newVisit.id,
+          userId: a.userId,
+          organizationId,
+        })),
+      })
+    }
+
+    // Log an activity event for the new visit creation
+    // (fire-and-forget outside the transaction is fine, but we do it inside
+    //  the tx to keep the data consistent -- logActivityEvent catches errors)
+    await logActivityEvent({
+      organizationId,
+      jobId,
+      visitId: newVisit.id,
+      userId,
+      eventType: ActivityEventTypes.VISIT_CREATED,
+      title: `Visit #${nextVisitNumber} auto-created from recurring schedule`,
+      description: `Next occurrence scheduled for ${nextStart.toISOString()}`,
+      metadata: {
+        visitNumber: nextVisitNumber,
+        scheduledStart: nextStart.toISOString(),
+        scheduledEnd: nextEnd.toISOString(),
+        source: "recurring_auto",
+      },
+    })
+  })
 }
 
 // =============================================================================
