@@ -24,6 +24,7 @@ import {
   MessageSquare,
   StickyNote,
   Send,
+  Activity,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -103,6 +104,17 @@ interface PortalMessageEntry {
   createdAt: Date | string
 }
 
+interface ActivityEventEntry {
+  id: string
+  eventType: string
+  title: string
+  description: string | null
+  createdAt: Date | string
+  jobId: string
+  job: { id: string; jobNumber: string; title: string } | null
+  user: { id: string; firstName: string; lastName: string } | null
+}
+
 interface CustomerDetailProps {
   customer: {
     id: string
@@ -126,6 +138,7 @@ interface CustomerDetailProps {
   invoices: any[]
   payments: any[]
   portalMessages?: PortalMessageEntry[]
+  recentActivityEvents?: ActivityEventEntry[]
 }
 
 export function CustomerDetail({
@@ -138,6 +151,7 @@ export function CustomerDetail({
   invoices,
   payments,
   portalMessages = [],
+  recentActivityEvents = [],
 }: CustomerDetailProps) {
   const router = useRouter()
   const [notes, setNotes] = useState(initialNotes)
@@ -612,6 +626,60 @@ export function CustomerDetail({
               )}
             </CardContent>
           </Card>
+
+          {/* Recent Activity (v2) */}
+          {recentActivityEvents.length > 0 && (
+            <Card className="border-[#E3E8EE] mt-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold uppercase text-[#8898AA] flex items-center gap-2">
+                  <Activity className="w-4 h-4" />
+                  Recent Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {recentActivityEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="flex items-start gap-3 p-3 rounded-lg border border-[#E3E8EE]"
+                    >
+                      <div className="w-7 h-7 rounded-full bg-[#F6F8FA] border border-[#E3E8EE] flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Briefcase className="w-3.5 h-3.5 text-[#8898AA]" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#0A2540]">
+                          {event.title}
+                        </p>
+                        {event.description && (
+                          <p className="text-xs text-[#425466] mt-0.5">
+                            {event.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-1">
+                          {event.job && (
+                            <Link
+                              href={`/jobs/${event.job.id}`}
+                              className="text-xs text-[#635BFF] hover:underline font-medium"
+                            >
+                              {event.job.jobNumber}
+                            </Link>
+                          )}
+                          {event.user && (
+                            <span className="text-xs text-[#8898AA]">
+                              {event.user.firstName} {event.user.lastName}
+                            </span>
+                          )}
+                          <span className="text-xs text-[#8898AA]">
+                            {formatRelativeTime(event.createdAt)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Quotes Tab */}

@@ -992,6 +992,7 @@ model NotificationPreference {
   triggerKey       String
   emailEnabled    Boolean  @default(true)
   smsEnabled      Boolean  @default(false)
+  inAppEnabled    Boolean  @default(false)
   updatedAt       DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

@@ -9,7 +9,9 @@ import {
   getTodaysSchedule,
   getActionRequired,
 } from "@/actions/dashboard"
+import { getDashboardV2Stats } from "@/actions/dashboard-v2"
 import { DashboardPage as DashboardPageClient } from "@/components/dashboard/dashboard-page"
+import { DashboardPageV2 } from "@/components/dashboard/dashboard-page-v2"
 
 export default async function DashboardPage() {
   const user = await requireAuth()
@@ -22,6 +24,39 @@ export default async function DashboardPage() {
     return <TechPipeline />
   }
 
+  // --------------------------------------------------------------------------
+  // V2 Dashboard (feature-flagged)
+  // --------------------------------------------------------------------------
+  if (featureFlags.v2Dashboard) {
+    const v2Result = await getDashboardV2Stats()
+
+    const v2Stats: import("@/actions/dashboard-v2").DashboardV2Stats =
+      "error" in v2Result
+        ? {
+            unscheduledJobsCount: 0,
+            needsInvoicingCount: 0,
+            overdueQuotesCount: 0,
+            overdueInvoicesCount: 0,
+            visitsScheduledToday: 0,
+            visitsCompletedToday: 0,
+            revenuePastWeek: 0,
+            revenuePastMonth: 0,
+            revenuePastYear: 0,
+            visitsCompletedPastWeek: 0,
+            visitsCompletedPastMonth: 0,
+            visitsCompletedPastYear: 0,
+          }
+        : v2Result
+
+    // Serialize for client component (handles Date -> string, Decimal -> number)
+    const serializedV2 = JSON.parse(JSON.stringify(v2Stats))
+
+    return <DashboardPageV2 stats={serializedV2} userName={user.firstName} />
+  }
+
+  // --------------------------------------------------------------------------
+  // V1 Dashboard (original)
+  // --------------------------------------------------------------------------
   const [
     statsResult,
     revenueResult,
