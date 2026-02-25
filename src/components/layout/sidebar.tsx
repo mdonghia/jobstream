@@ -6,16 +6,11 @@ import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
   Users,
-  FileText,
   Calendar,
   Briefcase,
   Receipt,
-  CreditCard,
-  Clock,
-  CalendarPlus,
   Star,
   BarChart3,
-  MessageSquare,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -28,17 +23,16 @@ import {
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { label: "Customers", icon: Users, href: "/customers" },
-  { label: "Quotes", icon: FileText, href: "/quotes" },
   { label: "Jobs", icon: Briefcase, href: "/jobs" },
+  { label: "Customers", icon: Users, href: "/customers" },
   { label: "Schedule", icon: Calendar, href: "/schedule" },
   { label: "Invoices", icon: Receipt, href: "/invoices" },
-  { label: "Payments", icon: CreditCard, href: "/payments" },
-  { label: "Time Tracking", icon: Clock, href: "/time-tracking" },
-  { label: "Bookings", icon: CalendarPlus, href: "/bookings" },
-  { label: "Reviews", icon: Star, href: "/reviews" },
   { label: "Reports", icon: BarChart3, href: "/reports" },
-  { label: "Communications", icon: MessageSquare, href: "/communications" },
+]
+
+// Conditional items -- shown when Marketing Suite is enabled (always shown for now)
+const conditionalItems = [
+  { label: "Reviews", icon: Star, href: "/reviews" },
 ]
 
 const bottomItems = [
@@ -49,9 +43,15 @@ interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
   orgName: string
+  user: {
+    role: string
+  }
 }
 
-export function Sidebar({ collapsed, onToggle, orgName }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, orgName, user }: SidebarProps) {
+  // Technicians don't see the sidebar -- they get the pipeline view (Phase 8)
+  if (user.role === "TECHNICIAN") return null
+
   const pathname = usePathname()
 
   function isActive(href: string) {
@@ -102,7 +102,7 @@ export function Sidebar({ collapsed, onToggle, orgName }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
+        {[...navItems, ...conditionalItems].map((item) => {
           const active = isActive(item.href)
           const Icon = item.icon
 

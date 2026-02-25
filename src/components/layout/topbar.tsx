@@ -25,24 +25,18 @@ import { getInitials } from "@/lib/utils"
 
 const quickActions = [
   { label: "New Customer", href: "/customers?action=new" },
-  { label: "New Quote", href: "/quotes/new" },
   { label: "New Job", href: "/jobs/new" },
   { label: "New Invoice", href: "/invoices/new" },
 ]
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
-  "/customers": "Customers",
-  "/quotes": "Quotes",
-  "/schedule": "Schedule",
   "/jobs": "Jobs",
+  "/customers": "Customers",
+  "/schedule": "Schedule",
   "/invoices": "Invoices",
-  "/payments": "Payments",
-  "/time-tracking": "Time Tracking",
-  "/bookings": "Bookings",
-  "/reviews": "Reviews",
   "/reports": "Reports",
-  "/communications": "Communications",
+  "/reviews": "Reviews",
   "/settings": "Settings",
   "/settings/general": "Business Information",
   "/settings/team": "Team Members",
@@ -64,9 +58,10 @@ interface TopbarProps {
     avatar: string | null
   }
   onMenuClick: () => void
+  hideSidebarToggle?: boolean
 }
 
-export function Topbar({ user, onMenuClick }: TopbarProps) {
+export function Topbar({ user, onMenuClick, hideSidebarToggle }: TopbarProps) {
   const pathname = usePathname()
 
   function getPageTitle() {
@@ -83,13 +78,15 @@ export function Topbar({ user, onMenuClick }: TopbarProps) {
     <header className="h-14 border-b border-[#E3E8EE] bg-white flex items-center justify-between px-4 lg:px-6">
       {/* Left side: hamburger + page title */}
       <div className="flex items-center gap-3">
-        <button
-          onClick={onMenuClick}
-          className="lg:hidden p-1.5 rounded-md hover:bg-gray-100 text-[#425466]"
-          aria-label="Toggle menu"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+        {!hideSidebarToggle && (
+          <button
+            onClick={onMenuClick}
+            className="lg:hidden p-1.5 rounded-md hover:bg-gray-100 text-[#425466]"
+            aria-label="Toggle menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
         <h1 className="text-lg font-semibold text-[#0A2540]">
           {getPageTitle()}
         </h1>

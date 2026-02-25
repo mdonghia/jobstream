@@ -12,32 +12,29 @@ import {
 import {
   LayoutDashboard,
   Users,
-  FileText,
   Calendar,
   Briefcase,
   Receipt,
-  CreditCard,
-  Clock,
-  CalendarPlus,
   Star,
   BarChart3,
-  MessageSquare,
   Settings,
 } from "lucide-react"
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { label: "Customers", icon: Users, href: "/customers" },
-  { label: "Quotes", icon: FileText, href: "/quotes" },
   { label: "Jobs", icon: Briefcase, href: "/jobs" },
+  { label: "Customers", icon: Users, href: "/customers" },
   { label: "Schedule", icon: Calendar, href: "/schedule" },
   { label: "Invoices", icon: Receipt, href: "/invoices" },
-  { label: "Payments", icon: CreditCard, href: "/payments" },
-  { label: "Time Tracking", icon: Clock, href: "/time-tracking" },
-  { label: "Bookings", icon: CalendarPlus, href: "/bookings" },
-  { label: "Reviews", icon: Star, href: "/reviews" },
   { label: "Reports", icon: BarChart3, href: "/reports" },
-  { label: "Communications", icon: MessageSquare, href: "/communications" },
+]
+
+// Conditional items -- shown when Marketing Suite is enabled (always shown for now)
+const conditionalItems = [
+  { label: "Reviews", icon: Star, href: "/reviews" },
+]
+
+const bottomItems = [
   { label: "Settings", icon: Settings, href: "/settings" },
 ]
 
@@ -45,15 +42,23 @@ interface MobileNavProps {
   open: boolean
   onClose: () => void
   orgName: string
+  user: {
+    role: string
+  }
 }
 
-export function MobileNav({ open, onClose, orgName }: MobileNavProps) {
+export function MobileNav({ open, onClose, orgName, user }: MobileNavProps) {
   const pathname = usePathname()
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/"
     return pathname.startsWith(href)
   }
+
+  // Technicians don't see the mobile nav -- they get the pipeline view (Phase 8)
+  if (user.role === "TECHNICIAN") return null
+
+  const allNavItems = [...navItems, ...conditionalItems]
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
@@ -67,8 +72,8 @@ export function MobileNav({ open, onClose, orgName }: MobileNavProps) {
           </SheetTitle>
         </SheetHeader>
 
-        <nav className="py-2 px-2 space-y-0.5">
-          {navItems.map((item) => {
+        <nav className="flex-1 py-2 px-2 space-y-0.5">
+          {allNavItems.map((item) => {
             const active = isActive(item.href)
             const Icon = item.icon
 
@@ -90,6 +95,30 @@ export function MobileNav({ open, onClose, orgName }: MobileNavProps) {
             )
           })}
         </nav>
+
+        <div className="border-t border-[#E3E8EE] py-2 px-2 space-y-0.5">
+          {bottomItems.map((item) => {
+            const active = isActive(item.href)
+            const Icon = item.icon
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-3 px-3 h-9 rounded-md text-sm transition-colors",
+                  active
+                    ? "bg-[#635BFF]/10 text-[#635BFF] font-medium"
+                    : "text-[#425466] hover:bg-gray-200/60"
+                )}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            )
+          })}
+        </div>
       </SheetContent>
     </Sheet>
   )

@@ -22,32 +22,41 @@ export function DashboardShell({ children, user, orgName }: DashboardShellProps)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
+  const isTechnician = user.role === "TECHNICIAN"
+
   return (
     <div className="min-h-screen bg-[#F6F8FA]">
-      {/* Desktop sidebar */}
-      <Sidebar
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        orgName={orgName}
-      />
+      {/* Desktop sidebar -- hidden for technicians */}
+      {!isTechnician && (
+        <Sidebar
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          orgName={orgName}
+          user={user}
+        />
+      )}
 
-      {/* Mobile nav */}
-      <MobileNav
-        open={mobileNavOpen}
-        onClose={() => setMobileNavOpen(false)}
-        orgName={orgName}
-      />
+      {/* Mobile nav -- hidden for technicians */}
+      {!isTechnician && (
+        <MobileNav
+          open={mobileNavOpen}
+          onClose={() => setMobileNavOpen(false)}
+          orgName={orgName}
+          user={user}
+        />
+      )}
 
-      {/* Main content area */}
+      {/* Main content area -- no sidebar offset for technicians */}
       <div
         className={cn(
           "transition-all duration-200",
-          sidebarCollapsed ? "lg:ml-16" : "lg:ml-60"
+          !isTechnician && (sidebarCollapsed ? "lg:ml-16" : "lg:ml-60")
         )}
       >
         <Topbar
           user={user}
           onMenuClick={() => setMobileNavOpen(true)}
+          hideSidebarToggle={isTechnician}
         />
         <main className="p-4 lg:p-6">{children}</main>
       </div>
