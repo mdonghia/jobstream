@@ -257,6 +257,7 @@ export function CustomerList({
           open={formOpen}
           onOpenChange={setFormOpen}
           onSave={handleCreateCustomer}
+          allTags={allTags}
         />
       </>
     )

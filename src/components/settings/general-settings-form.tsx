@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { US_STATES, US_TIMEZONES, DEFAULT_BUSINESS_HOURS } from "@/lib/constants"
+import { AddressAutocomplete, type ParsedAddress } from "@/components/ui/address-autocomplete"
 import { updateOrganizationSettings } from "@/actions/settings"
 
 // ============================================================================
@@ -305,10 +306,16 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5 sm:col-span-2">
             <Label className={labelClass}>Street Address</Label>
-            <Input
+            <AddressAutocomplete
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              onBlur={triggerAutoSave}
+              onChange={(val) => { setAddress(val) }}
+              onAddressSelect={(addr: ParsedAddress) => {
+                setAddress(addr.addressLine1)
+                if (addr.city) setCity(addr.city)
+                if (addr.state) setState(addr.state)
+                if (addr.zip) setZip(addr.zip)
+                triggerAutoSave()
+              }}
               placeholder="123 Main Street"
               className={inputClass}
             />

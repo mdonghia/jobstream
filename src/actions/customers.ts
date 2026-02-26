@@ -533,7 +533,17 @@ export async function updateCustomer(
         })
 
         if (properties.length > 0) {
+          // Enforce single primary: only the first property marked as primary keeps it.
+          // If none are marked primary, the first property becomes primary.
+          let primaryAssigned = false
           for (const prop of properties) {
+            let isPrimary = prop.isPrimary ?? false
+            if (isPrimary && primaryAssigned) {
+              isPrimary = false // already have a primary
+            }
+            if (isPrimary) {
+              primaryAssigned = true
+            }
             await tx.property.create({
               data: {
                 customerId: id,
@@ -543,9 +553,22 @@ export async function updateCustomer(
                 state: prop.state,
                 zip: prop.zip,
                 notes: prop.notes || null,
-                isPrimary: prop.isPrimary ?? false,
+                isPrimary,
               },
             })
+          }
+          // If no property was marked primary, set the first one
+          if (!primaryAssigned) {
+            const first = await tx.property.findFirst({
+              where: { customerId: id },
+              orderBy: { createdAt: "asc" },
+            })
+            if (first) {
+              await tx.property.update({
+                where: { id: first.id },
+                data: { isPrimary: true },
+              })
+            }
           }
         }
       }
@@ -692,6 +715,22 @@ export async function addProperty(
       return { error: result.error.issues[0].message }
     }
 
+    // Check how many properties the customer already has
+    const existingCount = await prisma.property.count({
+      where: { customerId },
+    })
+
+    // If this is the first property, force it to primary
+    const shouldBePrimary = existingCount === 0 ? true : (result.data.isPrimary ?? false)
+
+    // If setting as primary, clear isPrimary on all other properties first
+    if (shouldBePrimary) {
+      await prisma.property.updateMany({
+        where: { customerId, isPrimary: true },
+        data: { isPrimary: false },
+      })
+    }
+
     const property = await prisma.property.create({
       data: {
         customerId,
@@ -701,7 +740,7 @@ export async function addProperty(
         state: result.data.state,
         zip: result.data.zip,
         notes: result.data.notes || null,
-        isPrimary: result.data.isPrimary ?? false,
+        isPrimary: shouldBePrimary,
       },
     })
 
@@ -746,6 +785,18 @@ export async function updateProperty(
       return { error: result.error.issues[0].message }
     }
 
+    // If setting this property as primary, clear isPrimary on all other properties for this customer
+    if (result.data.isPrimary === true) {
+      await prisma.property.updateMany({
+        where: {
+          customerId: property.customerId,
+          isPrimary: true,
+          id: { not: propertyId },
+        },
+        data: { isPrimary: false },
+      })
+    }
+
     const updated = await prisma.property.update({
       where: { id: propertyId },
       data: result.data,
@@ -786,6 +837,20 @@ export async function deleteProperty(propertyId: string) {
     await prisma.property.delete({
       where: { id: propertyId },
     })
+
+    // If the deleted property was primary, promote the first remaining property
+    if (property.isPrimary) {
+      const firstRemaining = await prisma.property.findFirst({
+        where: { customerId: property.customerId },
+        orderBy: { createdAt: "asc" },
+      })
+      if (firstRemaining) {
+        await prisma.property.update({
+          where: { id: firstRemaining.id },
+          data: { isPrimary: true },
+        })
+      }
+    }
 
     return { success: true }
   } catch (error: any) {
@@ -903,11 +968,11 @@ export async function getAllTags() {
     const user = await requireAuth()
 
     const customers = await prisma.customer.findMany({
-      where: { organizationId: user.organizationId },
+      where: { organizationId: user.organizationId, isArchived: false },
       select: { tags: true },
     })
 
-    // Collect all unique tags across every customer
+    // Collect all unique tags across active customers only
     const tagSet = new Set<string>()
     for (const customer of customers) {
       for (const tag of customer.tags) {
@@ -1014,5 +1079,128 @@ export async function getCustomerStats(customerId: string) {
     }
     console.error("getCustomerStats error:", error)
     return { error: "Failed to fetch customer stats" }
+  }
+}
+
+// =============================================================================
+// 14. getTagUsageCounts - Get usage counts for each tag across customers
+// =============================================================================
+
+export async function getTagUsageCounts() {
+  try {
+    const user = await requireAuth()
+
+    const customers = await prisma.customer.findMany({
+      where: { organizationId: user.organizationId },
+      select: { tags: true },
+    })
+
+    const counts: Record<string, number> = {}
+    for (const customer of customers) {
+      for (const tag of customer.tags) {
+        counts[tag] = (counts[tag] || 0) + 1
+      }
+    }
+
+    return { counts }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error
+    }
+    console.error("getTagUsageCounts error:", error)
+    return { error: "Failed to fetch tag counts" }
+  }
+}
+
+// =============================================================================
+// 15. renameCustomerTag - Rename a tag across all customers that use it
+// =============================================================================
+
+export async function renameCustomerTag(oldName: string, newName: string) {
+  try {
+    const user = await requireAuth()
+
+    const trimmedOld = oldName.trim()
+    const trimmedNew = newName.trim()
+
+    if (!trimmedOld || !trimmedNew) {
+      return { error: "Tag name cannot be empty" }
+    }
+
+    if (trimmedOld === trimmedNew) {
+      return { error: "New name is the same as the current name" }
+    }
+
+    // Find all customers in this org that have the old tag
+    const customers = await prisma.customer.findMany({
+      where: {
+        organizationId: user.organizationId,
+        tags: { has: trimmedOld },
+      },
+      select: { id: true, tags: true },
+    })
+
+    let updated = 0
+    for (const customer of customers) {
+      // Replace old tag with new tag, avoiding duplicates
+      const newTags = customer.tags
+        .map((t) => (t === trimmedOld ? trimmedNew : t))
+        .filter((t, i, arr) => arr.indexOf(t) === i) // deduplicate
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { tags: newTags },
+      })
+      updated++
+    }
+
+    return { updated }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error
+    }
+    console.error("renameCustomerTag error:", error)
+    return { error: "Failed to rename tag" }
+  }
+}
+
+// =============================================================================
+// 16. deleteCustomerTag - Remove a tag from all customers that use it
+// =============================================================================
+
+export async function deleteCustomerTag(name: string) {
+  try {
+    const user = await requireAuth()
+
+    const trimmed = name.trim()
+    if (!trimmed) {
+      return { error: "Tag name cannot be empty" }
+    }
+
+    // Find all customers in this org that have this tag
+    const customers = await prisma.customer.findMany({
+      where: {
+        organizationId: user.organizationId,
+        tags: { has: trimmed },
+      },
+      select: { id: true, tags: true },
+    })
+
+    let updated = 0
+    for (const customer of customers) {
+      const newTags = customer.tags.filter((t) => t !== trimmed)
+      await prisma.customer.update({
+        where: { id: customer.id },
+        data: { tags: newTags },
+      })
+      updated++
+    }
+
+    return { updated }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error
+    }
+    console.error("deleteCustomerTag error:", error)
+    return { error: "Failed to delete tag" }
   }
 }

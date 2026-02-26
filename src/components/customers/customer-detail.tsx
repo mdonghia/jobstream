@@ -60,6 +60,7 @@ import {
   getAllTags,
 } from "@/actions/customers"
 import { CustomerForm } from "@/components/customers/customer-form"
+import { ManageTagsDialog } from "@/components/customers/manage-tags-dialog"
 
 interface Property {
   id: string
@@ -151,6 +152,7 @@ export function CustomerDetail({
   const [editOpen, setEditOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [allTags, setAllTags] = useState<string[]>([])
+  const [manageTagsOpen, setManageTagsOpen] = useState(false)
 
   // Profile notes (the customer.notes field -- auto-saves on blur)
   const [profileNotes, setProfileNotes] = useState(customer.notes || "")
@@ -413,10 +415,10 @@ export function CustomerDetail({
         <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden">
           {[
             { value: "overview", label: "Overview" },
-            { value: "activity-feed", label: "Activity Feed" },
-            { value: "quotes", label: "Quotes" },
+            { value: "quotes", label: "Codes" },
             { value: "jobs", label: "Jobs" },
             { value: "invoices", label: "Invoices" },
+            { value: "activity-feed", label: "Activity Feed" },
           ].map((tab) => (
             <TabsTrigger
               key={tab.value}
@@ -473,11 +475,11 @@ export function CustomerDetail({
                     Customer since {formatDate(customer.createdAt)}
                   </span>
                 </div>
-                {customer.tags.length > 0 && (
-                  <div className="flex items-start gap-3">
-                    <Tag className="w-4 h-4 text-[#8898AA] mt-0.5" />
-                    <div className="flex flex-wrap gap-1.5">
-                      {customer.tags.map((tag) => (
+                <div className="flex items-start gap-3">
+                  <Tag className="w-4 h-4 text-[#8898AA] mt-0.5" />
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    {customer.tags.length > 0 ? (
+                      customer.tags.map((tag) => (
                         <Badge
                           key={tag}
                           variant="secondary"
@@ -485,10 +487,19 @@ export function CustomerDetail({
                         >
                           {tag}
                         </Badge>
-                      ))}
-                    </div>
+                      ))
+                    ) : (
+                      <span className="text-xs text-[#8898AA]">No tags</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setManageTagsOpen(true)}
+                      className="text-xs text-[#635BFF] hover:underline ml-1"
+                    >
+                      Manage Tags
+                    </button>
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
 
@@ -496,7 +507,7 @@ export function CustomerDetail({
             <Card className="border-[#E3E8EE]">
               <CardHeader className="pb-4">
                 <CardTitle className="text-sm font-semibold uppercase text-[#8898AA] flex items-center gap-2">
-                  Notes
+                  Customer Notes
                   {profileNotesSaving && (
                     <span className="text-xs font-normal text-[#8898AA] normal-case">Saving...</span>
                   )}
@@ -892,6 +903,19 @@ export function CustomerDetail({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Manage Tags Dialog */}
+      <ManageTagsDialog
+        open={manageTagsOpen}
+        onOpenChange={setManageTagsOpen}
+        onTagsChanged={async () => {
+          // Refresh allTags after a change so the edit form gets updated suggestions
+          const refreshed = await getAllTags()
+          if (Array.isArray(refreshed)) setAllTags(refreshed)
+          // Also refresh the page to reflect renamed/deleted tags on this customer
+          router.refresh()
+        }}
+      />
     </div>
   )
 }

@@ -8,6 +8,7 @@ const settingsLinks = [
   { href: "/settings/automation", label: "Automation" },
   { href: "/settings/team", label: "Team Members" },
   { href: "/settings/services", label: "Services" },
+  { href: "/settings/customer-tags", label: "Customer Tags" },
   { href: "/settings/checklists", label: "Checklists" },
   { href: "/settings/payments", label: "Payments" },
   { href: "/settings/communications", label: "Communications" },

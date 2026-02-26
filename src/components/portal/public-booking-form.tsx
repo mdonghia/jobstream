@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
+import { AddressAutocomplete, type ParsedAddress } from "@/components/ui/address-autocomplete"
 import { createPublicBooking, getAvailableSlots } from "@/actions/bookings"
 
 // ============================================================================
@@ -584,9 +585,15 @@ export function PublicBookingForm({
           <Label className="text-xs font-semibold uppercase text-[#8898AA]">
             Street Address
           </Label>
-          <Input
+          <AddressAutocomplete
             value={addressLine1}
-            onChange={(e) => setAddressLine1(e.target.value)}
+            onChange={(val) => setAddressLine1(val)}
+            onAddressSelect={(addr: ParsedAddress) => {
+              setAddressLine1(addr.addressLine1)
+              if (addr.city) setCity(addr.city)
+              if (addr.state) setState(addr.state)
+              if (addr.zip) setZip(addr.zip)
+            }}
             placeholder="123 Main St"
             className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
           />
