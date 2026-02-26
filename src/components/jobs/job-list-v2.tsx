@@ -48,6 +48,7 @@ interface SerializedQuote {
   total: number
   sentAt: string | null
   status: string
+  validUntil: string | null
 }
 
 interface SerializedInvoice {
@@ -448,6 +449,9 @@ export default function JobListV2() {
 
       case "awaiting_approval": {
         const quote = primaryQuote(job.quotes)
+        const isOverdue =
+          quote?.validUntil != null && new Date(quote.validUntil) < new Date()
+        const overdueClass = isOverdue ? "text-red-600 font-medium" : "text-[#425466]"
         return (
           <TableRow
             key={job.id}
@@ -474,10 +478,10 @@ export default function JobListV2() {
             <TableCell className="px-4 py-3 text-sm text-[#425466]">
               {quote ? formatCurrency(quote.total) : "--"}
             </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
+            <TableCell className={`px-4 py-3 text-sm ${overdueClass}`}>
               {quote?.sentAt ? formatDate(quote.sentAt) : "--"}
             </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
+            <TableCell className={`px-4 py-3 text-sm ${overdueClass}`}>
               {quote?.sentAt ? `${daysSince(quote.sentAt)}d` : "--"}
             </TableCell>
           </TableRow>

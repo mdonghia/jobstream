@@ -43,11 +43,11 @@ const jobIncludeForV2 = {
   },
   // quote = the quote this job was created FROM (Job.quoteId -> Quote)
   quote: {
-    select: { id: true, quoteNumber: true, total: true, sentAt: true, status: true },
+    select: { id: true, quoteNumber: true, total: true, sentAt: true, status: true, validUntil: true },
   },
   // quotesInContext = quotes created FOR this job (Quote.jobId -> Job)
   quotesInContext: {
-    select: { id: true, quoteNumber: true, total: true, sentAt: true, status: true },
+    select: { id: true, quoteNumber: true, total: true, sentAt: true, status: true, validUntil: true },
   },
   invoices: {
     select: {
@@ -96,6 +96,7 @@ function serializeJob(job: any) {
               total: Number(job.quote.total),
               sentAt: job.quote.sentAt,
               status: job.quote.status,
+              validUntil: job.quote.validUntil,
             },
           ]
         : []),
@@ -105,6 +106,7 @@ function serializeJob(job: any) {
         total: Number(q.total),
         sentAt: q.sentAt,
         status: q.status,
+        validUntil: q.validUntil,
       })),
     ],
     invoices: job.invoices.map((inv: any) => ({

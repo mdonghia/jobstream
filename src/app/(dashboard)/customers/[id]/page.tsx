@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation"
 import { requireAuth } from "@/lib/auth-utils"
-import { getCustomer, getCustomerNotes, getCustomerStats } from "@/actions/customers"
+import { getCustomer } from "@/actions/customers"
 import { getCommunications } from "@/actions/communications"
 import { getCustomerActivityFeed } from "@/actions/activity"
 import { prisma } from "@/lib/db"
@@ -22,10 +22,8 @@ export default async function CustomerDetailPage({
 
   const cust = (result as any).customer
 
-  const [notesResult, statsResult, commsResult, quotes, jobs, invoices, payments, activityResult] = await Promise.all([
-    getCustomerNotes(id),
-    getCustomerStats(id),
-    getCommunications({ customerId: id, perPage: 50 }),
+  const [commsResult, quotes, jobs, invoices, activityResult] = await Promise.all([
+    getCommunications({ customerId: id, perPage: 100 }),
     prisma.quote.findMany({
       where: { customerId: id, organizationId: user.organizationId },
       orderBy: { createdAt: "desc" },
@@ -61,27 +59,10 @@ export default async function CustomerDetailPage({
         dueDate: true,
       },
     }),
-    prisma.payment.findMany({
-      where: {
-        organizationId: user.organizationId,
-        invoice: { customerId: id },
-      },
-      orderBy: { createdAt: "desc" },
-      include: {
-        invoice: {
-          select: { invoiceNumber: true },
-        },
-      },
-    }),
-    getCustomerActivityFeed(id, { limit: 20 }),
+    getCustomerActivityFeed(id, { limit: 50 }),
   ])
 
-  const notes = notesResult && "notes" in notesResult ? notesResult.notes : []
   const communications = commsResult && "communications" in commsResult ? commsResult.communications : []
-  const stats = statsResult && "stats" in statsResult
-    ? statsResult.stats
-    : { totalRevenue: 0, totalJobs: 0, totalQuotes: 0, openInvoicesCount: 0, openInvoicesAmount: 0 }
-
   const activityEvents = activityResult && "events" in activityResult ? activityResult.events : []
 
   // Serialize for client component using JSON round-trip to handle Dates and Decimals
@@ -105,13 +86,13 @@ export default async function CustomerDetailPage({
         createdAt: cust.createdAt,
         properties: cust.properties,
       })}
-      customerNotes={serialize(notes)}
+      customerNotes={[]}
       communications={serialize(communications)}
-      stats={serialize(stats)}
+      stats={{ totalRevenue: 0, totalJobs: 0, totalQuotes: 0, openInvoicesCount: 0, openInvoicesAmount: 0 }}
       quotes={serialize(quotes)}
       jobs={serialize(jobs)}
       invoices={serialize(invoices)}
-      payments={serialize(payments)}
+      payments={[]}
       recentActivityEvents={serialize(activityEvents)}
     />
   )

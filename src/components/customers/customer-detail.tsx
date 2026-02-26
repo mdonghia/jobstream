@@ -19,7 +19,6 @@ import {
   FileText,
   Briefcase,
   Receipt,
-  CreditCard,
   MessageSquare,
   StickyNote,
   Activity,
@@ -27,7 +26,6 @@ import {
   ClipboardList,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -39,7 +37,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Separator } from "@/components/ui/separator"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,7 +55,6 @@ import {
   unarchiveCustomer,
   deleteCustomer,
   updateCustomer,
-  addCustomerNote,
   addProperty,
   deleteProperty,
   getAllTags,
@@ -74,24 +70,6 @@ interface Property {
   zip: string
   notes: string | null
   isPrimary: boolean
-}
-
-interface CustomerNote {
-  id: string
-  content: string
-  createdAt: Date | string
-  user: {
-    firstName: string
-    lastName: string
-  }
-}
-
-interface CustomerStats {
-  totalRevenue: number
-  totalJobs: number
-  totalQuotes: number
-  openInvoicesCount: number
-  openInvoicesAmount: number
 }
 
 interface CommunicationEntry {
@@ -117,6 +95,26 @@ interface ActivityEventEntry {
   user: { id: string; firstName: string; lastName: string; avatar?: string | null } | null
 }
 
+// Unified feed item -- either an activity event or a communication
+interface UnifiedFeedItem {
+  id: string
+  kind: "activity" | "communication"
+  createdAt: Date | string
+  // Activity fields
+  eventType?: string
+  title: string
+  description?: string | null
+  job?: { id: string; jobNumber: string; title: string } | null
+  user?: { id: string; firstName: string; lastName: string; avatar?: string | null } | null
+  // Communication fields
+  commType?: string
+  commDirection?: string
+  commStatus?: string
+  commSubject?: string | null
+  commContent?: string | null
+  commRecipient?: string | null
+}
+
 interface CustomerDetailProps {
   customer: {
     id: string
@@ -131,9 +129,9 @@ interface CustomerDetailProps {
     createdAt: Date | string
     properties: Property[]
   }
-  customerNotes: CustomerNote[]
+  customerNotes: any[]
   communications: CommunicationEntry[]
-  stats: CustomerStats
+  stats: any
   quotes: any[]
   jobs: any[]
   invoices: any[]
@@ -143,19 +141,13 @@ interface CustomerDetailProps {
 
 export function CustomerDetail({
   customer,
-  customerNotes: initialNotes,
   communications,
-  stats,
   quotes,
   jobs,
   invoices,
-  payments,
   recentActivityEvents = [],
 }: CustomerDetailProps) {
   const router = useRouter()
-  const [notes, setNotes] = useState(initialNotes)
-  const [noteInput, setNoteInput] = useState("")
-  const [noteSaving, setNoteSaving] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [allTags, setAllTags] = useState<string[]>([])
@@ -206,6 +198,48 @@ export function CustomerDetail({
     })
   }
 
+  // Build unified activity feed: merge activity events + communications, sorted newest first
+  const unifiedFeed = useMemo<UnifiedFeedItem[]>(() => {
+    const items: UnifiedFeedItem[] = []
+
+    // Add activity events
+    for (const event of recentActivityEvents) {
+      items.push({
+        id: `activity-${event.id}`,
+        kind: "activity",
+        createdAt: event.createdAt,
+        eventType: event.eventType,
+        title: event.title,
+        description: event.description,
+        job: event.job,
+        user: event.user,
+      })
+    }
+
+    // Add communications
+    for (const comm of communications) {
+      const commLabel = comm.type === "EMAIL" ? "Email" : "SMS"
+      const dirLabel = comm.direction === "OUTBOUND" ? "sent" : "received"
+      items.push({
+        id: `comm-${comm.id}`,
+        kind: "communication",
+        createdAt: comm.createdAt,
+        title: `${commLabel} ${dirLabel}`,
+        commType: comm.type,
+        commDirection: comm.direction,
+        commStatus: comm.status,
+        commSubject: comm.subject,
+        commContent: comm.content,
+        commRecipient: comm.recipientAddress,
+      })
+    }
+
+    // Sort by createdAt descending (most recent first)
+    items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    return items
+  }, [recentActivityEvents, communications])
+
   useEffect(() => {
     getAllTags().then((tags) => {
       if (Array.isArray(tags)) setAllTags(tags)
@@ -233,20 +267,6 @@ export function CustomerDetail({
     }
     toast.success("Customer deleted")
     router.push("/customers")
-  }
-
-  async function handleAddNote() {
-    if (!noteInput.trim()) return
-    setNoteSaving(true)
-    const result = await addCustomerNote(customer.id, noteInput.trim())
-    if (result && "error" in result) {
-      toast.error(result.error as string)
-    } else if (result && "note" in result) {
-      setNotes((prev) => [result.note as CustomerNote, ...prev])
-      setNoteInput("")
-      toast.success("Note added")
-    }
-    setNoteSaving(false)
   }
 
   async function handleDeleteProperty(propertyId: string) {
@@ -393,13 +413,10 @@ export function CustomerDetail({
         <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden">
           {[
             { value: "overview", label: "Overview" },
-            { value: "quotes", label: "Quotes", count: quotes.length },
-            { value: "jobs", label: "Jobs", count: jobs.length },
-            { value: "invoices", label: "Invoices", count: invoices.length },
-            { value: "payments", label: "Payments", count: payments.length },
-            { value: "communications", label: "Communications" },
-            { value: "notes", label: "Notes", count: notes.length },
-            { value: "activity", label: "Activity", count: recentActivityEvents.length },
+            { value: "activity-feed", label: "Activity Feed" },
+            { value: "quotes", label: "Quotes" },
+            { value: "jobs", label: "Jobs" },
+            { value: "invoices", label: "Invoices" },
           ].map((tab) => (
             <TabsTrigger
               key={tab.value}
@@ -407,11 +424,6 @@ export function CustomerDetail({
               className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540]"
             >
               {tab.label}
-              {tab.count !== undefined && (
-                <span className="ml-1.5 text-xs bg-gray-100 px-1.5 py-0.5 rounded-full">
-                  {tab.count}
-                </span>
-              )}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -476,12 +488,6 @@ export function CustomerDetail({
                       ))}
                     </div>
                   </div>
-                )}
-                {customer.notes && (
-                  <>
-                    <Separator className="bg-[#E3E8EE]" />
-                    <p className="text-sm text-[#425466]">{customer.notes}</p>
-                  </>
                 )}
               </CardContent>
             </Card>
@@ -564,59 +570,123 @@ export function CustomerDetail({
               )}
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Recent Activity (v2) */}
-          {recentActivityEvents.length > 0 && (
-            <Card className="border-[#E3E8EE] mt-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold uppercase text-[#8898AA] flex items-center gap-2">
-                  <Activity className="w-4 h-4" />
-                  Recent Activity
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {recentActivityEvents.map((event) => (
+        {/* Activity Feed Tab -- unified: activity events + communications, sorted newest first */}
+        <TabsContent value="activity-feed" className="mt-6">
+          {unifiedFeed.length === 0 ? (
+            <div className="py-12 text-center">
+              <Activity className="w-12 h-12 text-[#8898AA] mx-auto mb-3" />
+              <p className="text-sm text-[#8898AA]">No activity yet</p>
+              <p className="text-xs text-[#8898AA] mt-1">
+                Activity events, emails, and messages will appear here
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {unifiedFeed.map((item) => {
+                if (item.kind === "communication") {
+                  // Communication entry
+                  return (
                     <div
-                      key={event.id}
+                      key={item.id}
                       className="flex items-start gap-3 p-3 rounded-lg border border-[#E3E8EE]"
                     >
-                      <div className="w-7 h-7 rounded-full bg-[#F6F8FA] border border-[#E3E8EE] flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Briefcase className="w-3.5 h-3.5 text-[#8898AA]" />
+                      <div className="w-7 h-7 rounded-full bg-[#F6F8FA] border border-[#E3E8EE] flex items-center justify-center flex-shrink-0 mt-0.5 text-[#8898AA]">
+                        {item.commType === "EMAIL" ? (
+                          <Mail className="w-3.5 h-3.5" />
+                        ) : (
+                          <Phone className="w-3.5 h-3.5" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-[#0A2540]">
-                          {event.title}
-                        </p>
-                        {event.description && (
-                          <p className="text-xs text-[#425466] mt-0.5">
-                            {event.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          {event.job && (
-                            <Link
-                              href={`/jobs/${event.job.id}`}
-                              className="text-xs text-[#635BFF] hover:underline font-medium"
-                            >
-                              {event.job.jobNumber}
-                            </Link>
-                          )}
-                          {event.user && (
-                            <span className="text-xs text-[#8898AA]">
-                              {event.user.firstName} {event.user.lastName}
-                            </span>
-                          )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-[#0A2540]">
+                            {item.title}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={
+                              item.commStatus === "SENT"
+                                ? "border-green-200 bg-green-50 text-green-700 text-[10px]"
+                                : item.commStatus === "FAILED"
+                                ? "border-red-200 bg-red-50 text-red-700 text-[10px]"
+                                : "border-yellow-200 bg-yellow-50 text-yellow-700 text-[10px]"
+                            }
+                          >
+                            {item.commStatus}
+                          </Badge>
                           <span className="text-xs text-[#8898AA]">
-                            {formatRelativeTime(event.createdAt)}
+                            {formatRelativeTime(item.createdAt)}
                           </span>
                         </div>
+                        {item.commSubject && (
+                          <p className="text-sm text-[#0A2540] mt-1">{linkifyContent(item.commSubject)}</p>
+                        )}
+                        {item.commContent && (
+                          <p className="text-sm text-[#425466] mt-0.5 line-clamp-2">{linkifyContent(item.commContent)}</p>
+                        )}
+                        {item.commRecipient && (
+                          <p className="text-xs text-[#8898AA] mt-1">
+                            To: {item.commRecipient}
+                          </p>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  )
+                }
+
+                // Activity event entry
+                const isInternalNote = item.eventType === "note_added"
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border border-[#E3E8EE] ${
+                      isInternalNote ? "bg-amber-50/50" : ""
+                    }`}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-[#F6F8FA] border border-[#E3E8EE] flex items-center justify-center flex-shrink-0 mt-0.5 text-[#8898AA]">
+                      {activityEventIcon(item.eventType || "")}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-[#0A2540]">
+                          {item.title}
+                        </p>
+                        {isInternalNote && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-amber-300 text-amber-700 bg-amber-50">
+                            Internal
+                          </span>
+                        )}
+                      </div>
+                      {item.description && (
+                        <p className="text-xs text-[#425466] mt-0.5">
+                          {linkifyContent(item.description)}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        {item.job && (
+                          <Link
+                            href={`/jobs/${item.job.id}`}
+                            className="text-xs text-[#635BFF] hover:underline font-medium"
+                          >
+                            {item.job.jobNumber}
+                          </Link>
+                        )}
+                        {item.user && (
+                          <span className="text-xs text-[#8898AA]">
+                            {item.user.firstName} {item.user.lastName}
+                          </span>
+                        )}
+                        <span className="text-xs text-[#8898AA]">
+                          {formatRelativeTime(item.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </TabsContent>
 
@@ -772,232 +842,6 @@ export function CustomerDetail({
             </div>
           )}
         </TabsContent>
-
-        {/* Payments Tab */}
-        <TabsContent value="payments" className="mt-6">
-          {payments.length === 0 ? (
-            <div className="py-12 text-center">
-              <CreditCard className="w-12 h-12 text-[#8898AA] mx-auto mb-3" />
-              <p className="text-sm text-[#8898AA]">No payments yet</p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden overflow-x-auto">
-              <table className="w-full min-w-[500px]">
-                <thead>
-                  <tr className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Date</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Invoice #</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Amount</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Method</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((payment: any) => (
-                    <tr key={payment.id} className="border-b border-[#E3E8EE]">
-                      <td className="px-4 py-3 text-sm text-[#425466]">{formatDate(payment.createdAt)}</td>
-                      <td className="px-4 py-3 text-sm font-mono text-[#635BFF]">
-                        {payment.invoice?.invoiceNumber || "\u2014"}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-[#0A2540]">{formatCurrency(payment.amount)}</td>
-                      <td className="px-4 py-3 text-sm text-[#425466] capitalize">
-                        {payment.method?.toLowerCase()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={payment.status} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Communications Tab */}
-        <TabsContent value="communications" className="mt-6">
-          {communications.length === 0 ? (
-            <div className="py-12 text-center">
-              <MessageSquare className="w-12 h-12 text-[#8898AA] mx-auto mb-3" />
-              <p className="text-sm text-[#8898AA]">No communications yet</p>
-              <p className="text-xs text-[#8898AA] mt-1">
-                Communications will appear here when you send quotes, invoices, or messages
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {communications.map((comm) => (
-                <div
-                  key={comm.id}
-                  className="p-3 rounded-lg border border-[#E3E8EE] flex items-start gap-3"
-                >
-                  <div className="mt-0.5">
-                    {comm.type === "EMAIL" ? (
-                      <Mail className="w-4 h-4 text-[#635BFF]" />
-                    ) : (
-                      <Phone className="w-4 h-4 text-[#635BFF]" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-[#0A2540]">
-                        {comm.type === "EMAIL" ? "Email" : "SMS"}{" "}
-                        {comm.direction === "OUTBOUND" ? "sent" : "received"}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className={
-                          comm.status === "SENT"
-                            ? "border-green-200 bg-green-50 text-green-700 text-[10px]"
-                            : comm.status === "FAILED"
-                            ? "border-red-200 bg-red-50 text-red-700 text-[10px]"
-                            : "border-yellow-200 bg-yellow-50 text-yellow-700 text-[10px]"
-                        }
-                      >
-                        {comm.status}
-                      </Badge>
-                      <span className="text-xs text-[#8898AA]">
-                        {formatRelativeTime(comm.createdAt)}
-                      </span>
-                    </div>
-                    {comm.subject && (
-                      <p className="text-sm text-[#0A2540] mt-1">{linkifyContent(comm.subject)}</p>
-                    )}
-                    {comm.content && (
-                      <p className="text-sm text-[#425466] mt-0.5 line-clamp-2">{linkifyContent(comm.content)}</p>
-                    )}
-                    {comm.recipientAddress && (
-                      <p className="text-xs text-[#8898AA] mt-1">
-                        To: {comm.recipientAddress}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Notes Tab */}
-        <TabsContent value="notes" className="mt-6">
-          <div className="space-y-4">
-            {/* Add Note */}
-            <div className="flex gap-3">
-              <Input
-                value={noteInput}
-                onChange={(e) => setNoteInput(e.target.value)}
-                placeholder="Add a note..."
-                className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleAddNote()
-                  }
-                }}
-              />
-              <Button
-                onClick={handleAddNote}
-                disabled={noteSaving || !noteInput.trim()}
-                className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
-              >
-                {noteSaving ? "Saving..." : "Save"}
-              </Button>
-            </div>
-
-            {/* Notes List */}
-            {notes.length === 0 ? (
-              <div className="py-8 text-center">
-                <StickyNote className="w-10 h-10 text-[#8898AA] mx-auto mb-2" />
-                <p className="text-sm text-[#8898AA]">No notes yet</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {notes.map((note) => (
-                  <div
-                    key={note.id}
-                    className="p-3 rounded-lg border border-[#E3E8EE]"
-                  >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-sm font-medium text-[#0A2540]">
-                        {note.user.firstName} {note.user.lastName}
-                      </span>
-                      <span className="text-xs text-[#8898AA]">
-                        {formatRelativeTime(note.createdAt)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-[#425466]">{note.content}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* Activity Tab */}
-        <TabsContent value="activity" className="mt-6">
-          {recentActivityEvents.length === 0 ? (
-            <div className="py-12 text-center">
-              <Activity className="w-12 h-12 text-[#8898AA] mx-auto mb-3" />
-              <p className="text-sm text-[#8898AA]">No activity yet</p>
-              <p className="text-xs text-[#8898AA] mt-1">
-                Activity events will appear here as jobs progress
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {recentActivityEvents.map((event) => {
-                const isInternalNote = event.eventType === "note_added"
-                return (
-                  <div
-                    key={event.id}
-                    className={`flex items-start gap-3 p-3 rounded-lg border border-[#E3E8EE] ${
-                      isInternalNote ? "bg-amber-50/50" : ""
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-full bg-[#F6F8FA] border border-[#E3E8EE] flex items-center justify-center flex-shrink-0 mt-0.5 text-[#8898AA]">
-                      {activityEventIcon(event.eventType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium text-[#0A2540]">
-                          {event.title}
-                        </p>
-                        {isInternalNote && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-amber-300 text-amber-700 bg-amber-50">
-                            Internal
-                          </span>
-                        )}
-                      </div>
-                      {event.description && (
-                        <p className="text-xs text-[#425466] mt-0.5">
-                          {event.description}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2 mt-1">
-                        {event.job && (
-                          <Link
-                            href={`/jobs/${event.job.id}`}
-                            className="text-xs text-[#635BFF] hover:underline font-medium"
-                          >
-                            {event.job.jobNumber}
-                          </Link>
-                        )}
-                        {event.user && (
-                          <span className="text-xs text-[#8898AA]">
-                            {event.user.firstName} {event.user.lastName}
-                          </span>
-                        )}
-                        <span className="text-xs text-[#8898AA]">
-                          {formatRelativeTime(event.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
 
       <CustomerForm
@@ -1057,6 +901,7 @@ function activityEventIcon(eventType: string) {
   if (eventType.includes("invoice")) return <FileText className="w-3.5 h-3.5" />
   if (eventType.includes("note")) return <StickyNote className="w-3.5 h-3.5" />
   if (eventType.includes("status")) return <CircleDot className="w-3.5 h-3.5" />
+  if (eventType.includes("payment")) return <Receipt className="w-3.5 h-3.5" />
   return <MessageSquare className="w-3.5 h-3.5" />
 }
 

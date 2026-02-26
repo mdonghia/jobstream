@@ -19,7 +19,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { CustomerForm } from "./customer-form"
 import { formatCurrency, formatDate, formatPhone } from "@/lib/utils"
 import { formatPhoneNumber } from "@/lib/format-helpers"
@@ -77,9 +76,9 @@ export function CustomerList({
   const [search, setSearch] = useState(searchParams.get("search") || "")
   const [status, setStatus] = useState(searchParams.get("status") || "active")
   const [tagFilter, setTagFilter] = useState(searchParams.get("tag") || "all")
-  const [sortBy, setSortBy] = useState(searchParams.get("sortBy") || "firstName")
+  const [sortBy, setSortBy] = useState(searchParams.get("sortBy") || "activityDate")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(
-    (searchParams.get("sortOrder") as "asc" | "desc") || "asc"
+    (searchParams.get("sortOrder") as "asc" | "desc") || "desc"
   )
 
   const [formOpen, setFormOpen] = useState(searchParams.get("action") === "new")
@@ -332,14 +331,8 @@ export function CustomerList({
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
                   Phone
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
-                  Properties
-                </th>
-                <SortHeader column="revenue">Revenue</SortHeader>
                 <SortHeader column="lastJobDate">Last Job</SortHeader>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
-                  Tags
-                </th>
+                <SortHeader column="revenue">Revenue</SortHeader>
                 <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
@@ -371,34 +364,12 @@ export function CustomerList({
                     {customer.phone ? formatPhone(customer.phone) : "\u2014"}
                   </td>
                   <td className="px-4 py-3 text-sm text-[#425466]">
-                    {customer.propertiesCount || 0}{" "}
-                    {(customer.propertiesCount || 0) === 1 ? "property" : "properties"}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium text-[#0A2540]">
-                    {formatCurrency(customer.revenue || 0)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-[#425466]">
                     {customer.lastJobDate
                       ? formatDate(customer.lastJobDate)
                       : "No jobs yet"}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {customer.tags?.slice(0, 2).map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="secondary"
-                          className="text-xs bg-[#635BFF]/10 text-[#635BFF] hover:bg-[#635BFF]/20"
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                      {customer.tags?.length > 2 && (
-                        <Badge variant="secondary" className="text-xs">
-                          +{customer.tags.length - 2}
-                        </Badge>
-                      )}
-                    </div>
+                  <td className="px-4 py-3 text-sm font-medium text-[#0A2540]">
+                    {formatCurrency(customer.revenue || 0)}
                   </td>
                   <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
