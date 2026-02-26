@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation"
 import { requireAuth } from "@/lib/auth-utils"
 import { getCustomer } from "@/actions/customers"
-import { getCommunications } from "@/actions/communications"
-import { getCustomerActivityFeed } from "@/actions/activity"
 import { prisma } from "@/lib/db"
 
 import { CustomerDetail } from "@/components/customers/customer-detail"
@@ -22,8 +20,7 @@ export default async function CustomerDetailPage({
 
   const cust = (result as any).customer
 
-  const [commsResult, quotes, jobs, invoices, activityResult] = await Promise.all([
-    getCommunications({ customerId: id, perPage: 100 }),
+  const [quotes, jobs, invoices] = await Promise.all([
     prisma.quote.findMany({
       where: { customerId: id, organizationId: user.organizationId },
       orderBy: { createdAt: "desc" },
@@ -59,11 +56,7 @@ export default async function CustomerDetailPage({
         dueDate: true,
       },
     }),
-    getCustomerActivityFeed(id, { limit: 50 }),
   ])
-
-  const communications = commsResult && "communications" in commsResult ? commsResult.communications : []
-  const activityEvents = activityResult && "events" in activityResult ? activityResult.events : []
 
   // Serialize for client component using JSON round-trip to handle Dates and Decimals
   const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (_key, value) =>
@@ -87,13 +80,11 @@ export default async function CustomerDetailPage({
         properties: cust.properties,
       })}
       customerNotes={[]}
-      communications={serialize(communications)}
       stats={{ totalRevenue: 0, totalJobs: 0, totalQuotes: 0, openInvoicesCount: 0, openInvoicesAmount: 0 }}
       quotes={serialize(quotes)}
       jobs={serialize(jobs)}
       invoices={serialize(invoices)}
       payments={[]}
-      recentActivityEvents={serialize(activityEvents)}
     />
   )
 }

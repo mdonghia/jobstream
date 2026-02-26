@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -19,11 +19,6 @@ import {
   FileText,
   Briefcase,
   Receipt,
-  MessageSquare,
-  StickyNote,
-  Activity,
-  CircleDot,
-  ClipboardList,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -47,7 +42,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { formatCurrency, formatDate, formatPhone, formatRelativeTime, isJobUnscheduled } from "@/lib/utils"
+import { formatCurrency, formatDate, formatPhone, isJobUnscheduled } from "@/lib/utils"
 import { formatPhoneNumber } from "@/lib/format-helpers"
 import { toast } from "sonner"
 import {
@@ -73,49 +68,6 @@ interface Property {
   isPrimary: boolean
 }
 
-interface CommunicationEntry {
-  id: string
-  type: string
-  direction: string
-  recipientAddress: string | null
-  subject: string | null
-  content: string | null
-  status: string
-  triggeredBy: string | null
-  createdAt: Date | string
-}
-
-interface ActivityEventEntry {
-  id: string
-  eventType: string
-  title: string
-  description: string | null
-  createdAt: Date | string
-  jobId: string
-  job: { id: string; jobNumber: string; title: string } | null
-  user: { id: string; firstName: string; lastName: string; avatar?: string | null } | null
-}
-
-// Unified feed item -- either an activity event or a communication
-interface UnifiedFeedItem {
-  id: string
-  kind: "activity" | "communication"
-  createdAt: Date | string
-  // Activity fields
-  eventType?: string
-  title: string
-  description?: string | null
-  job?: { id: string; jobNumber: string; title: string } | null
-  user?: { id: string; firstName: string; lastName: string; avatar?: string | null } | null
-  // Communication fields
-  commType?: string
-  commDirection?: string
-  commStatus?: string
-  commSubject?: string | null
-  commContent?: string | null
-  commRecipient?: string | null
-}
-
 interface CustomerDetailProps {
   customer: {
     id: string
@@ -131,22 +83,18 @@ interface CustomerDetailProps {
     properties: Property[]
   }
   customerNotes: any[]
-  communications: CommunicationEntry[]
   stats: any
   quotes: any[]
   jobs: any[]
   invoices: any[]
   payments: any[]
-  recentActivityEvents?: ActivityEventEntry[]
 }
 
 export function CustomerDetail({
   customer,
-  communications,
   quotes,
   jobs,
   invoices,
-  recentActivityEvents = [],
 }: CustomerDetailProps) {
   const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
@@ -173,74 +121,6 @@ export function CustomerDetail({
     }
     setProfileNotesSaving(false)
   }, [profileNotes, customer.id])
-
-  // Build a lookup of document numbers -> detail page URLs
-  const docLinks = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const q of quotes) if (q.quoteNumber) map.set(q.quoteNumber, `/quotes/${q.id}`)
-    for (const j of jobs) if (j.jobNumber) map.set(j.jobNumber, `/jobs/${j.id}`)
-    for (const inv of invoices) if (inv.invoiceNumber) map.set(inv.invoiceNumber, `/invoices/${inv.id}`)
-    return map
-  }, [quotes, jobs, invoices])
-
-  // Replace QTE-XXXX / JOB-XXXX / INV-XXXX in text with clickable links
-  function linkifyContent(text: string) {
-    const pattern = /((?:QTE|JOB|INV)-\d+)/g
-    const parts = text.split(pattern)
-    return parts.map((part, i) => {
-      const href = docLinks.get(part)
-      if (href) {
-        return (
-          <Link key={i} href={href} className="text-[#635BFF] hover:underline font-medium">
-            {part}
-          </Link>
-        )
-      }
-      return part
-    })
-  }
-
-  // Build unified activity feed: merge activity events + communications, sorted newest first
-  const unifiedFeed = useMemo<UnifiedFeedItem[]>(() => {
-    const items: UnifiedFeedItem[] = []
-
-    // Add activity events
-    for (const event of recentActivityEvents) {
-      items.push({
-        id: `activity-${event.id}`,
-        kind: "activity",
-        createdAt: event.createdAt,
-        eventType: event.eventType,
-        title: event.title,
-        description: event.description,
-        job: event.job,
-        user: event.user,
-      })
-    }
-
-    // Add communications
-    for (const comm of communications) {
-      const commLabel = comm.type === "EMAIL" ? "Email" : "SMS"
-      const dirLabel = comm.direction === "OUTBOUND" ? "sent" : "received"
-      items.push({
-        id: `comm-${comm.id}`,
-        kind: "communication",
-        createdAt: comm.createdAt,
-        title: `${commLabel} ${dirLabel}`,
-        commType: comm.type,
-        commDirection: comm.direction,
-        commStatus: comm.status,
-        commSubject: comm.subject,
-        commContent: comm.content,
-        commRecipient: comm.recipientAddress,
-      })
-    }
-
-    // Sort by createdAt descending (most recent first)
-    items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-    return items
-  }, [recentActivityEvents, communications])
 
   useEffect(() => {
     getAllTags().then((tags) => {
@@ -415,10 +295,9 @@ export function CustomerDetail({
         <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden">
           {[
             { value: "overview", label: "Overview" },
-            { value: "quotes", label: "Codes" },
+            { value: "quotes", label: "Quotes" },
             { value: "jobs", label: "Jobs" },
             { value: "invoices", label: "Invoices" },
-            { value: "activity-feed", label: "Activity Feed" },
           ].map((tab) => (
             <TabsTrigger
               key={tab.value}
@@ -588,124 +467,6 @@ export function CustomerDetail({
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Activity Feed Tab -- unified: activity events + communications, sorted newest first */}
-        <TabsContent value="activity-feed" className="mt-6">
-          {unifiedFeed.length === 0 ? (
-            <div className="py-12 text-center">
-              <Activity className="w-12 h-12 text-[#8898AA] mx-auto mb-3" />
-              <p className="text-sm text-[#8898AA]">No activity yet</p>
-              <p className="text-xs text-[#8898AA] mt-1">
-                Activity events, emails, and messages will appear here
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {unifiedFeed.map((item) => {
-                if (item.kind === "communication") {
-                  // Communication entry
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-start gap-3 p-3 rounded-lg border border-[#E3E8EE]"
-                    >
-                      <div className="w-7 h-7 rounded-full bg-[#F6F8FA] border border-[#E3E8EE] flex items-center justify-center flex-shrink-0 mt-0.5 text-[#8898AA]">
-                        {item.commType === "EMAIL" ? (
-                          <Mail className="w-3.5 h-3.5" />
-                        ) : (
-                          <Phone className="w-3.5 h-3.5" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-[#0A2540]">
-                            {item.title}
-                          </span>
-                          <Badge
-                            variant="outline"
-                            className={
-                              item.commStatus === "SENT"
-                                ? "border-green-200 bg-green-50 text-green-700 text-[10px]"
-                                : item.commStatus === "FAILED"
-                                ? "border-red-200 bg-red-50 text-red-700 text-[10px]"
-                                : "border-yellow-200 bg-yellow-50 text-yellow-700 text-[10px]"
-                            }
-                          >
-                            {item.commStatus}
-                          </Badge>
-                          <span className="text-xs text-[#8898AA]">
-                            {formatRelativeTime(item.createdAt)}
-                          </span>
-                        </div>
-                        {item.commSubject && (
-                          <p className="text-sm text-[#0A2540] mt-1">{linkifyContent(item.commSubject)}</p>
-                        )}
-                        {item.commContent && (
-                          <p className="text-sm text-[#425466] mt-0.5 line-clamp-2">{linkifyContent(item.commContent)}</p>
-                        )}
-                        {item.commRecipient && (
-                          <p className="text-xs text-[#8898AA] mt-1">
-                            To: {item.commRecipient}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )
-                }
-
-                // Activity event entry
-                const isInternalNote = item.eventType === "note_added"
-                return (
-                  <div
-                    key={item.id}
-                    className={`flex items-start gap-3 p-3 rounded-lg border border-[#E3E8EE] ${
-                      isInternalNote ? "bg-amber-50/50" : ""
-                    }`}
-                  >
-                    <div className="w-7 h-7 rounded-full bg-[#F6F8FA] border border-[#E3E8EE] flex items-center justify-center flex-shrink-0 mt-0.5 text-[#8898AA]">
-                      {activityEventIcon(item.eventType || "")}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-medium text-[#0A2540]">
-                          {item.title}
-                        </p>
-                        {isInternalNote && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-amber-300 text-amber-700 bg-amber-50">
-                            Internal
-                          </span>
-                        )}
-                      </div>
-                      {item.description && (
-                        <p className="text-xs text-[#425466] mt-0.5">
-                          {linkifyContent(item.description)}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2 mt-1">
-                        {item.job && (
-                          <Link
-                            href={`/jobs/${item.job.id}`}
-                            className="text-xs text-[#635BFF] hover:underline font-medium"
-                          >
-                            {item.job.jobNumber}
-                          </Link>
-                        )}
-                        {item.user && (
-                          <span className="text-xs text-[#8898AA]">
-                            {item.user.firstName} {item.user.lastName}
-                          </span>
-                        )}
-                        <span className="text-xs text-[#8898AA]">
-                          {formatRelativeTime(item.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
         </TabsContent>
 
         {/* Quotes Tab */}
@@ -918,17 +679,6 @@ export function CustomerDetail({
       />
     </div>
   )
-}
-
-// Activity event type icon (matches the pattern in job-detail-v2)
-function activityEventIcon(eventType: string) {
-  if (eventType.includes("visit")) return <ClipboardList className="w-3.5 h-3.5" />
-  if (eventType.includes("quote")) return <FileText className="w-3.5 h-3.5" />
-  if (eventType.includes("invoice")) return <FileText className="w-3.5 h-3.5" />
-  if (eventType.includes("note")) return <StickyNote className="w-3.5 h-3.5" />
-  if (eventType.includes("status")) return <CircleDot className="w-3.5 h-3.5" />
-  if (eventType.includes("payment")) return <Receipt className="w-3.5 h-3.5" />
-  return <MessageSquare className="w-3.5 h-3.5" />
 }
 
 // Inline status badge for this component
