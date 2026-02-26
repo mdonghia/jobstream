@@ -161,49 +161,59 @@ export function DashboardPageV2({ stats, userName }: DashboardPageV2Props) {
           <CalendarCheck className="w-4 h-4 text-[#635BFF]" />
           Today&apos;s Progress
         </h2>
-        <Card className="border-[#E3E8EE]">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-[#30D158]/10 flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-[#30D158]" />
-              </div>
-              <div className="flex-1">
-                <p className="text-lg font-semibold text-[#0A2540]">
-                  {stats.visitsCompletedToday} of {stats.visitsScheduledToday} visits
-                  complete
-                </p>
-                <p className="text-sm text-[#8898AA] mt-0.5">
-                  {stats.visitsScheduledToday === 0
-                    ? "No visits scheduled for today"
-                    : stats.visitsCompletedToday === stats.visitsScheduledToday
-                      ? "All visits completed -- great job!"
-                      : `${stats.visitsScheduledToday - stats.visitsCompletedToday} remaining`}
-                </p>
-              </div>
-            </div>
-            {/* Progress bar */}
-            {stats.visitsScheduledToday > 0 && (
-              <div className="mt-4">
-                <div className="w-full h-2 bg-[#E3E8EE] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#30D158] rounded-full transition-all duration-500"
-                    style={{
-                      width: `${Math.min(
-                        (stats.visitsCompletedToday / stats.visitsScheduledToday) * 100,
-                        100
-                      )}%`,
-                    }}
-                  />
+        <Link href="/schedule">
+          <Card className="border-[#E3E8EE] hover:border-[#635BFF] hover:shadow-md transition-all cursor-pointer group">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4 min-h-[48px]">
+                <div className="w-12 h-12 rounded-xl bg-[#30D158]/10 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-6 h-6 text-[#30D158]" />
+                </div>
+                <div className="flex-1 flex flex-col justify-center">
+                  <p className="text-lg font-semibold text-[#0A2540]">
+                    {stats.visitsCompletedToday} of {stats.visitsScheduledToday} visits
+                    complete
+                  </p>
+                  <p className="text-sm text-[#8898AA] mt-0.5">
+                    {stats.visitsScheduledToday === 0
+                      ? "No visits scheduled for today"
+                      : stats.visitsCompletedToday === stats.visitsScheduledToday
+                        ? "All visits completed -- great job!"
+                        : `${stats.visitsScheduledToday - stats.visitsCompletedToday} remaining`}
+                  </p>
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              {/* Progress bar */}
+              {stats.visitsScheduledToday > 0 && (
+                <div className="mt-4">
+                  <div className="w-full h-2 bg-[#E3E8EE] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#30D158] rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(
+                          (stats.visitsCompletedToday / stats.visitsScheduledToday) * 100,
+                          100
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-1 mt-3 text-xs text-[#635BFF] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                View schedule <ArrowRight className="w-3 h-3" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* ================================================================= */}
-      {/* Revenue + Visits Completed (side by side)                          */}
+      {/* Financial Health                                                    */}
       {/* ================================================================= */}
+      <div className="mb-8">
+      <h2 className="text-base font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
+        <DollarSign className="w-4 h-4 text-[#30D158]" />
+        Financial Health
+      </h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue */}
         <Card className="border-[#E3E8EE]">
@@ -280,6 +290,7 @@ export function DashboardPageV2({ stats, userName }: DashboardPageV2Props) {
             </div>
           </CardContent>
         </Card>
+      </div>
       </div>
     </div>
   )
