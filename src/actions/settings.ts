@@ -1399,3 +1399,74 @@ export async function updateNotificationPreferences(
     return { error: "Failed to update notification preferences" }
   }
 }
+
+// =============================================================================
+// Marketing Suite Toggle (OWNER/ADMIN)
+// =============================================================================
+
+export async function getMarketingSuiteSettings() {
+  try {
+    const user = await requireAuth()
+
+    const org = await prisma.organization.findUnique({
+      where: { id: user.organizationId },
+      select: { marketingSuiteEnabled: true },
+    })
+
+    if (!org) return { error: "Organization not found" }
+
+    return { settings: { marketingSuiteEnabled: org.marketingSuiteEnabled } }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getMarketingSuiteSettings error:", error)
+    return { error: "Failed to fetch marketing suite settings" }
+  }
+}
+
+export async function updateMarketingSuiteEnabled(enabled: boolean) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: { marketingSuiteEnabled: enabled },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateMarketingSuiteEnabled error:", error)
+    return { error: "Failed to update marketing suite setting" }
+  }
+}
+
+// =============================================================================
+// Dual-Role View Switching
+// =============================================================================
+
+export async function updatePreferredView(view: string) {
+  try {
+    const user = await requireAuth()
+
+    // Only OWNER and ADMIN users can switch views
+    if (!["OWNER", "ADMIN"].includes(user.role)) {
+      return { error: "Only owners and admins can switch views" }
+    }
+
+    // Validate view value
+    if (!["admin", "tech"].includes(view)) {
+      return { error: "Invalid view. Must be 'admin' or 'tech'." }
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { preferredView: view },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updatePreferredView error:", error)
+    return { error: "Failed to update preferred view" }
+  }
+}

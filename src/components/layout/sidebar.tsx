@@ -8,12 +8,14 @@ import {
   Users,
   Calendar,
   Briefcase,
+  ClipboardList,
   Receipt,
   Star,
   BarChart3,
   Settings,
   ChevronLeft,
   ChevronRight,
+  Megaphone,
 } from "lucide-react"
 import {
   Tooltip,
@@ -24,15 +26,17 @@ import {
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Jobs", icon: Briefcase, href: "/jobs" },
+  { label: "Quotes", icon: ClipboardList, href: "/quotes" },
   { label: "Customers", icon: Users, href: "/customers" },
   { label: "Schedule", icon: Calendar, href: "/schedule" },
   { label: "Invoices", icon: Receipt, href: "/invoices" },
   { label: "Reports", icon: BarChart3, href: "/reports" },
 ]
 
-// Conditional items -- shown when Marketing Suite is enabled (always shown for now)
+// Conditional items -- shown only when Marketing Suite is enabled in org settings
 const conditionalItems = [
   { label: "Reviews", icon: Star, href: "/reviews" },
+  { label: "Campaigns", icon: Megaphone, href: "/campaigns" },
 ]
 
 const bottomItems = [
@@ -46,13 +50,17 @@ interface SidebarProps {
   user: {
     role: string
   }
+  marketingSuiteEnabled?: boolean
 }
 
-export function Sidebar({ collapsed, onToggle, orgName, user }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, orgName, user, marketingSuiteEnabled = false }: SidebarProps) {
   // Technicians don't see the sidebar -- they get the pipeline view (Phase 8)
   if (user.role === "TECHNICIAN") return null
 
   const pathname = usePathname()
+
+  // Only show marketing items (Reviews, Campaigns) when the Marketing Suite is enabled
+  const visibleConditionalItems = marketingSuiteEnabled ? conditionalItems : []
 
   function isActive(href: string) {
     if (href === "/") return pathname === "/"
@@ -102,7 +110,7 @@ export function Sidebar({ collapsed, onToggle, orgName, user }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
-        {[...navItems, ...conditionalItems].map((item) => {
+        {[...navItems, ...visibleConditionalItems].map((item) => {
           const active = isActive(item.href)
           const Icon = item.icon
 

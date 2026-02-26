@@ -14,15 +14,21 @@ interface DashboardShellProps {
     email: string
     role: string
     avatar: string | null
+    preferredView?: string
   }
   orgName: string
+  marketingSuiteEnabled?: boolean
 }
 
-export function DashboardShell({ children, user, orgName }: DashboardShellProps) {
+export function DashboardShell({ children, user, orgName, marketingSuiteEnabled = false }: DashboardShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
-  const isTechnician = user.role === "TECHNICIAN"
+  // For dual-role users (OWNER/ADMIN), check if they prefer the tech view
+  const effectiveRole = (user.role === "OWNER" || user.role === "ADMIN") && user.preferredView === "tech"
+    ? "TECHNICIAN"
+    : user.role
+  const isTechnician = effectiveRole === "TECHNICIAN"
 
   return (
     <div className="min-h-screen bg-[#F6F8FA]">
@@ -33,6 +39,7 @@ export function DashboardShell({ children, user, orgName }: DashboardShellProps)
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           orgName={orgName}
           user={user}
+          marketingSuiteEnabled={marketingSuiteEnabled}
         />
       )}
 
@@ -43,6 +50,7 @@ export function DashboardShell({ children, user, orgName }: DashboardShellProps)
           onClose={() => setMobileNavOpen(false)}
           orgName={orgName}
           user={user}
+          marketingSuiteEnabled={marketingSuiteEnabled}
         />
       )}
 

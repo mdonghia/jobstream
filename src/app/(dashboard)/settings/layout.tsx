@@ -13,6 +13,7 @@ const settingsLinks = [
   { href: "/settings/communications", label: "Communications" },
   { href: "/settings/booking", label: "Booking Widget" },
   { href: "/settings/reviews", label: "Reviews" },
+  { href: "/settings/marketing", label: "Marketing Suite" },
   { href: "/settings/billing", label: "Billing" },
   { href: "/settings/report-issue", label: "Report Issue" },
 ]

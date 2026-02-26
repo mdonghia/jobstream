@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth-utils"
 import {
   startOfMonth,
   endOfMonth,
+  startOfDay,
   format,
   differenceInMinutes,
   eachMonthOfInterval,
@@ -25,6 +26,42 @@ export type RevenueReportResult = {
   revenueByCustomer: { customerId: string; customerName: string; revenue: number; jobCount: number }[]
 }
 
+export type InvoicesReportResult = {
+  summary: {
+    totalInvoices: number
+    totalAmount: number
+    totalPaid: number
+    totalOutstanding: number
+  }
+  invoices: {
+    id: string
+    invoiceNumber: string
+    customerName: string
+    jobNumber: string | null
+    amount: number
+    dueDate: string
+    status: string
+    paidAt: string | null
+  }[]
+}
+
+export type PaymentsReportResult = {
+  summary: {
+    totalPayments: number
+    totalAmount: number
+    byMethod: { method: string; count: number; amount: number }[]
+  }
+  payments: {
+    id: string
+    paymentDate: string
+    invoiceNumber: string
+    customerName: string
+    amount: number
+    method: string
+    status: string
+  }[]
+}
+
 export type JobsReportResult = {
   summary: {
     total: number
@@ -37,18 +74,6 @@ export type JobsReportResult = {
   jobsByTeamMember: { userId: string; name: string; count: number }[]
 }
 
-export type QuotesReportResult = {
-  summary: {
-    sent: number
-    approved: number
-    declined: number
-    expired: number
-    conversionRate: number
-  }
-  conversionByMonth: { month: string; sent: number; approved: number; rate: number }[]
-  quotesByStatus: { status: string; count: number; total: number }[]
-}
-
 export type TeamReportResult = {
   members: {
     userId: string
@@ -59,21 +84,40 @@ export type TeamReportResult = {
   }[]
 }
 
-export type CustomersReportResult = {
+export type TimeTrackingReportResult = {
   summary: {
-    total: number
-    newThisPeriod: number
-    active: number
-    inactive: number
+    totalHours: number
+    totalDays: number
+    avgHoursPerDay: number
   }
-  newByMonth: { month: string; count: number }[]
-  topCustomers: {
-    customerId: string
-    customerName: string
-    totalRevenue: number
-    jobCount: number
-    lastJobDate: string | null
+  entries: {
+    userId: string
+    name: string
+    date: string
+    startTime: string | null
+    endTime: string | null
+    totalMinutes: number
+    totalHours: number
   }[]
+}
+
+export type ScheduleReportInput = {
+  reportType: string
+  frequency: string
+  dayOfWeek?: number
+  dayOfMonth?: number
+  emails: string[]
+}
+
+export type ReportScheduleItem = {
+  id: string
+  reportType: string
+  frequency: string
+  dayOfWeek: number | null
+  dayOfMonth: number | null
+  emails: string[]
+  isActive: boolean
+  createdAt: string
 }
 
 type DateRange = {
@@ -108,7 +152,7 @@ function getMonthIntervals(from: Date, to: Date) {
 }
 
 // =============================================================================
-// 1. getRevenueReport
+// 1. getRevenueReport (used by the Invoices tab for revenue chart data)
 // =============================================================================
 
 export async function getRevenueReport(params: DateRange): Promise<RevenueReportResult | { error: string }> {
@@ -195,7 +239,120 @@ export async function getRevenueReport(params: DateRange): Promise<RevenueReport
 }
 
 // =============================================================================
-// 2. getJobsReport
+// 2. getInvoicesReport (individual invoice listing)
+// =============================================================================
+
+export async function getInvoicesReport(params: DateRange): Promise<InvoicesReportResult | { error: string }> {
+  try {
+    const user = await requireAuth()
+    const { from, to } = parseDateRange(params)
+
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        organizationId: user.organizationId,
+        createdAt: { gte: from, lte: to },
+      },
+      include: {
+        customer: { select: { firstName: true, lastName: true } },
+        job: { select: { jobNumber: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    const totalInvoices = invoices.length
+    const totalAmount = invoices.reduce((sum, inv) => sum + Number(inv.total), 0)
+    const totalPaid = invoices
+      .filter((inv) => inv.status === "PAID")
+      .reduce((sum, inv) => sum + Number(inv.total), 0)
+    const totalOutstanding = invoices
+      .filter((inv) => !["PAID", "VOID"].includes(inv.status))
+      .reduce((sum, inv) => sum + Number(inv.amountDue), 0)
+
+    return {
+      summary: {
+        totalInvoices,
+        totalAmount,
+        totalPaid,
+        totalOutstanding,
+      },
+      invoices: invoices.map((inv) => ({
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        customerName: `${inv.customer.firstName} ${inv.customer.lastName}`,
+        jobNumber: inv.job?.jobNumber || null,
+        amount: Number(inv.total),
+        dueDate: inv.dueDate.toISOString(),
+        status: inv.status,
+        paidAt: inv.paidAt ? inv.paidAt.toISOString() : null,
+      })),
+    }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getInvoicesReport error:", error)
+    return { error: "Failed to generate invoices report" }
+  }
+}
+
+// =============================================================================
+// 3. getPaymentsReport
+// =============================================================================
+
+export async function getPaymentsReport(params: DateRange): Promise<PaymentsReportResult | { error: string }> {
+  try {
+    const user = await requireAuth()
+    const { from, to } = parseDateRange(params)
+
+    const payments = await prisma.payment.findMany({
+      where: {
+        organizationId: user.organizationId,
+        createdAt: { gte: from, lte: to },
+      },
+      include: {
+        invoice: {
+          select: {
+            invoiceNumber: true,
+            customer: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    const totalPayments = payments.length
+    const totalAmount = payments.reduce((sum, p) => sum + Number(p.amount), 0)
+
+    // Group by method
+    const methodMap: Record<string, { count: number; amount: number }> = {}
+    payments.forEach((p) => {
+      if (!methodMap[p.method]) methodMap[p.method] = { count: 0, amount: 0 }
+      methodMap[p.method].count += 1
+      methodMap[p.method].amount += Number(p.amount)
+    })
+    const byMethod = Object.entries(methodMap)
+      .map(([method, data]) => ({ method, ...data }))
+      .sort((a, b) => b.amount - a.amount)
+
+    return {
+      summary: { totalPayments, totalAmount, byMethod },
+      payments: payments.map((p) => ({
+        id: p.id,
+        paymentDate: (p.processedAt || p.createdAt).toISOString(),
+        invoiceNumber: p.invoice.invoiceNumber,
+        customerName: `${p.invoice.customer.firstName} ${p.invoice.customer.lastName}`,
+        amount: Number(p.amount),
+        method: p.method,
+        status: p.status,
+      })),
+    }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getPaymentsReport error:", error)
+    return { error: "Failed to generate payments report" }
+  }
+}
+
+// =============================================================================
+// 4. getJobsReport
 // =============================================================================
 
 export async function getJobsReport(params: DateRange): Promise<JobsReportResult | { error: string }> {
@@ -294,74 +451,7 @@ export async function getJobsReport(params: DateRange): Promise<JobsReportResult
 }
 
 // =============================================================================
-// 3. getQuotesReport
-// =============================================================================
-
-export async function getQuotesReport(params: DateRange): Promise<QuotesReportResult | { error: string }> {
-  try {
-    const user = await requireAuth()
-    const { from, to } = parseDateRange(params)
-
-    const quotes = await prisma.quote.findMany({
-      where: {
-        organizationId: user.organizationId,
-        createdAt: { gte: from, lte: to },
-      },
-    })
-
-    const sent = quotes.filter((q) => q.status !== "DRAFT").length
-    const approved = quotes.filter((q) => q.status === "APPROVED" || q.status === "CONVERTED").length
-    const declined = quotes.filter((q) => q.status === "DECLINED").length
-    const expired = quotes.filter((q) => q.status === "EXPIRED").length
-    const relevantTotal = approved + declined + expired
-    const conversionRate = relevantTotal > 0 ? (approved / relevantTotal) * 100 : 0
-
-    // Conversion by month
-    const monthIntervals = getMonthIntervals(from, to)
-    const conversionByMonth = monthIntervals.map((m) => {
-      const monthQuotes = quotes.filter(
-        (q) => q.createdAt >= m.start && q.createdAt <= m.end
-      )
-      const mSent = monthQuotes.filter((q) => q.status !== "DRAFT").length
-      const mApproved = monthQuotes.filter(
-        (q) => q.status === "APPROVED" || q.status === "CONVERTED"
-      ).length
-      const mDeclined = monthQuotes.filter((q) => q.status === "DECLINED").length
-      const mExpired = monthQuotes.filter((q) => q.status === "EXPIRED").length
-      const mTotal = mApproved + mDeclined + mExpired
-      return {
-        month: m.label,
-        sent: mSent,
-        approved: mApproved,
-        rate: mTotal > 0 ? Math.round((mApproved / mTotal) * 100) : 0,
-      }
-    })
-
-    // Quotes by status
-    const statusMap: Record<string, { count: number; total: number }> = {}
-    quotes.forEach((q) => {
-      if (!statusMap[q.status]) statusMap[q.status] = { count: 0, total: 0 }
-      statusMap[q.status].count += 1
-      statusMap[q.status].total += Number(q.total)
-    })
-    const quotesByStatus = Object.entries(statusMap)
-      .map(([status, data]) => ({ status, ...data }))
-      .sort((a, b) => b.count - a.count)
-
-    return {
-      summary: { sent, approved, declined, expired, conversionRate },
-      conversionByMonth,
-      quotesByStatus,
-    }
-  } catch (error: any) {
-    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
-    console.error("getQuotesReport error:", error)
-    return { error: "Failed to generate quotes report" }
-  }
-}
-
-// =============================================================================
-// 4. getTeamReport
+// 5. getTeamReport (Team Activity)
 // =============================================================================
 
 export async function getTeamReport(params: DateRange): Promise<TeamReportResult | { error: string }> {
@@ -448,110 +538,263 @@ export async function getTeamReport(params: DateRange): Promise<TeamReportResult
 }
 
 // =============================================================================
-// 5. getCustomersReport
+// 6. getTimeTrackingReport
 // =============================================================================
 
-export async function getCustomersReport(params: DateRange): Promise<CustomersReportResult | { error: string }> {
+export async function getTimeTrackingReport(params: DateRange): Promise<TimeTrackingReportResult | { error: string }> {
   try {
     const user = await requireAuth()
     const { from, to } = parseDateRange(params)
 
-    // Total customers
-    const total = await prisma.customer.count({
-      where: { organizationId: user.organizationId },
-    })
-
-    // New customers this period
-    const newThisPeriod = await prisma.customer.count({
+    // Get visits with actual time data within the date range
+    const visits = await prisma.visit.findMany({
       where: {
         organizationId: user.organizationId,
-        createdAt: { gte: from, lte: to },
-      },
-    })
-
-    // Active = has a job in the period
-    const activeCustomerIds = await prisma.job.findMany({
-      where: {
-        organizationId: user.organizationId,
-        createdAt: { gte: from, lte: to },
-      },
-      select: { customerId: true },
-      distinct: ["customerId"],
-    })
-    const active = activeCustomerIds.length
-    const inactive = total - active
-
-    // New by month
-    const monthIntervals = getMonthIntervals(from, to)
-    const newByMonth = await Promise.all(
-      monthIntervals.map(async (m) => {
-        const count = await prisma.customer.count({
-          where: {
-            organizationId: user.organizationId,
-            createdAt: { gte: m.start, lte: m.end },
-          },
-        })
-        return { month: m.label, count }
-      })
-    )
-
-    // Top customers by lifetime revenue
-    const allInvoices = await prisma.invoice.findMany({
-      where: {
-        organizationId: user.organizationId,
-        status: "PAID",
+        OR: [
+          { actualStart: { gte: from, lte: to } },
+          { actualEnd: { gte: from, lte: to } },
+        ],
       },
       include: {
-        customer: { select: { id: true, firstName: true, lastName: true } },
-        job: { select: { scheduledStart: true } },
+        assignments: {
+          include: {
+            user: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
       },
     })
 
-    const customerRevMap: Record<
-      string,
-      { name: string; revenue: number; jobCount: number; lastJobDate: Date | null }
-    > = {}
-    allInvoices.forEach((inv) => {
-      const cid = inv.customer.id
-      if (!customerRevMap[cid]) {
-        customerRevMap[cid] = {
-          name: `${inv.customer.firstName} ${inv.customer.lastName}`,
-          revenue: 0,
-          jobCount: 0,
-          lastJobDate: null,
+    // Build a map: userId -> date -> { earliestStart, latestEnd }
+    const trackingMap: Record<string, {
+      name: string
+      dates: Record<string, { earliestStart: Date | null; latestEnd: Date | null }>
+    }> = {}
+
+    visits.forEach((visit) => {
+      if (!visit.actualStart && !visit.actualEnd) return
+
+      visit.assignments.forEach((assignment) => {
+        const uid = assignment.user.id
+        const name = `${assignment.user.firstName} ${assignment.user.lastName}`
+
+        if (!trackingMap[uid]) {
+          trackingMap[uid] = { name, dates: {} }
         }
+
+        // Use actualStart date as the day key, fall back to actualEnd
+        const dayDate = visit.actualStart || visit.actualEnd!
+        const dateKey = format(startOfDay(dayDate), "yyyy-MM-dd")
+
+        if (!trackingMap[uid].dates[dateKey]) {
+          trackingMap[uid].dates[dateKey] = { earliestStart: null, latestEnd: null }
+        }
+
+        const entry = trackingMap[uid].dates[dateKey]
+        if (visit.actualStart) {
+          if (!entry.earliestStart || visit.actualStart < entry.earliestStart) {
+            entry.earliestStart = visit.actualStart
+          }
+        }
+        if (visit.actualEnd) {
+          if (!entry.latestEnd || visit.actualEnd > entry.latestEnd) {
+            entry.latestEnd = visit.actualEnd
+          }
+        }
+      })
+    })
+
+    // Also include TimeEntry records for broader coverage
+    const timeEntries = await prisma.timeEntry.findMany({
+      where: {
+        organizationId: user.organizationId,
+        clockIn: { gte: from, lte: to },
+      },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true } },
+      },
+    })
+
+    timeEntries.forEach((te) => {
+      const uid = te.user.id
+      const name = `${te.user.firstName} ${te.user.lastName}`
+
+      if (!trackingMap[uid]) {
+        trackingMap[uid] = { name, dates: {} }
       }
-      customerRevMap[cid].revenue += Number(inv.total)
-      if (inv.jobId) customerRevMap[cid].jobCount += 1
-      if (inv.job?.scheduledStart) {
-        if (
-          !customerRevMap[cid].lastJobDate ||
-          inv.job.scheduledStart > customerRevMap[cid].lastJobDate!
-        ) {
-          customerRevMap[cid].lastJobDate = inv.job.scheduledStart
+
+      const dateKey = format(startOfDay(te.clockIn), "yyyy-MM-dd")
+
+      if (!trackingMap[uid].dates[dateKey]) {
+        trackingMap[uid].dates[dateKey] = { earliestStart: null, latestEnd: null }
+      }
+
+      const entry = trackingMap[uid].dates[dateKey]
+      if (!entry.earliestStart || te.clockIn < entry.earliestStart) {
+        entry.earliestStart = te.clockIn
+      }
+      if (te.clockOut) {
+        if (!entry.latestEnd || te.clockOut > entry.latestEnd) {
+          entry.latestEnd = te.clockOut
         }
       }
     })
 
-    const topCustomers = Object.entries(customerRevMap)
-      .map(([customerId, data]) => ({
-        customerId,
-        customerName: data.name,
-        totalRevenue: data.revenue,
-        jobCount: data.jobCount,
-        lastJobDate: data.lastJobDate ? data.lastJobDate.toISOString() : null,
-      }))
-      .sort((a, b) => b.totalRevenue - a.totalRevenue)
-      .slice(0, 20)
+    // Flatten into entries array
+    const entries: TimeTrackingReportResult["entries"] = []
+    let totalMinutesAll = 0
+    const allDates = new Set<string>()
+
+    Object.entries(trackingMap).forEach(([userId, data]) => {
+      Object.entries(data.dates).forEach(([date, times]) => {
+        let totalMinutes = 0
+        if (times.earliestStart && times.latestEnd) {
+          totalMinutes = Math.max(0, differenceInMinutes(times.latestEnd, times.earliestStart))
+        }
+        totalMinutesAll += totalMinutes
+        allDates.add(date)
+
+        entries.push({
+          userId,
+          name: data.name,
+          date,
+          startTime: times.earliestStart ? times.earliestStart.toISOString() : null,
+          endTime: times.latestEnd ? times.latestEnd.toISOString() : null,
+          totalMinutes,
+          totalHours: Math.round((totalMinutes / 60) * 10) / 10,
+        })
+      })
+    })
+
+    // Sort by date descending, then by name
+    entries.sort((a, b) => {
+      const dateCompare = b.date.localeCompare(a.date)
+      if (dateCompare !== 0) return dateCompare
+      return a.name.localeCompare(b.name)
+    })
+
+    const totalHours = Math.round((totalMinutesAll / 60) * 10) / 10
+    const totalDays = allDates.size
+    const avgHoursPerDay = totalDays > 0 ? Math.round((totalHours / totalDays) * 10) / 10 : 0
 
     return {
-      summary: { total, newThisPeriod, active, inactive },
-      newByMonth,
-      topCustomers,
+      summary: { totalHours, totalDays, avgHoursPerDay },
+      entries,
     }
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
-    console.error("getCustomersReport error:", error)
-    return { error: "Failed to generate customers report" }
+    console.error("getTimeTrackingReport error:", error)
+    return { error: "Failed to generate time tracking report" }
+  }
+}
+
+// =============================================================================
+// 7. scheduleReport
+// =============================================================================
+
+export async function scheduleReport(input: ScheduleReportInput): Promise<{ success: true } | { error: string }> {
+  try {
+    const user = await requireAuth()
+
+    if (!input.reportType || !input.frequency || !input.emails.length) {
+      return { error: "Report type, frequency, and at least one email are required" }
+    }
+
+    const validTypes = ["invoices", "payments", "jobs", "team_activity", "time_tracking"]
+    if (!validTypes.includes(input.reportType)) {
+      return { error: "Invalid report type" }
+    }
+
+    if (!["weekly", "monthly"].includes(input.frequency)) {
+      return { error: "Frequency must be weekly or monthly" }
+    }
+
+    if (input.frequency === "weekly" && (input.dayOfWeek === undefined || input.dayOfWeek < 0 || input.dayOfWeek > 6)) {
+      return { error: "Day of week (0-6) is required for weekly schedules" }
+    }
+
+    if (input.frequency === "monthly" && (input.dayOfMonth === undefined || input.dayOfMonth < 1 || input.dayOfMonth > 31)) {
+      return { error: "Day of month (1-31) is required for monthly schedules" }
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    for (const email of input.emails) {
+      if (!emailRegex.test(email.trim())) {
+        return { error: `Invalid email address: ${email}` }
+      }
+    }
+
+    await prisma.reportSchedule.create({
+      data: {
+        organizationId: user.organizationId,
+        reportType: input.reportType,
+        frequency: input.frequency,
+        dayOfWeek: input.frequency === "weekly" ? input.dayOfWeek! : null,
+        dayOfMonth: input.frequency === "monthly" ? input.dayOfMonth! : null,
+        emails: input.emails.map((e) => e.trim()),
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("scheduleReport error:", error)
+    return { error: "Failed to schedule report" }
+  }
+}
+
+// =============================================================================
+// 8. getReportSchedules
+// =============================================================================
+
+export async function getReportSchedules(): Promise<ReportScheduleItem[] | { error: string }> {
+  try {
+    const user = await requireAuth()
+
+    const schedules = await prisma.reportSchedule.findMany({
+      where: {
+        organizationId: user.organizationId,
+        isActive: true,
+      },
+      orderBy: { createdAt: "desc" },
+    })
+
+    return schedules.map((s) => ({
+      id: s.id,
+      reportType: s.reportType,
+      frequency: s.frequency,
+      dayOfWeek: s.dayOfWeek,
+      dayOfMonth: s.dayOfMonth,
+      emails: s.emails,
+      isActive: s.isActive,
+      createdAt: s.createdAt.toISOString(),
+    }))
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getReportSchedules error:", error)
+    return { error: "Failed to fetch report schedules" }
+  }
+}
+
+// =============================================================================
+// 9. deleteReportSchedule
+// =============================================================================
+
+export async function deleteReportSchedule(scheduleId: string): Promise<{ success: true } | { error: string }> {
+  try {
+    const user = await requireAuth()
+
+    await prisma.reportSchedule.deleteMany({
+      where: {
+        id: scheduleId,
+        organizationId: user.organizationId,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("deleteReportSchedule error:", error)
+    return { error: "Failed to delete report schedule" }
   }
 }

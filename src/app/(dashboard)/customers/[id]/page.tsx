@@ -2,6 +2,7 @@ import { notFound } from "next/navigation"
 import { requireAuth } from "@/lib/auth-utils"
 import { getCustomer, getCustomerNotes, getCustomerStats } from "@/actions/customers"
 import { getCommunications } from "@/actions/communications"
+import { getCustomerActivityFeed } from "@/actions/activity"
 import { prisma } from "@/lib/db"
 
 import { CustomerDetail } from "@/components/customers/customer-detail"
@@ -21,7 +22,7 @@ export default async function CustomerDetailPage({
 
   const cust = (result as any).customer
 
-  const [notesResult, statsResult, commsResult, quotes, jobs, invoices, payments, portalMessages] = await Promise.all([
+  const [notesResult, statsResult, commsResult, quotes, jobs, invoices, payments, portalMessages, activityResult] = await Promise.all([
     getCustomerNotes(id),
     getCustomerStats(id),
     getCommunications({ customerId: id, perPage: 50 }),
@@ -76,6 +77,7 @@ export default async function CustomerDetailPage({
       where: { customerId: id, organizationId: user.organizationId },
       orderBy: { createdAt: "asc" },
     }),
+    getCustomerActivityFeed(id, { limit: 20 }),
   ])
 
   const notes = notesResult && "notes" in notesResult ? notesResult.notes : []
@@ -84,19 +86,7 @@ export default async function CustomerDetailPage({
     ? statsResult.stats
     : { totalRevenue: 0, totalJobs: 0, totalQuotes: 0, openInvoicesCount: 0, openInvoicesAmount: 0 }
 
-  // Fetch the last 5 ActivityEvent records across all of this customer's jobs
-  const recentActivityEvents = await prisma.activityEvent.findMany({
-    where: {
-      organizationId: user.organizationId,
-      job: { customerId: id },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 5,
-    include: {
-      job: { select: { id: true, jobNumber: true, title: true } },
-      user: { select: { id: true, firstName: true, lastName: true } },
-    },
-  })
+  const activityEvents = activityResult && "events" in activityResult ? activityResult.events : []
 
   // Serialize for client component using JSON round-trip to handle Dates and Decimals
   const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (_key, value) =>
@@ -127,7 +117,7 @@ export default async function CustomerDetailPage({
       invoices={serialize(invoices)}
       payments={serialize(payments)}
       portalMessages={serialize(portalMessages)}
-      recentActivityEvents={serialize(recentActivityEvents)}
+      recentActivityEvents={serialize(activityEvents)}
     />
   )
 }

@@ -1,4 +1,5 @@
 import { requireAuth, getOrganization } from "@/lib/auth-utils"
+import { prisma } from "@/lib/db"
 import { DashboardShell } from "@/components/layout/dashboard-shell"
 
 export default async function DashboardLayout({
@@ -9,6 +10,12 @@ export default async function DashboardLayout({
   const user = await requireAuth()
   const org = await getOrganization(user.organizationId)
 
+  // Fetch the user's preferredView from the database for dual-role view switching
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { preferredView: true },
+  })
+
   return (
     <DashboardShell
       user={{
@@ -17,8 +24,10 @@ export default async function DashboardLayout({
         email: user.email,
         role: user.role,
         avatar: user.avatar,
+        preferredView: dbUser?.preferredView ?? "admin",
       }}
       orgName={org?.name || "JobStream"}
+      marketingSuiteEnabled={org?.marketingSuiteEnabled ?? false}
     >
       {children}
     </DashboardShell>

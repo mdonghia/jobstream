@@ -19,12 +19,31 @@ import {
   StickyNote,
   ChevronRight,
   Loader2,
+  Pencil,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Avatar,
   AvatarFallback,
@@ -42,7 +61,7 @@ import {
 } from "@/lib/utils"
 import { toast } from "sonner"
 import { createVisit } from "@/actions/visits"
-import { addJobNote } from "@/actions/jobs"
+import { addJobNote, updateJob } from "@/actions/jobs"
 import { getActivityFeed } from "@/actions/activity"
 import { computeJobFilterTab, type JobFilterTab } from "@/lib/job-filter-tab"
 
@@ -253,8 +272,21 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
   const [savingNote, setSavingNote] = useState(false)
   const [notes, setNotes] = useState(job.notes)
 
+  // --- Edit Job dialog state ---
+  const [showEditJobDialog, setShowEditJobDialog] = useState(false)
+  const [editTitle, setEditTitle] = useState(job.title)
+  const [editDescription, setEditDescription] = useState(job.description || "")
+  const [editIsEmergency, setEditIsEmergency] = useState(job.isEmergency)
+  const [savingJob, setSavingJob] = useState(false)
+
   // --- Visit creation state ---
   const [creatingVisit, setCreatingVisit] = useState(false)
+  const [showAddVisitDialog, setShowAddVisitDialog] = useState(false)
+  const [visitPurpose, setVisitPurpose] = useState<"DIAGNOSTIC" | "SERVICE" | "FOLLOW_UP" | "MAINTENANCE">("SERVICE")
+  const [visitSchedulingType, setVisitSchedulingType] = useState<"SCHEDULED" | "ANYTIME" | "UNSCHEDULED">("UNSCHEDULED")
+  const [visitScheduledStart, setVisitScheduledStart] = useState("")
+  const [visitScheduledEnd, setVisitScheduledEnd] = useState("")
+  const [visitNotes, setVisitNotes] = useState("")
 
   // --- Activity feed state ---
   const [activityEvents, setActivityEvents] = useState<ActivityEventData[]>([])
@@ -309,14 +341,54 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
 
   // --- Handlers ---
 
+  async function handleEditJob() {
+    if (!editTitle.trim()) {
+      toast.error("Title is required")
+      return
+    }
+    setSavingJob(true)
+    try {
+      const result = await updateJob(job.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim() || undefined,
+        isEmergency: editIsEmergency,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Job updated")
+        setShowEditJobDialog(false)
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to update job")
+    } finally {
+      setSavingJob(false)
+    }
+  }
+
   async function handleAddVisit() {
     setCreatingVisit(true)
     try {
-      const result = await createVisit({ jobId: job.id })
+      const result = await createVisit({
+        jobId: job.id,
+        purpose: visitPurpose,
+        schedulingType: visitSchedulingType,
+        scheduledStart: visitSchedulingType === "SCHEDULED" && visitScheduledStart ? visitScheduledStart : undefined,
+        scheduledEnd: visitSchedulingType === "SCHEDULED" && visitScheduledEnd ? visitScheduledEnd : undefined,
+        notes: visitNotes.trim() || undefined,
+      })
       if ("error" in result) {
         toast.error(result.error)
       } else {
         toast.success("Visit created")
+        setShowAddVisitDialog(false)
+        // Reset form
+        setVisitPurpose("SERVICE")
+        setVisitSchedulingType("UNSCHEDULED")
+        setVisitScheduledStart("")
+        setVisitScheduledEnd("")
+        setVisitNotes("")
         router.refresh()
       }
     } catch {
@@ -433,10 +505,15 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
                 {job.customer.firstName} {job.customer.lastName}
               </Link>
               {propertyAddress && (
-                <span className="flex items-center gap-1 text-xs text-[#8898AA]">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(propertyAddress)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-xs text-[#8898AA] hover:text-[#635BFF] hover:underline"
+                >
                   <MapPin className="w-3 h-3" />
                   {propertyAddress}
-                </span>
+                </a>
               )}
             </div>
           </div>
@@ -444,15 +521,192 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button
-            onClick={handleAddVisit}
-            disabled={creatingVisit}
+            variant="outline"
+            onClick={() => {
+              setEditTitle(job.title)
+              setEditDescription(job.description || "")
+              setEditIsEmergency(job.isEmergency)
+              setShowEditJobDialog(true)
+            }}
+            className="border-[#E3E8EE]"
+          >
+            <Pencil className="w-4 h-4 mr-1.5" />
+            Edit Job
+          </Button>
+          <Button
+            onClick={() => setShowAddVisitDialog(true)}
             className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
           >
             <Plus className="w-4 h-4 mr-1.5" />
-            {creatingVisit ? "Creating..." : "Add Visit"}
+            Add Visit
           </Button>
         </div>
       </div>
+
+      {/* ================================================================== */}
+      {/* Edit Job Dialog                                                     */}
+      {/* ================================================================== */}
+      <Dialog open={showEditJobDialog} onOpenChange={setShowEditJobDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Job</DialogTitle>
+            <DialogDescription>
+              Update the job title, description, and emergency status.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-job-title">Title</Label>
+              <Input
+                id="edit-job-title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Job title"
+                className="border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-job-description">Description</Label>
+              <Textarea
+                id="edit-job-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Job description (optional)"
+                className="min-h-[100px] border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="edit-job-emergency">Emergency</Label>
+                <p className="text-xs text-[#8898AA]">
+                  Mark this job as an emergency
+                </p>
+              </div>
+              <Switch
+                id="edit-job-emergency"
+                checked={editIsEmergency}
+                onCheckedChange={setEditIsEmergency}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditJobDialog(false)}
+              className="border-[#E3E8EE]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditJob}
+              disabled={savingJob || !editTitle.trim()}
+              className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+            >
+              {savingJob ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ================================================================== */}
+      {/* Add Visit Dialog                                                    */}
+      {/* ================================================================== */}
+      <Dialog open={showAddVisitDialog} onOpenChange={setShowAddVisitDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Visit</DialogTitle>
+            <DialogDescription>
+              Create a new visit for this job.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Purpose</Label>
+              <Select
+                value={visitPurpose}
+                onValueChange={(v) => setVisitPurpose(v as typeof visitPurpose)}
+              >
+                <SelectTrigger className="w-full border-[#E3E8EE]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DIAGNOSTIC">Diagnostic</SelectItem>
+                  <SelectItem value="SERVICE">Service</SelectItem>
+                  <SelectItem value="FOLLOW_UP">Follow-up</SelectItem>
+                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Scheduling</Label>
+              <Select
+                value={visitSchedulingType}
+                onValueChange={(v) => setVisitSchedulingType(v as typeof visitSchedulingType)}
+              >
+                <SelectTrigger className="w-full border-[#E3E8EE]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                  <SelectItem value="ANYTIME">Anytime</SelectItem>
+                  <SelectItem value="UNSCHEDULED">Unscheduled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {visitSchedulingType === "SCHEDULED" && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="visit-start">Schedule Start</Label>
+                  <Input
+                    id="visit-start"
+                    type="datetime-local"
+                    value={visitScheduledStart}
+                    onChange={(e) => setVisitScheduledStart(e.target.value)}
+                    className="border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="visit-end">Schedule End</Label>
+                  <Input
+                    id="visit-end"
+                    type="datetime-local"
+                    value={visitScheduledEnd}
+                    onChange={(e) => setVisitScheduledEnd(e.target.value)}
+                    className="border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                  />
+                </div>
+              </>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="visit-notes">Notes</Label>
+              <Textarea
+                id="visit-notes"
+                value={visitNotes}
+                onChange={(e) => setVisitNotes(e.target.value)}
+                placeholder="Optional notes for this visit"
+                className="min-h-[80px] border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowAddVisitDialog(false)}
+              className="border-[#E3E8EE]"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAddVisit}
+              disabled={creatingVisit}
+              className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+            >
+              <Plus className="w-4 h-4 mr-1.5" />
+              {creatingVisit ? "Creating..." : "Create Visit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Description */}
       {job.description && (
@@ -766,21 +1020,21 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
       {/* ================================================================== */}
       {/* 5. Invoices Section                                                 */}
       {/* ================================================================== */}
-      {job.invoices.length > 0 && (
-        <Card className="border-[#E3E8EE] mb-6">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
-              <FileText className="w-4 h-4 text-[#8898AA]" />
-              Invoices ({job.invoices.length})
-            </CardTitle>
-            <Button asChild size="sm" variant="outline" className="border-[#E3E8EE]">
-              <Link href={`/invoices/new?jobId=${job.id}`}>
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Create Invoice
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
+      <Card className="border-[#E3E8EE] mb-6">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
+            <FileText className="w-4 h-4 text-[#8898AA]" />
+            Invoices ({job.invoices.length})
+          </CardTitle>
+          <Button asChild size="sm" variant="outline" className="border-[#E3E8EE]">
+            <Link href={`/invoices/new?jobId=${job.id}`}>
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Create Invoice
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {job.invoices.length > 0 ? (
             <div className="space-y-3">
               {job.invoices.map((inv) => (
                 <div
@@ -819,9 +1073,13 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-sm text-[#8898AA] text-center py-6">
+              No invoices yet. Click &quot;Create Invoice&quot; to create one.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ================================================================== */}
       {/* 6. Activity Feed                                                    */}

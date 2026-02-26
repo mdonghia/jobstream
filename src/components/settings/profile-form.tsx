@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { updateProfile, changePassword } from "@/actions/settings"
+import { updateProfile, changePassword, updatePreferredView } from "@/actions/settings"
 
 // ============================================================================
 // Types
@@ -20,6 +21,7 @@ interface ProfileData {
   phone: string
   avatar: string | null
   role: string
+  preferredView?: string
 }
 
 interface ProfileFormProps {
@@ -31,6 +33,8 @@ interface ProfileFormProps {
 // ============================================================================
 
 export function ProfileForm({ profile }: ProfileFormProps) {
+  const router = useRouter()
+
   // Profile fields
   const [firstName, setFirstName] = useState(profile.firstName)
   const [lastName, setLastName] = useState(profile.lastName)
@@ -43,6 +47,11 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [savingPassword, setSavingPassword] = useState(false)
+
+  // Default view preference (dual-role switching)
+  const canSwitchView = profile.role === "OWNER" || profile.role === "ADMIN"
+  const [preferredView, setPreferredView] = useState(profile.preferredView ?? "admin")
+  const [savingView, setSavingView] = useState(false)
 
   // Auto-save state
   const [lastSaved, setLastSaved] = useState(0)
@@ -168,6 +177,34 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   }
 
   // -----------------------------------------------------------------------
+  // Save Default View
+  // -----------------------------------------------------------------------
+
+  async function handleSaveDefaultView(newView: string) {
+    setPreferredView(newView)
+    setSavingView(true)
+    try {
+      const result = await updatePreferredView(newView)
+      if ("error" in result) {
+        toast.error(result.error)
+        setPreferredView(preferredView) // Revert
+      } else {
+        toast.success(
+          newView === "tech"
+            ? "Default view set to Technician"
+            : "Default view set to Admin"
+        )
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to update default view")
+      setPreferredView(preferredView) // Revert
+    } finally {
+      setSavingView(false)
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
 
@@ -251,6 +288,62 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           )}
         </div>
       </section>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Default View (only for OWNER / ADMIN) */}
+      {/* ----------------------------------------------------------------- */}
+      {canSwitchView && (
+        <section className="border-t border-[#E3E8EE] pt-8">
+          <h2 className="text-lg font-semibold text-[#0A2540]">
+            Default View
+          </h2>
+          <p className="mt-1 text-sm text-[#425466]">
+            Choose which view to show when you log in. You can always switch views
+            from the user menu in the top-right corner.
+          </p>
+
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={() => handleSaveDefaultView("admin")}
+              disabled={savingView}
+              className={`flex-1 rounded-lg border-2 p-4 text-left transition-colors ${
+                preferredView === "admin"
+                  ? "border-[#635BFF] bg-[#635BFF]/5"
+                  : "border-[#E3E8EE] hover:border-gray-300"
+              }`}
+            >
+              <p className="text-sm font-semibold text-[#0A2540]">Admin View</p>
+              <p className="mt-0.5 text-xs text-[#425466]">
+                Full dashboard with sidebar, reports, settings, and team management.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSaveDefaultView("tech")}
+              disabled={savingView}
+              className={`flex-1 rounded-lg border-2 p-4 text-left transition-colors ${
+                preferredView === "tech"
+                  ? "border-[#635BFF] bg-[#635BFF]/5"
+                  : "border-[#E3E8EE] hover:border-gray-300"
+              }`}
+            >
+              <p className="text-sm font-semibold text-[#0A2540]">Technician View</p>
+              <p className="mt-0.5 text-xs text-[#425466]">
+                Simplified pipeline view focused on assigned jobs and field work.
+              </p>
+            </button>
+          </div>
+
+          {savingView && (
+            <p className="mt-2 text-xs text-[#8898AA] flex items-center gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Saving preference...
+            </p>
+          )}
+        </section>
+      )}
 
       {/* ----------------------------------------------------------------- */}
       {/* Change Password */}

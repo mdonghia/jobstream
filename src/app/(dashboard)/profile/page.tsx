@@ -15,6 +15,7 @@ export default async function ProfilePage() {
       phone: true,
       avatar: true,
       role: true,
+      preferredView: true,
     },
   })
 
@@ -44,6 +45,7 @@ export default async function ProfilePage() {
             phone: dbUser.phone ?? "",
             avatar: dbUser.avatar,
             role: dbUser.role,
+            preferredView: dbUser.preferredView ?? "admin",
           }}
         />
       </div>

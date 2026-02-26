@@ -104,6 +104,7 @@ interface QuoteBuilderProps {
     id?: string
     customerId?: string
     propertyId?: string
+    jobId?: string
     lineItems?: LineItem[]
     customerMessage?: string
     internalNote?: string
@@ -165,6 +166,8 @@ export function QuoteBuilder({
   const [selectedPropertyId, setSelectedPropertyId] = useState(
     initialData?.propertyId || ""
   )
+  const linkedJobId =
+    initialData?.jobId || searchParams.get("jobId") || undefined
   const [lineItems, setLineItems] = useState<LineItem[]>(
     initialData?.lineItems?.length ? initialData.lineItems : [emptyLineItem()]
   )
@@ -477,6 +480,7 @@ export function QuoteBuilder({
     const data: any = {
       customerId: selectedCustomerId,
       propertyId: selectedPropertyId || undefined,
+      jobId: linkedJobId,
       lineItems: useOptions
         ? [] // Options mode: line items live inside each option
         : lineItems

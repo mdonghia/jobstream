@@ -162,8 +162,8 @@ function assignedTech(visit: SerializedVisit | null): string {
   return `${tech.firstName} ${tech.lastName}`
 }
 
-/** Find the last completed visit date */
-function lastCompletedVisitDate(visits: SerializedVisit[]): string | null {
+/** Find the date a job was closed -- uses latest completed visit, falling back to latest cancelled visit */
+function closedDate(visits: SerializedVisit[]): string | null {
   const completed = visits
     .filter((v) => v.status === "COMPLETED" && v.scheduledStart)
     .sort((a, b) => {
@@ -171,7 +171,17 @@ function lastCompletedVisitDate(visits: SerializedVisit[]): string | null {
         new Date(b.scheduledStart!).getTime() - new Date(a.scheduledStart!).getTime()
       )
     })
-  return completed[0]?.scheduledStart ?? null
+  if (completed[0]?.scheduledStart) return completed[0].scheduledStart
+
+  // Fallback: if no completed visits, use the latest cancelled visit
+  const cancelled = visits
+    .filter((v) => v.status === "CANCELLED" && v.scheduledStart)
+    .sort((a, b) => {
+      return (
+        new Date(b.scheduledStart!).getTime() - new Date(a.scheduledStart!).getTime()
+      )
+    })
+  return cancelled[0]?.scheduledStart ?? null
 }
 
 // =============================================================================
@@ -531,8 +541,8 @@ export default function JobListV2() {
 
       case "closed": {
         const totalInvoiced = job.invoices.reduce((sum, inv) => sum + inv.total, 0)
-        // Use the latest completed visit date as "date closed"
-        const closedDate = lastCompletedVisitDate(job.visits)
+        // Use the latest completed visit date as "date closed", falling back to cancelled
+        const jobClosedDate = closedDate(job.visits)
         return (
           <TableRow
             key={job.id}
@@ -550,7 +560,7 @@ export default function JobListV2() {
               {formatCurrency(totalInvoiced)}
             </TableCell>
             <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {closedDate ? formatDate(closedDate) : "--"}
+              {jobClosedDate ? formatDate(jobClosedDate) : "--"}
             </TableCell>
           </TableRow>
         )
@@ -558,7 +568,7 @@ export default function JobListV2() {
 
       case "recurring": {
         const nextVisit = nextUpcomingVisit(job.visits)
-        const lastCompleted = lastCompletedVisitDate(job.visits)
+        const lastCompleted = closedDate(job.visits)
         // Try to infer frequency from visit purpose or fallback
         // The recurrence rule is on the Job model, not in the serialized data currently.
         // We'll show frequency based on visit pattern or fallback.

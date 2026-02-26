@@ -428,15 +428,21 @@ export async function updateJobStatus(
       data: updateData,
     })
 
-    // V2 dual-write: update Visit status to match
+    // V2 dual-write: update Visit status to match.
+    // When reopening a cancelled job (newStatus = SCHEDULED), only update
+    // visits that are currently CANCELLED to preserve completed visit history.
     const visitStatusMap: Record<string, string> = {
       SCHEDULED: "SCHEDULED",
       IN_PROGRESS: "IN_PROGRESS",
       COMPLETED: "COMPLETED",
       CANCELLED: "CANCELLED",
     }
+    const visitWhereClause: any = { jobId: id }
+    if (newStatus === "SCHEDULED") {
+      visitWhereClause.status = "CANCELLED"
+    }
     await prisma.visit.updateMany({
-      where: { jobId: id },
+      where: visitWhereClause,
       data: {
         status: visitStatusMap[newStatus] as any,
         ...(newStatus === "IN_PROGRESS" ? { actualStart: new Date() } : {}),
@@ -1174,6 +1180,7 @@ export async function updateJob(
     title?: string
     description?: string
     priority?: string
+    isEmergency?: boolean
     scheduledStart?: string | Date
     scheduledEnd?: string | Date
     assignedUserIds?: string[]
@@ -1219,6 +1226,7 @@ export async function updateJob(
           scheduledEnd: data.scheduledEnd
             ? new Date(data.scheduledEnd)
             : existing.scheduledEnd,
+          isEmergency: data.isEmergency ?? existing.isEmergency,
           isRecurring: data.isRecurring ?? existing.isRecurring,
           recurrenceRule: data.recurrenceRule ?? existing.recurrenceRule,
           recurrenceEndDate: data.recurrenceEndDate

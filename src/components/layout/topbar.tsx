@@ -1,7 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
   Plus,
@@ -10,7 +11,9 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  ArrowLeftRight,
 } from "lucide-react"
+import { toast } from "sonner"
 import { NotificationBell } from "@/components/layout/notification-bell"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getInitials } from "@/lib/utils"
+import { updatePreferredView } from "@/actions/settings"
 
 const quickActions = [
   { label: "New Customer", href: "/customers?action=new" },
@@ -45,7 +49,9 @@ const pageTitles: Record<string, string> = {
   "/settings/communications": "Communication Settings",
   "/settings/booking": "Booking Widget",
   "/settings/reviews": "Review Settings",
+  "/settings/marketing": "Marketing Suite",
   "/settings/billing": "Billing",
+  "/campaigns": "Campaigns",
   "/profile": "Profile",
 }
 
@@ -56,6 +62,7 @@ interface TopbarProps {
     email: string
     role: string
     avatar: string | null
+    preferredView?: string
   }
   onMenuClick: () => void
   hideSidebarToggle?: boolean
@@ -63,6 +70,37 @@ interface TopbarProps {
 
 export function Topbar({ user, onMenuClick, hideSidebarToggle }: TopbarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const [switchingView, setSwitchingView] = useState(false)
+
+  // Determine if the user can switch views (only OWNER and ADMIN)
+  const canSwitchView = user.role === "OWNER" || user.role === "ADMIN"
+  const currentView = user.preferredView ?? "admin"
+  const isInTechView = currentView === "tech"
+
+  async function handleSwitchView() {
+    const newView = isInTechView ? "admin" : "tech"
+    setSwitchingView(true)
+    try {
+      const result = await updatePreferredView(newView)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success(
+          newView === "tech"
+            ? "Switched to Technician View"
+            : "Switched to Admin View"
+        )
+        // Navigate to the dashboard and refresh to apply the view change
+        router.push("/")
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to switch view")
+    } finally {
+      setSwitchingView(false)
+    }
+  }
 
   function getPageTitle() {
     // Check exact match first
@@ -138,9 +176,21 @@ export function Topbar({ user, onMenuClick, hideSidebarToggle }: TopbarProps) {
               <p className="text-sm font-medium text-[#0A2540]">
                 {user.firstName} {user.lastName}
               </p>
-              <p className="text-xs text-[#8898AA]">{user.role}</p>
+              <p className="text-xs text-[#8898AA]">
+                {user.role}{isInTechView ? " (Tech View)" : ""}
+              </p>
             </div>
             <DropdownMenuSeparator />
+            {canSwitchView && (
+              <DropdownMenuItem
+                onClick={handleSwitchView}
+                disabled={switchingView}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                {isInTechView ? "Switch to Admin View" : "Switch to Tech View"}
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem asChild>
               <Link href="/profile" className="flex items-center gap-2">
                 <UserIcon className="w-4 h-4" />

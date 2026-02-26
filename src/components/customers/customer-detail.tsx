@@ -25,6 +25,8 @@ import {
   StickyNote,
   Send,
   Activity,
+  CircleDot,
+  ClipboardList,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -112,7 +114,7 @@ interface ActivityEventEntry {
   createdAt: Date | string
   jobId: string
   job: { id: string; jobNumber: string; title: string } | null
-  user: { id: string; firstName: string; lastName: string } | null
+  user: { id: string; firstName: string; lastName: string; avatar?: string | null } | null
 }
 
 interface CustomerDetailProps {
@@ -431,6 +433,7 @@ export function CustomerDetail({
             { value: "messages", label: "Messages", count: messages.length },
             { value: "communications", label: "Communications" },
             { value: "notes", label: "Notes", count: notes.length },
+            { value: "activity", label: "Activity", count: recentActivityEvents.length },
           ].map((tab) => (
             <TabsTrigger
               key={tab.value}
@@ -1071,6 +1074,72 @@ export function CustomerDetail({
             )}
           </div>
         </TabsContent>
+
+        {/* Activity Tab */}
+        <TabsContent value="activity" className="mt-6">
+          {recentActivityEvents.length === 0 ? (
+            <div className="py-12 text-center">
+              <Activity className="w-12 h-12 text-[#8898AA] mx-auto mb-3" />
+              <p className="text-sm text-[#8898AA]">No activity yet</p>
+              <p className="text-xs text-[#8898AA] mt-1">
+                Activity events will appear here as jobs progress
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentActivityEvents.map((event) => {
+                const isInternalNote = event.eventType === "note_added"
+                return (
+                  <div
+                    key={event.id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border border-[#E3E8EE] ${
+                      isInternalNote ? "bg-amber-50/50" : ""
+                    }`}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-[#F6F8FA] border border-[#E3E8EE] flex items-center justify-center flex-shrink-0 mt-0.5 text-[#8898AA]">
+                      {activityEventIcon(event.eventType)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-[#0A2540]">
+                          {event.title}
+                        </p>
+                        {isInternalNote && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border border-amber-300 text-amber-700 bg-amber-50">
+                            Internal
+                          </span>
+                        )}
+                      </div>
+                      {event.description && (
+                        <p className="text-xs text-[#425466] mt-0.5">
+                          {event.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        {event.job && (
+                          <Link
+                            href={`/jobs/${event.job.id}`}
+                            className="text-xs text-[#635BFF] hover:underline font-medium"
+                          >
+                            {event.job.jobNumber}
+                          </Link>
+                        )}
+                        {event.user && (
+                          <span className="text-xs text-[#8898AA]">
+                            {event.user.firstName} {event.user.lastName}
+                          </span>
+                        )}
+                        <span className="text-xs text-[#8898AA]">
+                          {formatRelativeTime(event.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       <CustomerForm
@@ -1101,6 +1170,16 @@ export function CustomerDetail({
       />
     </div>
   )
+}
+
+// Activity event type icon (matches the pattern in job-detail-v2)
+function activityEventIcon(eventType: string) {
+  if (eventType.includes("visit")) return <ClipboardList className="w-3.5 h-3.5" />
+  if (eventType.includes("quote")) return <FileText className="w-3.5 h-3.5" />
+  if (eventType.includes("invoice")) return <FileText className="w-3.5 h-3.5" />
+  if (eventType.includes("note")) return <StickyNote className="w-3.5 h-3.5" />
+  if (eventType.includes("status")) return <CircleDot className="w-3.5 h-3.5" />
+  return <MessageSquare className="w-3.5 h-3.5" />
 }
 
 // Inline status badge for this component

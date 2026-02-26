@@ -71,7 +71,48 @@ export async function getActivityFeed(
 }
 
 // =============================================================================
-// 2. getRecentActivity - Recent events across ALL jobs in the organization
+// 2. getCustomerActivityFeed - Activity events across ALL jobs for a customer
+// =============================================================================
+
+export async function getCustomerActivityFeed(
+  customerId: string,
+  params?: { limit?: number }
+) {
+  try {
+    const user = await requireAuth()
+
+    const limit = params?.limit ?? 20
+
+    // Fetch activity events across all of this customer's jobs using a
+    // relational filter (job.customerId) so we don't need a separate query
+    // to collect jobIds first.
+    const events = await prisma.activityEvent.findMany({
+      where: {
+        organizationId: user.organizationId,
+        job: { customerId },
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: {
+        job: {
+          select: { id: true, jobNumber: true, title: true },
+        },
+        user: {
+          select: { id: true, firstName: true, lastName: true, avatar: true },
+        },
+      },
+    })
+
+    return { events }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getCustomerActivityFeed error:", error)
+    return { error: "Failed to fetch customer activity feed" }
+  }
+}
+
+// =============================================================================
+// 3. getRecentActivity - Recent events across ALL jobs in the organization
 // =============================================================================
 
 export async function getRecentActivity(params?: { limit?: number }) {

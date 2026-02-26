@@ -258,7 +258,41 @@ export async function unlinkChecklistFromService(
 }
 
 // =============================================================================
-// 7. getChecklistsForServices - Get all checklist items for given services
+// 7. toggleChecklistItem - Toggle a checklist item's completion status
+// =============================================================================
+
+export async function toggleChecklistItem(itemId: string, completed: boolean) {
+  try {
+    const user = await requireAuth()
+
+    // Verify the item belongs to a job in the tech's organization
+    const item = await prisma.jobChecklistItem.findFirst({
+      where: {
+        id: itemId,
+        job: { organizationId: user.organizationId },
+      },
+    })
+    if (!item) return { error: "Item not found" }
+
+    await prisma.jobChecklistItem.update({
+      where: { id: itemId },
+      data: {
+        isCompleted: completed,
+        completedAt: completed ? new Date() : null,
+        completedByUserId: completed ? user.id : null,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("toggleChecklistItem error:", error)
+    return { error: "Failed to update checklist item" }
+  }
+}
+
+// =============================================================================
+// 8. getChecklistsForServices - Get all checklist items for given services
 // =============================================================================
 
 export async function getChecklistsForServices(serviceIds: string[]) {

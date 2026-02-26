@@ -1,10 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useState, useTransition } from "react"
+import { useCallback, useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronDown,
   CheckCircle2,
+  CheckSquare,
+  Square,
   Clock,
   MapPin,
   Navigation,
@@ -13,8 +15,9 @@ import {
   Wrench,
   User,
   Phone,
+  Camera,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, formatCurrency } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -26,6 +29,8 @@ import {
   updateVisitStatus,
   completeVisit,
 } from "@/actions/visits"
+import { toggleChecklistItem } from "@/actions/checklists"
+import { uploadJobAttachment } from "@/actions/jobs"
 import CompletionMenu from "@/components/visits/completion-menu"
 
 // ---------------------------------------------------------------------------
@@ -74,6 +79,22 @@ function googleMapsUrl(property: {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
 }
 
+/**
+ * Compute the customer-facing arrival window string.
+ * Given a scheduledStart and an arrivalWindowMinutes value,
+ * returns something like "10:00 AM - 12:00 PM".
+ */
+function formatArrivalWindow(
+  scheduledStart: string | Date | null,
+  arrivalWindowMinutes: number | null | undefined
+): string | null {
+  if (!scheduledStart || !arrivalWindowMinutes || arrivalWindowMinutes <= 0) return null
+  const start = new Date(scheduledStart)
+  const end = new Date(start.getTime() + arrivalWindowMinutes * 60 * 1000)
+  const fmt = (d: Date) => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+  return `${fmt(start)} - ${fmt(end)}`
+}
+
 function formatAddress(property: {
   addressLine1: string
   addressLine2?: string | null
@@ -99,15 +120,20 @@ function VisitCard({
   isActive,
   onAction,
   actionLoading,
+  onRefresh,
 }: {
   visit: TechVisit
   isActive: boolean
   onAction: (visitId: string, action: "on_my_way" | "arrived" | "complete") => void
   actionLoading: string | null
+  onRefresh: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
   const [techNotes, setTechNotes] = useState("")
   const [completionNotes, setCompletionNotes] = useState("")
+  const [checklistLoading, setChecklistLoading] = useState<string | null>(null)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const status = visit.status as VisitStatus
   const isCompleted = status === "COMPLETED"
@@ -231,6 +257,16 @@ function VisitCard({
           )}
         </div>
 
+        {/* Arrival Window -- shown if arrivalWindowMinutes is set and > 0 */}
+        {visit.arrivalWindowMinutes && visit.arrivalWindowMinutes > 0 && visit.scheduledStart && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Clock className="size-3.5 shrink-0 text-amber-500" />
+            <span>
+              Arrival Window: {formatArrivalWindow(visit.scheduledStart, visit.arrivalWindowMinutes)}
+            </span>
+          </div>
+        )}
+
         {/* Customer contact info */}
         {(customer.phone || customer.email) && (isEnRoute || isInProgress || isCompleted) && (
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -246,25 +282,29 @@ function VisitCard({
         {/* Expandable section for active / completed cards */}
         {(isInProgress || isCompleted || expanded) && (
           <div className="space-y-3 border-t pt-3">
-            {/* Line items */}
+            {/* Line items -- always visible on expanded card */}
             {visit.job.lineItems && visit.job.lineItems.length > 0 && (
               <div>
                 <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
                   <Wrench className="size-3.5" />
-                  Work Items
+                  Line Items
                 </div>
                 <ul className="space-y-1">
                   {visit.job.lineItems.map((item: any) => (
                     <li
                       key={item.id}
-                      className="text-xs flex justify-between items-baseline"
+                      className="text-xs flex justify-between items-baseline gap-2"
                     >
-                      <span>
+                      <span className="truncate">
                         {item.name}
-                        {item.quantity > 1 && ` x${item.quantity}`}
+                        {item.quantity > 1 && (
+                          <span className="text-muted-foreground">
+                            {" "}({item.quantity} x {formatCurrency(item.unitPrice)})
+                          </span>
+                        )}
                       </span>
-                      <span className="text-muted-foreground">
-                        ${item.total.toFixed(2)}
+                      <span className="text-muted-foreground whitespace-nowrap">
+                        {formatCurrency(item.total)}
                       </span>
                     </li>
                   ))}
@@ -282,6 +322,151 @@ function VisitCard({
                 <p className="text-xs bg-muted/50 rounded p-2">{visit.notes}</p>
               </div>
             )}
+
+            {/* Checklist -- shows job checklist items with toggle capability */}
+            {visit.job.checklistItems && visit.job.checklistItems.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
+                  <CheckSquare className="size-3.5" />
+                  Checklist
+                </div>
+                <ul className="space-y-1">
+                  {visit.job.checklistItems.map((item: any) => {
+                    const isToggling = checklistLoading === item.id
+                    return (
+                      <li key={item.id} className="flex items-start gap-2">
+                        <button
+                          type="button"
+                          className="mt-0.5 shrink-0 disabled:opacity-50"
+                          disabled={isToggling || isCompleted}
+                          onClick={async () => {
+                            setChecklistLoading(item.id)
+                            try {
+                              const result = await toggleChecklistItem(item.id, !item.isCompleted)
+                              if (result.error) {
+                                console.error("Checklist toggle error:", result.error)
+                              } else {
+                                // Refresh visit data to reflect the change
+                                onRefresh()
+                              }
+                            } catch (err) {
+                              console.error("Failed to toggle checklist item:", err)
+                            } finally {
+                              setChecklistLoading(null)
+                            }
+                          }}
+                        >
+                          {isToggling ? (
+                            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                          ) : item.isCompleted ? (
+                            <CheckSquare className="size-4 text-emerald-500" />
+                          ) : (
+                            <Square className="size-4 text-muted-foreground" />
+                          )}
+                        </button>
+                        <span
+                          className={cn(
+                            "text-xs",
+                            item.isCompleted && "line-through text-muted-foreground"
+                          )}
+                        >
+                          {item.label}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {/* Photo capture section */}
+            <div>
+              <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1">
+                <Camera className="size-3.5" />
+                Photos
+              </div>
+
+              {/* Thumbnail grid of existing photos */}
+              {visit.job.attachments && visit.job.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {(visit.job.attachments as any[])
+                    .filter((att: any) => att.fileType?.startsWith("image/"))
+                    .map((att: any) => (
+                      <a
+                        key={att.id}
+                        href={att.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="relative group block w-16 h-16 rounded border overflow-hidden bg-muted/30"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={att.fileUrl}
+                          alt={att.fileName}
+                          className="w-full h-full object-cover"
+                        />
+                      </a>
+                    ))}
+                </div>
+              )}
+
+              {/* Upload button -- only when visit is in progress */}
+              {isInProgress && (
+                <>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      setPhotoUploading(true)
+                      try {
+                        const formData = new FormData()
+                        formData.append("file", file)
+                        const result = await uploadJobAttachment(visit.job.id, formData)
+                        if ("error" in result && result.error) {
+                          console.error("Photo upload error:", result.error)
+                        } else {
+                          // Refresh to show new photo
+                          onRefresh()
+                        }
+                      } catch (err) {
+                        console.error("Photo upload failed:", err)
+                      } finally {
+                        setPhotoUploading(false)
+                        // Reset file input so same file can be re-selected
+                        if (fileInputRef.current) fileInputRef.current.value = ""
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    disabled={photoUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {photoUploading ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Camera className="size-3.5" />
+                    )}
+                    {photoUploading ? "Uploading..." : "Add Photo"}
+                  </Button>
+                </>
+              )}
+
+              {/* Show message when no photos and not in progress */}
+              {(!visit.job.attachments ||
+                (visit.job.attachments as any[]).filter((a: any) => a.fileType?.startsWith("image/")).length === 0) &&
+                !isInProgress && (
+                <p className="text-xs text-muted-foreground italic">No photos</p>
+              )}
+            </div>
 
             {/* Tech notes field (editable when in progress) */}
             {isInProgress && (
@@ -501,6 +686,7 @@ export default function TechPipeline() {
                 isActive={currentActive?.id === visit.id}
                 onAction={handleAction}
                 actionLoading={actionLoading}
+                onRefresh={fetchVisits}
               />
               {/* Connector arrow between cards */}
               {index < activeVisits.length - 1 && (
@@ -530,6 +716,7 @@ export default function TechPipeline() {
                 isActive={false}
                 onAction={handleAction}
                 actionLoading={actionLoading}
+                onRefresh={fetchVisits}
               />
             ))}
           </div>

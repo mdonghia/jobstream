@@ -14,24 +14,28 @@ import {
   Users,
   Calendar,
   Briefcase,
+  ClipboardList,
   Receipt,
   Star,
   BarChart3,
   Settings,
+  Megaphone,
 } from "lucide-react"
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Jobs", icon: Briefcase, href: "/jobs" },
+  { label: "Quotes", icon: ClipboardList, href: "/quotes" },
   { label: "Customers", icon: Users, href: "/customers" },
   { label: "Schedule", icon: Calendar, href: "/schedule" },
   { label: "Invoices", icon: Receipt, href: "/invoices" },
   { label: "Reports", icon: BarChart3, href: "/reports" },
 ]
 
-// Conditional items -- shown when Marketing Suite is enabled (always shown for now)
+// Conditional items -- shown only when Marketing Suite is enabled
 const conditionalItems = [
   { label: "Reviews", icon: Star, href: "/reviews" },
+  { label: "Campaigns", icon: Megaphone, href: "/campaigns" },
 ]
 
 const bottomItems = [
@@ -45,9 +49,10 @@ interface MobileNavProps {
   user: {
     role: string
   }
+  marketingSuiteEnabled?: boolean
 }
 
-export function MobileNav({ open, onClose, orgName, user }: MobileNavProps) {
+export function MobileNav({ open, onClose, orgName, user, marketingSuiteEnabled = false }: MobileNavProps) {
   const pathname = usePathname()
 
   function isActive(href: string) {
@@ -58,7 +63,9 @@ export function MobileNav({ open, onClose, orgName, user }: MobileNavProps) {
   // Technicians don't see the mobile nav -- they get the pipeline view (Phase 8)
   if (user.role === "TECHNICIAN") return null
 
-  const allNavItems = [...navItems, ...conditionalItems]
+  // Only show marketing items (Reviews, Campaigns) when the Marketing Suite is enabled
+  const visibleConditionalItems = marketingSuiteEnabled ? conditionalItems : []
+  const allNavItems = [...navItems, ...visibleConditionalItems]
 
   return (
     <Sheet open={open} onOpenChange={onClose}>

@@ -21,23 +21,31 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import {
   DollarSign,
   Briefcase,
-  FileCheck,
+  FileText,
   Users,
-  UserPlus,
+  CreditCard,
   Download,
   TrendingUp,
   Clock,
   XCircle,
   CheckCircle,
   Loader2,
+  CalendarClock,
 } from "lucide-react"
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -52,17 +60,20 @@ import {
 } from "date-fns"
 import {
   getRevenueReport,
+  getInvoicesReport,
+  getPaymentsReport,
   getJobsReport,
-  getQuotesReport,
   getTeamReport,
-  getCustomersReport,
+  getTimeTrackingReport,
+  scheduleReport,
 } from "@/actions/reports"
 import type {
   RevenueReportResult,
+  InvoicesReportResult,
+  PaymentsReportResult,
   JobsReportResult,
-  QuotesReportResult,
   TeamReportResult,
-  CustomersReportResult,
+  TimeTrackingReportResult,
 } from "@/actions/reports"
 
 // =============================================================================
@@ -159,6 +170,25 @@ function downloadCSV(data: Record<string, any>[], filename: string) {
   URL.revokeObjectURL(link.href)
 }
 
+// Map tab values to human-readable report type names
+const TAB_TO_REPORT_TYPE: Record<string, string> = {
+  invoices: "invoices",
+  payments: "payments",
+  jobs: "jobs",
+  team_activity: "team_activity",
+  time_tracking: "time_tracking",
+}
+
+const REPORT_TYPE_LABELS: Record<string, string> = {
+  invoices: "Invoices",
+  payments: "Payments",
+  jobs: "Jobs",
+  team_activity: "Team Activity",
+  time_tracking: "Time Tracking",
+}
+
+const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
 // =============================================================================
 // Custom Tooltip
 // =============================================================================
@@ -229,19 +259,51 @@ function LoadingState() {
 }
 
 // =============================================================================
-// Revenue Tab
+// Status Badge
 // =============================================================================
 
-function RevenueTab({ data }: { data: RevenueReportResult | null }) {
-  if (!data) return <LoadingState />
+function StatusBadge({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    PAID: "bg-green-100 text-green-800",
+    COMPLETED: "bg-green-100 text-green-800",
+    SENT: "bg-blue-100 text-blue-800",
+    VIEWED: "bg-blue-100 text-blue-800",
+    DRAFT: "bg-gray-100 text-gray-800",
+    OVERDUE: "bg-red-100 text-red-800",
+    VOID: "bg-gray-100 text-gray-500",
+    PARTIALLY_PAID: "bg-yellow-100 text-yellow-800",
+    PENDING: "bg-yellow-100 text-yellow-800",
+    FAILED: "bg-red-100 text-red-800",
+    REFUNDED: "bg-purple-100 text-purple-800",
+  }
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colors[status] || "bg-gray-100 text-gray-800"}`}>
+      {status.replace(/_/g, " ")}
+    </span>
+  )
+}
+
+// =============================================================================
+// Invoices Tab
+// =============================================================================
+
+function InvoicesTab({
+  revenueData,
+  invoicesData,
+}: {
+  revenueData: RevenueReportResult | null
+  invoicesData: InvoicesReportResult | null
+}) {
+  if (!revenueData || !invoicesData) return <LoadingState />
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Total Revenue" value={formatCurrency(data.summary.totalRevenue)} icon={DollarSign} />
-        <StatCard label="Avg. Per Job" value={formatCurrency(data.summary.avgPerJob)} icon={TrendingUp} color="#30D158" />
-        <StatCard label="Largest Invoice" value={formatCurrency(data.summary.largestInvoice)} icon={FileCheck} color="#F5A623" />
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <StatCard label="Total Revenue" value={formatCurrency(revenueData.summary.totalRevenue)} icon={DollarSign} />
+        <StatCard label="Total Invoices" value={invoicesData.summary.totalInvoices} icon={FileText} color="#635BFF" />
+        <StatCard label="Total Paid" value={formatCurrency(invoicesData.summary.totalPaid)} icon={CheckCircle} color="#30D158" />
+        <StatCard label="Outstanding" value={formatCurrency(invoicesData.summary.totalOutstanding)} icon={Clock} color="#E25950" />
       </div>
 
       {/* Revenue by Month Bar Chart */}
@@ -254,7 +316,7 @@ function RevenueTab({ data }: { data: RevenueReportResult | null }) {
         <CardContent>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.revenueByMonth}>
+              <BarChart data={revenueData.revenueByMonth}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E3E8EE" />
                 <XAxis
                   dataKey="month"
@@ -276,11 +338,11 @@ function RevenueTab({ data }: { data: RevenueReportResult | null }) {
         </CardContent>
       </Card>
 
-      {/* Revenue by Category Table */}
+      {/* Individual Invoice Table */}
       <Card className="border-[#E3E8EE]">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base font-semibold text-[#0A2540]">
-            Revenue by Category
+            Invoice Details
           </CardTitle>
           <Button
             variant="outline"
@@ -288,12 +350,16 @@ function RevenueTab({ data }: { data: RevenueReportResult | null }) {
             className="border-[#E3E8EE] text-[#425466]"
             onClick={() =>
               downloadCSV(
-                data.revenueByCategory.map((r) => ({
-                  Category: r.category,
-                  Revenue: r.revenue.toFixed(2),
-                  "Line Items": r.count,
+                invoicesData.invoices.map((inv) => ({
+                  "Invoice #": inv.invoiceNumber,
+                  Customer: inv.customerName,
+                  "Job #": inv.jobNumber || "N/A",
+                  Amount: inv.amount.toFixed(2),
+                  "Due Date": new Date(inv.dueDate).toLocaleDateString(),
+                  Status: inv.status,
+                  "Date Paid": inv.paidAt ? new Date(inv.paidAt).toLocaleDateString() : "N/A",
                 })),
-                "revenue-by-category"
+                "invoices-report"
               )
             }
           >
@@ -305,24 +371,34 @@ function RevenueTab({ data }: { data: RevenueReportResult | null }) {
           <Table>
             <TableHeader>
               <TableRow className="border-[#E3E8EE]">
-                <TableHead className="text-[#8898AA]">Category</TableHead>
-                <TableHead className="text-[#8898AA] text-right">Revenue</TableHead>
-                <TableHead className="text-[#8898AA] text-right">Line Items</TableHead>
+                <TableHead className="text-[#8898AA]">Invoice #</TableHead>
+                <TableHead className="text-[#8898AA]">Customer</TableHead>
+                <TableHead className="text-[#8898AA]">Job #</TableHead>
+                <TableHead className="text-[#8898AA] text-right">Amount</TableHead>
+                <TableHead className="text-[#8898AA]">Due Date</TableHead>
+                <TableHead className="text-[#8898AA]">Status</TableHead>
+                <TableHead className="text-[#8898AA]">Date Paid</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.revenueByCategory.length > 0 ? (
-                data.revenueByCategory.map((row) => (
-                  <TableRow key={row.category} className="border-[#E3E8EE]">
-                    <TableCell className="text-[#0A2540] font-medium">{row.category}</TableCell>
-                    <TableCell className="text-[#425466] text-right">{formatCurrency(row.revenue)}</TableCell>
-                    <TableCell className="text-[#425466] text-right">{row.count}</TableCell>
+              {invoicesData.invoices.length > 0 ? (
+                invoicesData.invoices.map((inv) => (
+                  <TableRow key={inv.id} className="border-[#E3E8EE]">
+                    <TableCell className="text-[#0A2540] font-medium">{inv.invoiceNumber}</TableCell>
+                    <TableCell className="text-[#425466]">{inv.customerName}</TableCell>
+                    <TableCell className="text-[#425466]">{inv.jobNumber || "--"}</TableCell>
+                    <TableCell className="text-[#425466] text-right">{formatCurrency(inv.amount)}</TableCell>
+                    <TableCell className="text-[#425466]">{new Date(inv.dueDate).toLocaleDateString()}</TableCell>
+                    <TableCell><StatusBadge status={inv.status} /></TableCell>
+                    <TableCell className="text-[#425466]">
+                      {inv.paidAt ? new Date(inv.paidAt).toLocaleDateString() : "--"}
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-[#8898AA] py-8">
-                    No data for this period
+                  <TableCell colSpan={7} className="text-center text-[#8898AA] py-8">
+                    No invoices for this period
                   </TableCell>
                 </TableRow>
               )}
@@ -330,12 +406,70 @@ function RevenueTab({ data }: { data: RevenueReportResult | null }) {
           </Table>
         </CardContent>
       </Card>
+    </div>
+  )
+}
 
-      {/* Top Customers by Revenue Table */}
+// =============================================================================
+// Payments Tab
+// =============================================================================
+
+function PaymentsTab({ data }: { data: PaymentsReportResult | null }) {
+  if (!data) return <LoadingState />
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Total Payments" value={data.summary.totalPayments} icon={CreditCard} />
+        <StatCard label="Total Amount" value={formatCurrency(data.summary.totalAmount)} icon={DollarSign} color="#30D158" />
+        <StatCard
+          label="Most Common Method"
+          value={data.summary.byMethod.length > 0 ? data.summary.byMethod[0].method : "N/A"}
+          icon={TrendingUp}
+          color="#F5A623"
+        />
+      </div>
+
+      {/* Payments by Method */}
+      {data.summary.byMethod.length > 0 && (
+        <Card className="border-[#E3E8EE]">
+          <CardHeader>
+            <CardTitle className="text-base font-semibold text-[#0A2540]">
+              Payments by Method
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.summary.byMethod}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E3E8EE" />
+                  <XAxis
+                    dataKey="method"
+                    tick={{ fontSize: 11, fill: "#8898AA" }}
+                    axisLine={{ stroke: "#E3E8EE" }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#8898AA" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => (v >= 1000 ? `$${(v / 1000).toFixed(0)}k` : `$${v}`)}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="amount" name="Amount" fill="#30D158" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Individual Payments Table */}
       <Card className="border-[#E3E8EE]">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base font-semibold text-[#0A2540]">
-            Top Customers by Revenue
+            Payment Records
           </CardTitle>
           <Button
             variant="outline"
@@ -343,12 +477,15 @@ function RevenueTab({ data }: { data: RevenueReportResult | null }) {
             className="border-[#E3E8EE] text-[#425466]"
             onClick={() =>
               downloadCSV(
-                data.revenueByCustomer.map((r) => ({
-                  Customer: r.customerName,
-                  Revenue: r.revenue.toFixed(2),
-                  Jobs: r.jobCount,
+                data.payments.map((p) => ({
+                  "Payment Date": new Date(p.paymentDate).toLocaleDateString(),
+                  "Invoice #": p.invoiceNumber,
+                  Customer: p.customerName,
+                  Amount: p.amount.toFixed(2),
+                  Method: p.method,
+                  Status: p.status,
                 })),
-                "top-customers-by-revenue"
+                "payments-report"
               )
             }
           >
@@ -360,24 +497,32 @@ function RevenueTab({ data }: { data: RevenueReportResult | null }) {
           <Table>
             <TableHeader>
               <TableRow className="border-[#E3E8EE]">
+                <TableHead className="text-[#8898AA]">Payment Date</TableHead>
+                <TableHead className="text-[#8898AA]">Invoice #</TableHead>
                 <TableHead className="text-[#8898AA]">Customer</TableHead>
-                <TableHead className="text-[#8898AA] text-right">Revenue</TableHead>
-                <TableHead className="text-[#8898AA] text-right">Jobs</TableHead>
+                <TableHead className="text-[#8898AA] text-right">Amount</TableHead>
+                <TableHead className="text-[#8898AA]">Method</TableHead>
+                <TableHead className="text-[#8898AA]">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.revenueByCustomer.length > 0 ? (
-                data.revenueByCustomer.map((row) => (
-                  <TableRow key={row.customerId} className="border-[#E3E8EE]">
-                    <TableCell className="text-[#0A2540] font-medium">{row.customerName}</TableCell>
-                    <TableCell className="text-[#425466] text-right">{formatCurrency(row.revenue)}</TableCell>
-                    <TableCell className="text-[#425466] text-right">{row.jobCount}</TableCell>
+              {data.payments.length > 0 ? (
+                data.payments.map((p) => (
+                  <TableRow key={p.id} className="border-[#E3E8EE]">
+                    <TableCell className="text-[#0A2540] font-medium">
+                      {new Date(p.paymentDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-[#425466]">{p.invoiceNumber}</TableCell>
+                    <TableCell className="text-[#425466]">{p.customerName}</TableCell>
+                    <TableCell className="text-[#425466] text-right">{formatCurrency(p.amount)}</TableCell>
+                    <TableCell className="text-[#425466]">{p.method}</TableCell>
+                    <TableCell><StatusBadge status={p.status} /></TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-[#8898AA] py-8">
-                    No data for this period
+                  <TableCell colSpan={6} className="text-center text-[#8898AA] py-8">
+                    No payments for this period
                   </TableCell>
                 </TableRow>
               )}
@@ -550,127 +695,10 @@ function JobsTab({ data }: { data: JobsReportResult | null }) {
 }
 
 // =============================================================================
-// Quotes Tab
+// Team Activity Tab
 // =============================================================================
 
-function QuotesTab({ data }: { data: QuotesReportResult | null }) {
-  if (!data) return <LoadingState />
-
-  return (
-    <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
-        <StatCard label="Sent" value={data.summary.sent} icon={FileCheck} />
-        <StatCard label="Approved" value={data.summary.approved} icon={CheckCircle} color="#30D158" />
-        <StatCard label="Declined" value={data.summary.declined} icon={XCircle} color="#E25950" />
-        <StatCard label="Expired" value={data.summary.expired} icon={Clock} color="#F5A623" />
-        <StatCard label="Conversion Rate" value={`${data.summary.conversionRate.toFixed(1)}%`} icon={TrendingUp} color="#635BFF" />
-      </div>
-
-      {/* Conversion Rate by Month */}
-      <Card className="border-[#E3E8EE]">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold text-[#0A2540]">
-            Conversion Rate by Month
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.conversionByMonth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E3E8EE" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 11, fill: "#8898AA" }}
-                  axisLine={{ stroke: "#E3E8EE" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#8898AA" }}
-                  axisLine={false}
-                  tickLine={false}
-                  domain={[0, 100]}
-                  tickFormatter={(v) => `${v}%`}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="rate"
-                  name="Conversion Rate"
-                  stroke="#635BFF"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: "#635BFF" }}
-                  activeDot={{ r: 5, fill: "#635BFF", stroke: "#fff", strokeWidth: 2 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quotes by Status */}
-      <Card className="border-[#E3E8EE]">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base font-semibold text-[#0A2540]">
-            Quotes by Status
-          </CardTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-[#E3E8EE] text-[#425466]"
-            onClick={() =>
-              downloadCSV(
-                data.quotesByStatus.map((r) => ({
-                  Status: r.status,
-                  Count: r.count,
-                  "Total Value": r.total.toFixed(2),
-                })),
-                "quotes-by-status"
-              )
-            }
-          >
-            <Download className="w-3.5 h-3.5 mr-1.5" />
-            CSV
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="border-[#E3E8EE]">
-                <TableHead className="text-[#8898AA]">Status</TableHead>
-                <TableHead className="text-[#8898AA] text-right">Count</TableHead>
-                <TableHead className="text-[#8898AA] text-right">Total Value</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.quotesByStatus.length > 0 ? (
-                data.quotesByStatus.map((row) => (
-                  <TableRow key={row.status} className="border-[#E3E8EE]">
-                    <TableCell className="text-[#0A2540] font-medium">{row.status}</TableCell>
-                    <TableCell className="text-[#425466] text-right">{row.count}</TableCell>
-                    <TableCell className="text-[#425466] text-right">{formatCurrency(row.total)}</TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-[#8898AA] py-8">
-                    No data for this period
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-// =============================================================================
-// Team Tab
-// =============================================================================
-
-function TeamTab({ data }: { data: TeamReportResult | null }) {
+function TeamActivityTab({ data }: { data: TeamReportResult | null }) {
   if (!data) return <LoadingState />
 
   // Sort by hours for chart
@@ -783,67 +811,26 @@ function TeamTab({ data }: { data: TeamReportResult | null }) {
 }
 
 // =============================================================================
-// Customers Tab
+// Time Tracking Tab
 // =============================================================================
 
-function CustomersTab({ data }: { data: CustomersReportResult | null }) {
+function TimeTrackingTab({ data }: { data: TimeTrackingReportResult | null }) {
   if (!data) return <LoadingState />
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <StatCard label="Total Customers" value={data.summary.total} icon={Users} />
-        <StatCard label="New This Period" value={data.summary.newThisPeriod} icon={UserPlus} color="#30D158" />
-        <StatCard label="Active" value={data.summary.active} icon={CheckCircle} color="#635BFF" />
-        <StatCard label="Inactive" value={data.summary.inactive} icon={Clock} color="#8898AA" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Total Hours" value={`${data.summary.totalHours}h`} icon={Clock} />
+        <StatCard label="Days Tracked" value={data.summary.totalDays} icon={CalendarClock} color="#635BFF" />
+        <StatCard label="Avg Hours / Day" value={`${data.summary.avgHoursPerDay}h`} icon={TrendingUp} color="#30D158" />
       </div>
 
-      {/* New Customers by Month */}
-      <Card className="border-[#E3E8EE]">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold text-[#0A2540]">
-            New Customers by Month
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.newByMonth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E3E8EE" />
-                <XAxis
-                  dataKey="month"
-                  tick={{ fontSize: 11, fill: "#8898AA" }}
-                  axisLine={{ stroke: "#E3E8EE" }}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#8898AA" }}
-                  axisLine={false}
-                  tickLine={false}
-                  allowDecimals={false}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  name="New Customers"
-                  stroke="#635BFF"
-                  strokeWidth={2.5}
-                  dot={{ r: 3, fill: "#635BFF" }}
-                  activeDot={{ r: 5, fill: "#635BFF", stroke: "#fff", strokeWidth: 2 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Top Customers Table */}
+      {/* Time Tracking Table */}
       <Card className="border-[#E3E8EE]">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base font-semibold text-[#0A2540]">
-            Top Customers by Lifetime Value
+            Daily Time by Team Member
           </CardTitle>
           <Button
             variant="outline"
@@ -851,15 +838,14 @@ function CustomersTab({ data }: { data: CustomersReportResult | null }) {
             className="border-[#E3E8EE] text-[#425466]"
             onClick={() =>
               downloadCSV(
-                data.topCustomers.map((c) => ({
-                  Customer: c.customerName,
-                  "Total Revenue": c.totalRevenue.toFixed(2),
-                  Jobs: c.jobCount,
-                  "Last Job": c.lastJobDate
-                    ? new Date(c.lastJobDate).toLocaleDateString()
-                    : "N/A",
+                data.entries.map((e) => ({
+                  "Team Member": e.name,
+                  Date: new Date(e.date + "T00:00:00").toLocaleDateString(),
+                  "Start Time": e.startTime ? new Date(e.startTime).toLocaleTimeString() : "N/A",
+                  "End Time": e.endTime ? new Date(e.endTime).toLocaleTimeString() : "N/A",
+                  "Total Hours": e.totalHours,
                 })),
-                "top-customers"
+                "time-tracking-report"
               )
             }
           >
@@ -871,30 +857,34 @@ function CustomersTab({ data }: { data: CustomersReportResult | null }) {
           <Table>
             <TableHeader>
               <TableRow className="border-[#E3E8EE]">
-                <TableHead className="text-[#8898AA]">Customer</TableHead>
-                <TableHead className="text-[#8898AA] text-right">Total Revenue</TableHead>
-                <TableHead className="text-[#8898AA] text-right">Jobs</TableHead>
-                <TableHead className="text-[#8898AA] text-right">Last Job</TableHead>
+                <TableHead className="text-[#8898AA]">Team Member</TableHead>
+                <TableHead className="text-[#8898AA]">Date</TableHead>
+                <TableHead className="text-[#8898AA]">Start Time</TableHead>
+                <TableHead className="text-[#8898AA]">End Time</TableHead>
+                <TableHead className="text-[#8898AA] text-right">Total Hours</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.topCustomers.length > 0 ? (
-                data.topCustomers.map((row) => (
-                  <TableRow key={row.customerId} className="border-[#E3E8EE]">
-                    <TableCell className="text-[#0A2540] font-medium">{row.customerName}</TableCell>
-                    <TableCell className="text-[#425466] text-right">{formatCurrency(row.totalRevenue)}</TableCell>
-                    <TableCell className="text-[#425466] text-right">{row.jobCount}</TableCell>
-                    <TableCell className="text-[#425466] text-right">
-                      {row.lastJobDate
-                        ? new Date(row.lastJobDate).toLocaleDateString()
-                        : "N/A"}
+              {data.entries.length > 0 ? (
+                data.entries.map((entry, i) => (
+                  <TableRow key={`${entry.userId}-${entry.date}-${i}`} className="border-[#E3E8EE]">
+                    <TableCell className="text-[#0A2540] font-medium">{entry.name}</TableCell>
+                    <TableCell className="text-[#425466]">
+                      {new Date(entry.date + "T00:00:00").toLocaleDateString()}
                     </TableCell>
+                    <TableCell className="text-[#425466]">
+                      {entry.startTime ? new Date(entry.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--"}
+                    </TableCell>
+                    <TableCell className="text-[#425466]">
+                      {entry.endTime ? new Date(entry.endTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "--"}
+                    </TableCell>
+                    <TableCell className="text-[#425466] text-right">{entry.totalHours}h</TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-[#8898AA] py-8">
-                    No customer data available
+                  <TableCell colSpan={5} className="text-center text-[#8898AA] py-8">
+                    No time tracking data for this period
                   </TableCell>
                 </TableRow>
               )}
@@ -907,22 +897,225 @@ function CustomersTab({ data }: { data: CustomersReportResult | null }) {
 }
 
 // =============================================================================
+// Schedule Report Dialog
+// =============================================================================
+
+function ScheduleReportDialog({
+  open,
+  onOpenChange,
+  currentTab,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  currentTab: string
+}) {
+  const [reportType, setReportType] = useState(currentTab)
+  const [frequency, setFrequency] = useState("weekly")
+  const [dayOfWeek, setDayOfWeek] = useState(1) // Monday
+  const [dayOfMonth, setDayOfMonth] = useState(1)
+  const [emailsInput, setEmailsInput] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
+
+  // Update report type when dialog opens with a different tab
+  useEffect(() => {
+    if (open) {
+      setReportType(currentTab)
+      setError("")
+      setSuccess(false)
+    }
+  }, [open, currentTab])
+
+  const handleSave = async () => {
+    setError("")
+    setSaving(true)
+
+    const emails = emailsInput.split(",").map((e) => e.trim()).filter(Boolean)
+    if (emails.length === 0) {
+      setError("At least one email address is required")
+      setSaving(false)
+      return
+    }
+
+    const result = await scheduleReport({
+      reportType,
+      frequency,
+      dayOfWeek: frequency === "weekly" ? dayOfWeek : undefined,
+      dayOfMonth: frequency === "monthly" ? dayOfMonth : undefined,
+      emails,
+    })
+
+    setSaving(false)
+
+    if ("error" in result) {
+      setError(result.error)
+    } else {
+      setSuccess(true)
+      setTimeout(() => {
+        onOpenChange(false)
+        setSuccess(false)
+        setEmailsInput("")
+      }, 1500)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle className="text-[#0A2540]">Schedule Report</DialogTitle>
+          <DialogDescription className="text-[#8898AA]">
+            Set up automatic report delivery by email.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* Report Type */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-[#425466]">Report Type</Label>
+            <Select value={reportType} onValueChange={setReportType}>
+              <SelectTrigger className="border-[#E3E8EE] text-[#0A2540]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(REPORT_TYPE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Frequency */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-[#425466]">Frequency</Label>
+            <Select value={frequency} onValueChange={setFrequency}>
+              <SelectTrigger className="border-[#E3E8EE] text-[#0A2540]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="weekly">Weekly</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Day of Week (for weekly) */}
+          {frequency === "weekly" && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-[#425466]">Day of Week</Label>
+              <Select value={String(dayOfWeek)} onValueChange={(v) => setDayOfWeek(Number(v))}>
+                <SelectTrigger className="border-[#E3E8EE] text-[#0A2540]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DAYS_OF_WEEK.map((day, i) => (
+                    <SelectItem key={i} value={String(i)}>
+                      {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Day of Month (for monthly) */}
+          {frequency === "monthly" && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-[#425466]">Day of Month</Label>
+              <Select value={String(dayOfMonth)} onValueChange={(v) => setDayOfMonth(Number(v))}>
+                <SelectTrigger className="border-[#E3E8EE] text-[#0A2540]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 28 }, (_, i) => i + 1).map((d) => (
+                    <SelectItem key={d} value={String(d)}>
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Email Addresses */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-[#425466]">
+              Email Address(es)
+            </Label>
+            <Input
+              placeholder="email@example.com, another@example.com"
+              value={emailsInput}
+              onChange={(e) => setEmailsInput(e.target.value)}
+              className="border-[#E3E8EE] text-[#0A2540]"
+            />
+            <p className="text-xs text-[#8898AA]">
+              Separate multiple emails with commas.
+            </p>
+          </div>
+
+          {/* Error / Success Messages */}
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 rounded px-3 py-2">
+              {error}
+            </p>
+          )}
+          {success && (
+            <p className="text-sm text-green-700 bg-green-50 rounded px-3 py-2">
+              Schedule saved successfully.
+            </p>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            className="border-[#E3E8EE] text-[#425466]"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="bg-[#635BFF] hover:bg-[#5851DB] text-white"
+            onClick={handleSave}
+            disabled={saving || success}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Schedule"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// =============================================================================
 // Main Reports Page Component
 // =============================================================================
 
 export function ReportsPage() {
-  const [activeTab, setActiveTab] = useState("revenue")
+  const [activeTab, setActiveTab] = useState("invoices")
   const [datePreset, setDatePreset] = useState<DatePreset>("last_7_days")
   const [loading, setLoading] = useState(false)
   const [customDateFrom, setCustomDateFrom] = useState("")
   const [customDateTo, setCustomDateTo] = useState("")
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
 
   // Report data state
   const [revenueData, setRevenueData] = useState<RevenueReportResult | null>(null)
+  const [invoicesData, setInvoicesData] = useState<InvoicesReportResult | null>(null)
+  const [paymentsData, setPaymentsData] = useState<PaymentsReportResult | null>(null)
   const [jobsData, setJobsData] = useState<JobsReportResult | null>(null)
-  const [quotesData, setQuotesData] = useState<QuotesReportResult | null>(null)
   const [teamData, setTeamData] = useState<TeamReportResult | null>(null)
-  const [customersData, setCustomersData] = useState<CustomersReportResult | null>(null)
+  const [timeTrackingData, setTimeTrackingData] = useState<TimeTrackingReportResult | null>(null)
 
   const fetchData = useCallback(async (tab: string, preset: DatePreset) => {
     setLoading(true)
@@ -930,9 +1123,19 @@ export function ReportsPage() {
 
     try {
       switch (tab) {
-        case "revenue": {
-          const result = await getRevenueReport(range)
-          if (!("error" in result)) setRevenueData(result)
+        case "invoices": {
+          // Fetch both revenue chart data and individual invoices in parallel
+          const [revenueResult, invoicesResult] = await Promise.all([
+            getRevenueReport(range),
+            getInvoicesReport(range),
+          ])
+          if (!("error" in revenueResult)) setRevenueData(revenueResult)
+          if (!("error" in invoicesResult)) setInvoicesData(invoicesResult)
+          break
+        }
+        case "payments": {
+          const result = await getPaymentsReport(range)
+          if (!("error" in result)) setPaymentsData(result)
           break
         }
         case "jobs": {
@@ -940,19 +1143,14 @@ export function ReportsPage() {
           if (!("error" in result)) setJobsData(result)
           break
         }
-        case "quotes": {
-          const result = await getQuotesReport(range)
-          if (!("error" in result)) setQuotesData(result)
-          break
-        }
-        case "team": {
+        case "team_activity": {
           const result = await getTeamReport(range)
           if (!("error" in result)) setTeamData(result)
           break
         }
-        case "customers": {
-          const result = await getCustomersReport(range)
-          if (!("error" in result)) setCustomersData(result)
+        case "time_tracking": {
+          const result = await getTimeTrackingReport(range)
+          if (!("error" in result)) setTimeTrackingData(result)
           break
         }
       }
@@ -968,28 +1166,35 @@ export function ReportsPage() {
     fetchData(activeTab, datePreset)
   }, [activeTab, datePreset, fetchData, customDateFrom, customDateTo])
 
+  const clearTabData = (tab: string) => {
+    switch (tab) {
+      case "invoices":
+        setRevenueData(null)
+        setInvoicesData(null)
+        break
+      case "payments":
+        setPaymentsData(null)
+        break
+      case "jobs":
+        setJobsData(null)
+        break
+      case "team_activity":
+        setTeamData(null)
+        break
+      case "time_tracking":
+        setTimeTrackingData(null)
+        break
+    }
+  }
+
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    // Clear old data so loading state shows
-    switch (value) {
-      case "revenue": setRevenueData(null); break
-      case "jobs": setJobsData(null); break
-      case "quotes": setQuotesData(null); break
-      case "team": setTeamData(null); break
-      case "customers": setCustomersData(null); break
-    }
+    clearTabData(value)
   }
 
   const handlePresetChange = (value: string) => {
     setDatePreset(value as DatePreset)
-    // Clear current tab data
-    switch (activeTab) {
-      case "revenue": setRevenueData(null); break
-      case "jobs": setJobsData(null); break
-      case "quotes": setQuotesData(null); break
-      case "team": setTeamData(null); break
-      case "customers": setCustomersData(null); break
-    }
+    clearTabData(activeTab)
   }
 
   const dateRange = getDateRangeForPreset(datePreset, customDateFrom, customDateTo)
@@ -1005,6 +1210,15 @@ export function ReportsPage() {
           <p className="text-sm text-[#8898AA] mt-0.5">{formattedRange}</p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-[#E3E8EE] text-[#425466]"
+            onClick={() => setScheduleDialogOpen(true)}
+          >
+            <CalendarClock className="w-3.5 h-3.5 mr-1.5" />
+            Schedule Report
+          </Button>
           <Select value={datePreset} onValueChange={handlePresetChange}>
             <SelectTrigger className="w-[180px] border-[#E3E8EE] text-[#425466]">
               <SelectValue />
@@ -1041,44 +1255,51 @@ export function ReportsPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden mb-4">
-          <TabsTrigger value="revenue" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] gap-1.5">
-            <DollarSign className="w-4 h-4" />
-            Revenue
+          <TabsTrigger value="invoices" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] gap-1.5">
+            <FileText className="w-4 h-4" />
+            Invoices
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] gap-1.5">
+            <CreditCard className="w-4 h-4" />
+            Payments
           </TabsTrigger>
           <TabsTrigger value="jobs" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] gap-1.5">
             <Briefcase className="w-4 h-4" />
             Jobs
           </TabsTrigger>
-          <TabsTrigger value="quotes" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] gap-1.5">
-            <FileCheck className="w-4 h-4" />
-            Quotes
-          </TabsTrigger>
-          <TabsTrigger value="team" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] gap-1.5">
+          <TabsTrigger value="team_activity" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] gap-1.5">
             <Users className="w-4 h-4" />
-            Team
+            Team Activity
           </TabsTrigger>
-          <TabsTrigger value="customers" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] gap-1.5">
-            <UserPlus className="w-4 h-4" />
-            Customers
+          <TabsTrigger value="time_tracking" className="px-3 py-2 border-b-2 border-transparent -mb-px text-[#8898AA] hover:text-[#425466] data-[state=active]:border-[#635BFF] data-[state=active]:text-[#0A2540] gap-1.5">
+            <Clock className="w-4 h-4" />
+            Time Tracking
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="revenue">
-          <RevenueTab data={revenueData} />
+        <TabsContent value="invoices">
+          <InvoicesTab revenueData={revenueData} invoicesData={invoicesData} />
+        </TabsContent>
+        <TabsContent value="payments">
+          <PaymentsTab data={paymentsData} />
         </TabsContent>
         <TabsContent value="jobs">
           <JobsTab data={jobsData} />
         </TabsContent>
-        <TabsContent value="quotes">
-          <QuotesTab data={quotesData} />
+        <TabsContent value="team_activity">
+          <TeamActivityTab data={teamData} />
         </TabsContent>
-        <TabsContent value="team">
-          <TeamTab data={teamData} />
-        </TabsContent>
-        <TabsContent value="customers">
-          <CustomersTab data={customersData} />
+        <TabsContent value="time_tracking">
+          <TimeTrackingTab data={timeTrackingData} />
         </TabsContent>
       </Tabs>
+
+      {/* Schedule Report Dialog */}
+      <ScheduleReportDialog
+        open={scheduleDialogOpen}
+        onOpenChange={setScheduleDialogOpen}
+        currentTab={activeTab}
+      />
     </div>
   )
 }

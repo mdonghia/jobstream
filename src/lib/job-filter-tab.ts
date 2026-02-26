@@ -84,7 +84,9 @@ export function computeJobFilterTab(job: JobForTabComputation): JobFilterTab {
   }
 
   // 5. Needs Invoicing -- all non-cancelled visits are COMPLETED, and
-  //    no invoice exists (or all invoices are VOID/DRAFT)
+  //    no invoice exists (or all invoices are VOID).
+  //    A DRAFT invoice counts as actionable -- the invoice exists, it
+  //    just hasn't been sent yet, so the job should not stay in needs_invoicing.
   const nonCancelledVisits = job.visits.filter((v) => v.status !== "CANCELLED")
   const allVisitsCompleted =
     nonCancelledVisits.length > 0 &&
@@ -92,7 +94,7 @@ export function computeJobFilterTab(job: JobForTabComputation): JobFilterTab {
 
   if (allVisitsCompleted) {
     const hasActionableInvoice = job.invoices.some(
-      (inv) => inv.status !== "VOID" && inv.status !== "DRAFT"
+      (inv) => inv.status !== "VOID"
     )
     if (!hasActionableInvoice) {
       return "needs_invoicing"

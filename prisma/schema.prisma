@@ -219,6 +219,9 @@ model Organization {
   // Customer portal (Feature 10)
   portalEnabled  Boolean  @default(true)
 
+  // Marketing Suite feature toggle
+  marketingSuiteEnabled  Boolean  @default(false)
+
   // Booking improvements (Feature 11)
   bookingBufferMinutes   Int  @default(30)
   bookingMaxAdvanceDays  Int  @default(30)
@@ -257,6 +260,7 @@ model Organization {
   visits              Visit[]
   visitAssignments    VisitAssignment[]
   activityEvents      ActivityEvent[]
+  reportSchedules     ReportSchedule[]
 }
 
 // 2. User
@@ -271,6 +275,7 @@ model User {
   avatar         String?
   role           Role      @default(TECHNICIAN)
   color          String    @default("#635BFF")
+  preferredView  String?   @default("admin")
   isActive       Boolean   @default(true)
   lastLoginAt    DateTime?
   createdAt      DateTime  @default(now())
@@ -1187,4 +1192,28 @@ model ActivityEvent {
   @@index([jobId, createdAt])
   @@index([organizationId])
   @@index([organizationId, createdAt])
+}
+
+// ============================================================================
+// Report Scheduling
+// ============================================================================
+
+model ReportSchedule {
+  id             String   @id @default(cuid())
+  organizationId String
+  reportType     String   // "invoices" | "payments" | "jobs" | "team_activity" | "time_tracking"
+  frequency      String   // "weekly" | "monthly"
+  dayOfWeek      Int?     // 0-6 (Sun-Sat) for weekly
+  dayOfMonth     Int?     // 1-31 for monthly
+  emails         String[] // recipient email addresses
+  isActive       Boolean  @default(true)
+  lastSentAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([isActive, frequency])
 }

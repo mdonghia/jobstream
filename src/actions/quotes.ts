@@ -191,6 +191,7 @@ export async function getQuote(id: string) {
 export async function createQuote(data: {
   customerId: string
   propertyId?: string
+  jobId?: string
   lineItems: {
     serviceId?: string
     name: string
@@ -304,6 +305,7 @@ export async function createQuote(data: {
             organizationId: user.organizationId,
             customerId: data.customerId,
             propertyId: data.propertyId || null,
+            jobId: data.jobId || null,
             quoteNumber,
             status: "DRAFT",
             subtotal: lowestOption.subtotal,
@@ -382,6 +384,7 @@ export async function createQuote(data: {
         organizationId: user.organizationId,
         customerId: data.customerId,
         propertyId: data.propertyId || null,
+        jobId: data.jobId || null,
         quoteNumber,
         status: "DRAFT",
         subtotal: subtotal,
