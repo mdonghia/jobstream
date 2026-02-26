@@ -90,10 +90,11 @@ export function Topbar({ user, onMenuClick, hideSidebarToggle }: TopbarProps) {
           <Image
             src="/jobstream-logo.png"
             alt="JobStream"
-            width={140}
-            height={32}
+            width={906}
+            height={258}
             priority
-            className="h-8 w-auto"
+            unoptimized
+            className="h-9 w-auto"
           />
         </Link>
       </div>
