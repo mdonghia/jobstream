@@ -1,8 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
   Menu,
@@ -14,7 +15,6 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { NotificationBell } from "@/components/layout/notification-bell"
-import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,28 +25,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getInitials } from "@/lib/utils"
 import { updatePreferredView } from "@/actions/settings"
-
-const pageTitles: Record<string, string> = {
-  "/": "Dashboard",
-  "/jobs": "Jobs",
-  "/customers": "Customers",
-  "/schedule": "Schedule",
-  "/invoices": "Invoices",
-  "/reports": "Reports",
-  "/reviews": "Reviews",
-  "/settings": "Settings",
-  "/settings/general": "Business Information",
-  "/settings/team": "Team Members",
-  "/settings/services": "Services",
-  "/settings/payments": "Payment Settings",
-  "/settings/communications": "Notification Settings",
-  "/settings/booking": "Booking Widget",
-  "/settings/reviews": "Review Settings",
-  "/settings/marketing": "Marketing Suite",
-  "/settings/billing": "Billing",
-  "/campaigns": "Campaigns",
-  "/profile": "Profile",
-}
 
 interface TopbarProps {
   user: {
@@ -63,7 +41,6 @@ interface TopbarProps {
 }
 
 export function Topbar({ user, onMenuClick, hideSidebarToggle }: TopbarProps) {
-  const pathname = usePathname()
   const router = useRouter()
   const [switchingView, setSwitchingView] = useState(false)
 
@@ -96,16 +73,6 @@ export function Topbar({ user, onMenuClick, hideSidebarToggle }: TopbarProps) {
     }
   }
 
-  function getPageTitle() {
-    // Check exact match first
-    if (pageTitles[pathname]) return pageTitles[pathname]
-    // Check if starts with a known path
-    for (const [path, title] of Object.entries(pageTitles)) {
-      if (path !== "/" && pathname.startsWith(path)) return title
-    }
-    return "Dashboard"
-  }
-
   return (
     <header className="h-14 border-b border-[#E3E8EE] bg-white flex items-center justify-between px-4 lg:px-6">
       {/* Left side: hamburger + page title */}
@@ -119,9 +86,16 @@ export function Topbar({ user, onMenuClick, hideSidebarToggle }: TopbarProps) {
             <Menu className="w-5 h-5" />
           </button>
         )}
-        <h1 className="text-lg font-semibold text-[#0A2540]">
-          {getPageTitle()}
-        </h1>
+        <Link href="/">
+          <Image
+            src="/jobstream-logo.png"
+            alt="JobStream"
+            width={140}
+            height={32}
+            priority
+            className="h-8 w-auto"
+          />
+        </Link>
       </div>
 
       {/* Right side: notifications, user menu */}
