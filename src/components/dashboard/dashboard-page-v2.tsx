@@ -108,7 +108,7 @@ export function DashboardPageV2({ stats, userName }: DashboardPageV2Props) {
           </Link>
 
           {/* Overdue Quotes */}
-          <Link href="/quotes?status=SENT">
+          <Link href="/jobs?tab=awaiting_approval">
             <Card className="border-[#E3E8EE] hover:border-[#F5A623] hover:shadow-md transition-all cursor-pointer group">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">

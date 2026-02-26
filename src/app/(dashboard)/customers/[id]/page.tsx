@@ -22,7 +22,7 @@ export default async function CustomerDetailPage({
 
   const cust = (result as any).customer
 
-  const [notesResult, statsResult, commsResult, quotes, jobs, invoices, payments, portalMessages, activityResult] = await Promise.all([
+  const [notesResult, statsResult, commsResult, quotes, jobs, invoices, payments, activityResult] = await Promise.all([
     getCustomerNotes(id),
     getCustomerStats(id),
     getCommunications({ customerId: id, perPage: 50 }),
@@ -73,10 +73,6 @@ export default async function CustomerDetailPage({
         },
       },
     }),
-    prisma.portalMessage.findMany({
-      where: { customerId: id, organizationId: user.organizationId },
-      orderBy: { createdAt: "asc" },
-    }),
     getCustomerActivityFeed(id, { limit: 20 }),
   ])
 
@@ -116,7 +112,6 @@ export default async function CustomerDetailPage({
       jobs={serialize(jobs)}
       invoices={serialize(invoices)}
       payments={serialize(payments)}
-      portalMessages={serialize(portalMessages)}
       recentActivityEvents={serialize(activityEvents)}
     />
   )

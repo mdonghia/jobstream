@@ -21,7 +21,8 @@ import {
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react"
-import { CUSTOMER_SOURCES, US_STATES } from "@/lib/constants"
+import { US_STATES } from "@/lib/constants"
+import { formatPhoneNumber } from "@/lib/format-helpers"
 import { toast } from "sonner"
 
 interface PropertyFormData {
@@ -40,7 +41,6 @@ interface CustomerFormData {
   email: string
   phone: string
   company: string
-  source: string
   tags: string[]
   notes: string
 }
@@ -81,7 +81,6 @@ export function CustomerForm({
       email: "",
       phone: "",
       company: "",
-      source: "",
       tags: [],
       notes: "",
     }
@@ -99,7 +98,6 @@ export function CustomerForm({
       email: "",
       phone: "",
       company: "",
-      source: "",
       tags: [],
       notes: "",
     })
@@ -113,17 +111,6 @@ export function CustomerForm({
       resetForm()
       onOpenChange(false)
     }
-  }
-
-  function formatPhoneOnBlur(value: string) {
-    const cleaned = value.replace(/\D/g, "")
-    if (cleaned.length === 10) {
-      return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`
-    }
-    if (cleaned.length === 11 && cleaned.startsWith("1")) {
-      return `(${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`
-    }
-    return value
   }
 
   function addTag() {
@@ -260,11 +247,10 @@ export function CustomerForm({
                   id="phone"
                   type="tel"
                   value={customer.phone}
-                  onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
-                  onBlur={(e) =>
-                    setCustomer({ ...customer, phone: formatPhoneOnBlur(e.target.value) })
+                  onChange={(e) =>
+                    setCustomer({ ...customer, phone: formatPhoneNumber(e.target.value) })
                   }
-                  placeholder="(555) 123-4567"
+                  placeholder="717-405-8253"
                   className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
                 />
               </div>
@@ -291,25 +277,6 @@ export function CustomerForm({
               Additional Details
             </h3>
             <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase text-[#8898AA]">Source</Label>
-                <Select
-                  value={customer.source}
-                  onValueChange={(v) => setCustomer({ ...customer, source: v })}
-                >
-                  <SelectTrigger className="h-10 border-[#E3E8EE] focus:ring-[#635BFF]">
-                    <SelectValue placeholder="Select source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_SOURCES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase text-[#8898AA]">Tags</Label>
                 <div className="relative">

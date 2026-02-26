@@ -5,7 +5,6 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
-  Plus,
   Menu,
   User as UserIcon,
   Settings,
@@ -26,12 +25,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { getInitials } from "@/lib/utils"
 import { updatePreferredView } from "@/actions/settings"
-
-const quickActions = [
-  { label: "New Customer", href: "/customers?action=new" },
-  { label: "New Job", href: "/jobs/new" },
-  { label: "New Invoice", href: "/invoices/new" },
-]
 
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
@@ -130,29 +123,8 @@ export function Topbar({ user, onMenuClick, hideSidebarToggle }: TopbarProps) {
         </h1>
       </div>
 
-      {/* Right side: quick actions, notifications, user menu */}
+      {/* Right side: notifications, user menu */}
       <div className="flex items-center gap-2">
-        {/* Quick Actions */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 border-[#E3E8EE]"
-              aria-label="Quick actions"
-            >
-              <Plus className="w-4 h-4 text-[#425466]" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            {quickActions.map((action) => (
-              <DropdownMenuItem key={action.href} asChild>
-                <Link href={action.href}>{action.label}</Link>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         {/* Notifications bell */}
         <NotificationBell />
 

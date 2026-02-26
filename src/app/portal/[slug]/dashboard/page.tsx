@@ -3,7 +3,6 @@ import { redirect } from "next/navigation"
 import Link from "next/link"
 import { getPortalSession, getPortalDashboard } from "@/actions/portal"
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils"
-import { PortalMessageForm } from "@/components/portal/portal-message-form"
 
 export default async function PortalDashboardPage({
   params,
@@ -155,16 +154,6 @@ export default async function PortalDashboardPage({
         )}
       </div>
 
-      {/* Send a Message */}
-      <div className="bg-white rounded-xl border border-[#E3E8EE] p-6">
-        <h2 className="text-lg font-semibold text-[#0A2540] mb-4">
-          Send a Message
-        </h2>
-        <p className="text-sm text-[#425466] mb-3">
-          Have a question or need help? Send us a message and we will get back to you.
-        </p>
-        <PortalMessageForm customerId={customer.id} orgId={organization.id} />
-      </div>
     </div>
   )
 }

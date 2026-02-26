@@ -19,6 +19,42 @@ export function formatArrivalTime(scheduledStart: Date, windowMinutes: number): 
 }
 
 /**
+ * Format a phone number string as the user types, using the 717-405-8253 style.
+ *
+ * Rules:
+ *  - Strip all non-numeric characters from the input first (handles paste too).
+ *  - Cap at 10 digits -- any extra digits beyond the 10th are ignored.
+ *  - Insert a dash automatically after the 3rd digit and after the 6th digit.
+ *
+ * Examples:
+ *   "7"          -> "7"
+ *   "717"        -> "717"
+ *   "7174"       -> "717-4"
+ *   "717405"     -> "717-405"
+ *   "7174058"    -> "717-405-8"
+ *   "7174058253" -> "717-405-8253"
+ *
+ * @param value - Raw input value (may contain dashes, spaces, parens, etc.)
+ * @returns Formatted phone string
+ */
+export function formatPhoneNumber(value: string): string {
+  // Strip everything that is not a digit.
+  const digits = value.replace(/\D/g, "")
+
+  // Enforce the 10-digit maximum.
+  const capped = digits.slice(0, 10)
+
+  // Build the formatted string by inserting dashes at the right positions.
+  if (capped.length <= 3) {
+    return capped
+  }
+  if (capped.length <= 6) {
+    return `${capped.slice(0, 3)}-${capped.slice(3)}`
+  }
+  return `${capped.slice(0, 3)}-${capped.slice(3, 6)}-${capped.slice(6)}`
+}
+
+/**
  * Get arrival window label for display
  */
 export function getArrivalWindowLabel(minutes: number | null | undefined): string {

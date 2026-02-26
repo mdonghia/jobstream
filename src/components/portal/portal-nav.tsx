@@ -16,7 +16,6 @@ const navItems = [
   { label: "Jobs", path: "/jobs" },
   { label: "Invoices", path: "/invoices" },
   { label: "Quotes", path: "/quotes" },
-  { label: "Messages", path: "/messages" },
   { label: "Profile", path: "/profile" },
 ]
 

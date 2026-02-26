@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Users, Search, MoreHorizontal, Archive, FileText, Briefcase, Pencil } from "lucide-react"
+import { Users, Search, MoreHorizontal, Archive, Briefcase, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { CustomerForm } from "./customer-form"
 import { formatCurrency, formatDate, formatPhone } from "@/lib/utils"
+import { formatPhoneNumber } from "@/lib/format-helpers"
 import { toast } from "sonner"
 import {
   createCustomer,
@@ -40,7 +41,6 @@ interface CustomerRow {
   email: string | null
   phone: string | null
   company: string | null
-  source: string | null
   notes: string | null
   tags: string[]
   isArchived: boolean
@@ -76,7 +76,6 @@ export function CustomerList({
 
   const [search, setSearch] = useState(searchParams.get("search") || "")
   const [status, setStatus] = useState(searchParams.get("status") || "active")
-  const [source, setSource] = useState(searchParams.get("source") || "all")
   const [tagFilter, setTagFilter] = useState(searchParams.get("tag") || "all")
   const [sortBy, setSortBy] = useState(searchParams.get("sortBy") || "firstName")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">(
@@ -115,7 +114,6 @@ export function CustomerList({
     async (params?: {
       search?: string
       status?: string
-      source?: string
       tag?: string
       sortBy?: string
       sortOrder?: "asc" | "desc"
@@ -126,7 +124,6 @@ export function CustomerList({
         const result = await getCustomers({
           search: params?.search ?? search,
           status: (params?.status ?? status) as "active" | "archived",
-          source: (params?.source ?? source) === "all" ? undefined : (params?.source ?? source),
           tags:
             (params?.tag ?? tagFilter) === "all" ? undefined : [params?.tag ?? tagFilter],
           sortBy: params?.sortBy ?? sortBy,
@@ -148,7 +145,7 @@ export function CustomerList({
         setLoading(false)
       }
     },
-    [search, status, source, tagFilter, sortBy, sortOrder, page]
+    [search, status, tagFilter, sortBy, sortOrder, page]
   )
 
   // Debounced search
@@ -169,7 +166,6 @@ export function CustomerList({
 
   function handleFilterChange(key: string, value: string) {
     if (key === "status") setStatus(value)
-    if (key === "source") setSource(value)
     if (key === "tag") setTagFilter(value)
     fetchCustomers({ [key]: value, page: 1 })
     setPage(1)
@@ -242,7 +238,7 @@ export function CustomerList({
   )
 
   // Empty state
-  if (total === 0 && !search && status === "active" && source === "all" && tagFilter === "all") {
+  if (total === 0 && !search && status === "active" && tagFilter === "all") {
     return (
       <>
         <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -303,20 +299,6 @@ export function CustomerList({
           <SelectContent>
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="archived">Archived</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={source} onValueChange={(v) => handleFilterChange("source", v)}>
-          <SelectTrigger className="w-[130px] h-9 border-[#E3E8EE] text-sm">
-            <SelectValue placeholder="Source" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Sources</SelectItem>
-            <SelectItem value="referral">Referral</SelectItem>
-            <SelectItem value="google">Google</SelectItem>
-            <SelectItem value="website">Website</SelectItem>
-            <SelectItem value="walk-in">Walk-in</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
           </SelectContent>
         </Select>
 
@@ -433,12 +415,6 @@ export function CustomerList({
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/quotes/new?customerId=${customer.id}`}>
-                            <FileText className="w-4 h-4 mr-2" />
-                            Create Quote
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
                           <Link href={`/jobs/new?customerId=${customer.id}`}>
                             <Briefcase className="w-4 h-4 mr-2" />
                             Create Job
@@ -495,7 +471,7 @@ export function CustomerList({
         )}
 
         {/* No results with filters */}
-        {customers.length === 0 && (search || status !== "active" || source !== "all") && (
+        {customers.length === 0 && (search || status !== "active") && (
           <div className="py-12 text-center">
             <p className="text-sm text-[#8898AA]">No customers match your filters.</p>
           </div>
@@ -527,9 +503,8 @@ export function CustomerList({
             firstName: editingCustomer.firstName,
             lastName: editingCustomer.lastName,
             email: editingCustomer.email || "",
-            phone: editingCustomer.phone || "",
+            phone: formatPhoneNumber(editingCustomer.phone || ""),
             company: editingCustomer.company || "",
-            source: editingCustomer.source || "",
             tags: editingCustomer.tags || [],
             notes: editingCustomer.notes || "",
             properties: editingProperties,
