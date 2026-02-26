@@ -18,8 +18,14 @@ import {
   MessageSquare,
   StickyNote,
   ChevronRight,
+  ChevronDown,
   Loader2,
   Pencil,
+  Trash2,
+  Check,
+  X,
+  Navigation,
+  UserPlus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -60,8 +66,8 @@ import {
   cn,
 } from "@/lib/utils"
 import { toast } from "sonner"
-import { createVisit } from "@/actions/visits"
-import { addJobNote, updateJob } from "@/actions/jobs"
+import { createVisit, rescheduleVisit, assignVisit, updateVisitStatus, completeVisit, sendOnMyWayForVisit } from "@/actions/visits"
+import { addJobNote, updateJob, addJobLineItem, updateJobLineItem, deleteJobLineItem } from "@/actions/jobs"
 import { getActivityFeed } from "@/actions/activity"
 import { computeJobFilterTab, type JobFilterTab } from "@/lib/job-filter-tab"
 
@@ -199,9 +205,14 @@ export interface JobV2Data {
   assignments: JobAssignment[]
 }
 
+interface TeamMemberWithRole extends TeamMemberRef {
+  role?: string
+}
+
 interface JobDetailV2Props {
   job: JobV2Data
   currentUserId: string
+  teamMembers: TeamMemberWithRole[]
 }
 
 // =============================================================================
@@ -264,7 +275,7 @@ function activityIcon(eventType: string) {
 // Component
 // =============================================================================
 
-export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
+export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Props) {
   const router = useRouter()
 
   // --- Notes state ---
@@ -287,6 +298,35 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
   const [visitScheduledStart, setVisitScheduledStart] = useState("")
   const [visitScheduledEnd, setVisitScheduledEnd] = useState("")
   const [visitNotes, setVisitNotes] = useState("")
+  const [visitAssignedUserIds, setVisitAssignedUserIds] = useState<string[]>([])
+
+  // --- Visit expand / inline edit state ---
+  const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null)
+  const [visitActionLoading, setVisitActionLoading] = useState<string | null>(null)
+  // Per-visit schedule edit state
+  const [editScheduleVisitId, setEditScheduleVisitId] = useState<string | null>(null)
+  const [editSchedStart, setEditSchedStart] = useState("")
+  const [editSchedEnd, setEditSchedEnd] = useState("")
+  // Per-visit tech assignment state
+  const [editAssignVisitId, setEditAssignVisitId] = useState<string | null>(null)
+  const [editAssignUserIds, setEditAssignUserIds] = useState<string[]>([])
+  // Completion notes state
+  const [completionNotesVisitId, setCompletionNotesVisitId] = useState<string | null>(null)
+  const [completionNotes, setCompletionNotes] = useState("")
+
+  // --- Line item CRUD state ---
+  const [showAddLineItem, setShowAddLineItem] = useState(false)
+  const [newLIName, setNewLIName] = useState("")
+  const [newLIDescription, setNewLIDescription] = useState("")
+  const [newLIQty, setNewLIQty] = useState("1")
+  const [newLIPrice, setNewLIPrice] = useState("")
+  const [newLITaxable, setNewLITaxable] = useState(true)
+  const [savingLineItem, setSavingLineItem] = useState(false)
+  const [editingLineItemId, setEditingLineItemId] = useState<string | null>(null)
+  const [editLIName, setEditLIName] = useState("")
+  const [editLIQty, setEditLIQty] = useState("")
+  const [editLIPrice, setEditLIPrice] = useState("")
+  const [deletingLineItemId, setDeletingLineItemId] = useState<string | null>(null)
 
   // --- Activity feed state ---
   const [activityEvents, setActivityEvents] = useState<ActivityEventData[]>([])
@@ -377,6 +417,7 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
         scheduledStart: visitSchedulingType === "SCHEDULED" && visitScheduledStart ? visitScheduledStart : undefined,
         scheduledEnd: visitSchedulingType === "SCHEDULED" && visitScheduledEnd ? visitScheduledEnd : undefined,
         notes: visitNotes.trim() || undefined,
+        assignedUserIds: visitAssignedUserIds.length > 0 ? visitAssignedUserIds : undefined,
       })
       if ("error" in result) {
         toast.error(result.error)
@@ -389,12 +430,172 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
         setVisitScheduledStart("")
         setVisitScheduledEnd("")
         setVisitNotes("")
+        setVisitAssignedUserIds([])
         router.refresh()
       }
     } catch {
       toast.error("Failed to create visit")
     } finally {
       setCreatingVisit(false)
+    }
+  }
+
+  // --- Visit action handlers ---
+
+  async function handleVisitOnMyWay(visitId: string) {
+    setVisitActionLoading(visitId)
+    try {
+      const result = await sendOnMyWayForVisit(visitId)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("On My Way sent")
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to send On My Way")
+    } finally {
+      setVisitActionLoading(null)
+    }
+  }
+
+  async function handleVisitStatusChange(visitId: string, newStatus: "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED") {
+    if (newStatus === "COMPLETED" && !completionNotesVisitId) {
+      // Show completion notes prompt first
+      setCompletionNotesVisitId(visitId)
+      return
+    }
+    setVisitActionLoading(visitId)
+    try {
+      const result = newStatus === "COMPLETED"
+        ? await completeVisit(visitId, { completionNotes: completionNotes.trim() || undefined })
+        : await updateVisitStatus(visitId, newStatus)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success(`Visit ${newStatus === "IN_PROGRESS" ? "marked arrived" : newStatus === "COMPLETED" ? "completed" : newStatus.toLowerCase()}`)
+        setCompletionNotesVisitId(null)
+        setCompletionNotes("")
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to update visit status")
+    } finally {
+      setVisitActionLoading(null)
+    }
+  }
+
+  async function handleRescheduleVisit(visitId: string) {
+    if (!editSchedStart || !editSchedEnd) {
+      toast.error("Start and end time required")
+      return
+    }
+    setVisitActionLoading(visitId)
+    try {
+      const result = await rescheduleVisit(visitId, editSchedStart, editSchedEnd)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Visit rescheduled")
+        setEditScheduleVisitId(null)
+        setEditSchedStart("")
+        setEditSchedEnd("")
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to reschedule visit")
+    } finally {
+      setVisitActionLoading(null)
+    }
+  }
+
+  async function handleAssignVisit(visitId: string) {
+    setVisitActionLoading(visitId)
+    try {
+      const result = await assignVisit(visitId, editAssignUserIds)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Team updated")
+        setEditAssignVisitId(null)
+        setEditAssignUserIds([])
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to assign visit")
+    } finally {
+      setVisitActionLoading(null)
+    }
+  }
+
+  // --- Line item handlers ---
+
+  async function handleAddLineItem() {
+    if (!newLIName.trim() || !newLIPrice) return
+    setSavingLineItem(true)
+    try {
+      const result = await addJobLineItem(job.id, {
+        name: newLIName.trim(),
+        description: newLIDescription.trim() || undefined,
+        quantity: Number(newLIQty) || 1,
+        unitPrice: Number(newLIPrice) || 0,
+        taxable: newLITaxable,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Line item added")
+        setShowAddLineItem(false)
+        setNewLIName("")
+        setNewLIDescription("")
+        setNewLIQty("1")
+        setNewLIPrice("")
+        setNewLITaxable(true)
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to add line item")
+    } finally {
+      setSavingLineItem(false)
+    }
+  }
+
+  async function handleUpdateLineItem(itemId: string) {
+    setSavingLineItem(true)
+    try {
+      const result = await updateJobLineItem(itemId, {
+        name: editLIName.trim() || undefined,
+        quantity: Number(editLIQty) || undefined,
+        unitPrice: Number(editLIPrice) || undefined,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Line item updated")
+        setEditingLineItemId(null)
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to update line item")
+    } finally {
+      setSavingLineItem(false)
+    }
+  }
+
+  async function handleDeleteLineItem(itemId: string) {
+    setDeletingLineItemId(itemId)
+    try {
+      const result = await deleteJobLineItem(itemId)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Line item removed")
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to remove line item")
+    } finally {
+      setDeletingLineItemId(null)
     }
   }
 
@@ -677,6 +878,48 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
                 </div>
               </>
             )}
+            {/* Tech assignment for new visit */}
+            <div className="space-y-2">
+              <Label>Assign Team</Label>
+              <div className="space-y-1.5 max-h-32 overflow-y-auto border border-[#E3E8EE] rounded-md p-2">
+                {teamMembers.map((tm) => {
+                  const isSelected = visitAssignedUserIds.includes(tm.id)
+                  return (
+                    <label
+                      key={tm.id}
+                      className={cn(
+                        "flex items-center gap-2 p-1.5 rounded cursor-pointer text-sm",
+                        isSelected ? "bg-[#635BFF]/10" : "hover:bg-gray-50"
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {
+                          setVisitAssignedUserIds((prev) =>
+                            isSelected
+                              ? prev.filter((id) => id !== tm.id)
+                              : [...prev, tm.id]
+                          )
+                        }}
+                        className="rounded border-gray-300 text-[#635BFF] focus:ring-[#635BFF]"
+                      />
+                      <div
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: tm.color || "#635BFF" }}
+                      />
+                      <span className="text-[#425466]">
+                        {tm.firstName} {tm.lastName}
+                      </span>
+                    </label>
+                  )
+                })}
+                {teamMembers.length === 0 && (
+                  <p className="text-xs text-[#8898AA] text-center py-2">No team members found</p>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="visit-notes">Notes</Label>
               <Textarea
@@ -738,6 +981,8 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
                   const isCancelled = visit.status === "CANCELLED"
                   const isActive =
                     visit.status === "IN_PROGRESS" || visit.status === "EN_ROUTE"
+                  const isExpanded = expandedVisitId === visit.id
+                  const isLoading = visitActionLoading === visit.id
 
                   // Duration calculation
                   let duration: string | null = null
@@ -773,88 +1018,343 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
                         {visit.visitNumber}
                       </div>
 
-                      {/* Visit card */}
+                      {/* Visit card -- clickable to expand */}
                       <div
                         className={cn(
-                          "flex-1 border rounded-lg p-3",
+                          "flex-1 border rounded-lg transition-colors",
                           isActive
                             ? "border-blue-200 bg-blue-50/30"
-                            : "border-[#E3E8EE]"
+                            : "border-[#E3E8EE]",
+                          !isCompleted && !isCancelled && "cursor-pointer hover:border-[#635BFF]/40"
                         )}
                       >
-                        <div className="flex items-start justify-between gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-medium text-[#0A2540]">
-                              {job.jobNumber}_{String(visit.visitNumber).padStart(2, "0")}
-                            </span>
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] border-[#E3E8EE] text-[#8898AA]"
-                            >
-                              {purposeLabel(visit.purpose)}
-                            </Badge>
-                          </div>
-                          <StatusBadge status={visit.status} />
-                        </div>
-
-                        {/* Schedule */}
-                        <div className="flex items-center gap-4 mt-2 flex-wrap text-xs text-[#8898AA]">
-                          {visit.schedulingType === "UNSCHEDULED" ||
-                          !visit.scheduledStart ? (
-                            <span className="text-amber-600 font-medium">
-                              Unscheduled
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1">
-                              <CalendarIcon className="w-3 h-3" />
-                              {formatDate(visit.scheduledStart)}
-                              {" "}
-                              {formatTime(visit.scheduledStart)}
-                              {visit.scheduledEnd && (
-                                <> - {formatTime(visit.scheduledEnd)}</>
+                        {/* Card header -- always visible */}
+                        <div
+                          className="p-3"
+                          onClick={() => setExpandedVisitId(isExpanded ? null : visit.id)}
+                        >
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-medium text-[#0A2540]">
+                                {job.jobNumber}_{String(visit.visitNumber).padStart(2, "0")}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] border-[#E3E8EE] text-[#8898AA]"
+                              >
+                                {purposeLabel(visit.purpose)}
+                              </Badge>
+                              {!isCompleted && !isCancelled && (
+                                <span className="text-[#8898AA]">
+                                  {isExpanded ? (
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                  )}
+                                </span>
                               )}
-                            </span>
+                            </div>
+                            <StatusBadge status={visit.status} />
+                          </div>
+
+                          {/* Schedule */}
+                          <div className="flex items-center gap-4 mt-2 flex-wrap text-xs text-[#8898AA]">
+                            {visit.schedulingType === "UNSCHEDULED" ||
+                            !visit.scheduledStart ? (
+                              <span className="text-amber-600 font-medium">
+                                Unscheduled
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1">
+                                <CalendarIcon className="w-3 h-3" />
+                                {formatDate(visit.scheduledStart)}
+                                {" "}
+                                {formatTime(visit.scheduledStart)}
+                                {visit.scheduledEnd && (
+                                  <> - {formatTime(visit.scheduledEnd)}</>
+                                )}
+                              </span>
+                            )}
+
+                            {duration && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {duration}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Assigned techs */}
+                          {visit.assignments.length > 0 && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <Users className="w-3 h-3 text-[#8898AA]" />
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {visit.assignments.map((a) => (
+                                  <div
+                                    key={a.user.id}
+                                    className="flex items-center gap-1"
+                                  >
+                                    <div
+                                      className="w-2 h-2 rounded-full flex-shrink-0"
+                                      style={{
+                                        backgroundColor:
+                                          a.user.color || "#635BFF",
+                                      }}
+                                    />
+                                    <span className="text-xs text-[#425466]">
+                                      {a.user.firstName} {a.user.lastName}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           )}
 
-                          {duration && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {duration}
-                            </span>
+                          {/* Completion notes */}
+                          {isCompleted && visit.completionNotes && (
+                            <p className="text-xs text-[#425466] mt-2 italic bg-[#F6F8FA] rounded p-2">
+                              {visit.completionNotes}
+                            </p>
                           )}
                         </div>
 
-                        {/* Assigned techs */}
-                        {visit.assignments.length > 0 && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <Users className="w-3 h-3 text-[#8898AA]" />
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {visit.assignments.map((a) => (
-                                <div
-                                  key={a.user.id}
-                                  className="flex items-center gap-1"
+                        {/* ========================================== */}
+                        {/* Expanded panel -- inline actions           */}
+                        {/* ========================================== */}
+                        {isExpanded && !isCompleted && !isCancelled && (
+                          <div className="border-t border-[#E3E8EE] px-3 pb-3 pt-2 space-y-3">
+                            {/* --- Status transition buttons --- */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {visit.status === "SCHEDULED" && (
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); handleVisitOnMyWay(visit.id) }}
+                                  disabled={isLoading}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7"
                                 >
-                                  <div
-                                    className="w-2 h-2 rounded-full flex-shrink-0"
-                                    style={{
-                                      backgroundColor:
-                                        a.user.color || "#635BFF",
-                                    }}
-                                  />
-                                  <span className="text-xs text-[#425466]">
-                                    {a.user.firstName} {a.user.lastName}
-                                  </span>
+                                  {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Navigation className="w-3 h-3 mr-1" />}
+                                  On My Way
+                                </Button>
+                              )}
+                              {visit.status === "EN_ROUTE" && (
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); handleVisitStatusChange(visit.id, "IN_PROGRESS") }}
+                                  disabled={isLoading}
+                                  className="bg-green-600 hover:bg-green-700 text-white text-xs h-7"
+                                >
+                                  {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                                  Arrived
+                                </Button>
+                              )}
+                              {visit.status === "IN_PROGRESS" && (
+                                <>
+                                  {completionNotesVisitId === visit.id ? (
+                                    <div className="flex-1 space-y-2" onClick={(e) => e.stopPropagation()}>
+                                      <Textarea
+                                        value={completionNotes}
+                                        onChange={(e) => setCompletionNotes(e.target.value)}
+                                        placeholder="Completion notes (optional)"
+                                        className="min-h-[60px] text-xs border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                                      />
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          size="sm"
+                                          onClick={() => {
+                                            setVisitActionLoading(visit.id)
+                                            completeVisit(visit.id, { completionNotes: completionNotes.trim() || undefined })
+                                              .then((result) => {
+                                                if ("error" in result) {
+                                                  toast.error(result.error)
+                                                } else {
+                                                  toast.success("Visit completed")
+                                                  setCompletionNotesVisitId(null)
+                                                  setCompletionNotes("")
+                                                  router.refresh()
+                                                }
+                                              })
+                                              .catch(() => toast.error("Failed to complete visit"))
+                                              .finally(() => setVisitActionLoading(null))
+                                          }}
+                                          disabled={isLoading}
+                                          className="bg-green-600 hover:bg-green-700 text-white text-xs h-7"
+                                        >
+                                          {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
+                                          Complete
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={() => { setCompletionNotesVisitId(null); setCompletionNotes("") }}
+                                          className="text-xs h-7"
+                                        >
+                                          Cancel
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      onClick={(e) => { e.stopPropagation(); handleVisitStatusChange(visit.id, "COMPLETED") }}
+                                      disabled={isLoading}
+                                      className="bg-green-600 hover:bg-green-700 text-white text-xs h-7"
+                                    >
+                                      <Check className="w-3 h-3 mr-1" />
+                                      Complete Visit
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                            </div>
+
+                            {/* --- Schedule controls --- */}
+                            <div onClick={(e) => e.stopPropagation()}>
+                              {editScheduleVisitId === visit.id ? (
+                                <div className="space-y-2 bg-[#F6F8FA] rounded-lg p-2.5">
+                                  <p className="text-xs font-medium text-[#0A2540]">
+                                    {visit.scheduledStart ? "Reschedule" : "Schedule"} Visit
+                                  </p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <Label className="text-[10px] text-[#8898AA]">Start</Label>
+                                      <Input
+                                        type="datetime-local"
+                                        value={editSchedStart}
+                                        onChange={(e) => setEditSchedStart(e.target.value)}
+                                        className="h-8 text-xs border-[#E3E8EE]"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-[10px] text-[#8898AA]">End</Label>
+                                      <Input
+                                        type="datetime-local"
+                                        value={editSchedEnd}
+                                        onChange={(e) => setEditSchedEnd(e.target.value)}
+                                        className="h-8 text-xs border-[#E3E8EE]"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleRescheduleVisit(visit.id)}
+                                      disabled={isLoading || !editSchedStart || !editSchedEnd}
+                                      className="bg-[#635BFF] hover:bg-[#5851ea] text-white text-xs h-7"
+                                    >
+                                      {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                                      Save
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setEditScheduleVisitId(null)}
+                                      className="text-xs h-7"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
                                 </div>
-                              ))}
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditScheduleVisitId(visit.id)
+                                    // Pre-fill with existing values
+                                    if (visit.scheduledStart) {
+                                      setEditSchedStart(new Date(visit.scheduledStart).toISOString().slice(0, 16))
+                                    } else {
+                                      setEditSchedStart("")
+                                    }
+                                    if (visit.scheduledEnd) {
+                                      setEditSchedEnd(new Date(visit.scheduledEnd).toISOString().slice(0, 16))
+                                    } else {
+                                      setEditSchedEnd("")
+                                    }
+                                  }}
+                                  className="text-xs h-7 border-[#E3E8EE]"
+                                >
+                                  <CalendarIcon className="w-3 h-3 mr-1" />
+                                  {visit.scheduledStart ? "Reschedule" : "Schedule"}
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* --- Tech assignment --- */}
+                            <div onClick={(e) => e.stopPropagation()}>
+                              {editAssignVisitId === visit.id ? (
+                                <div className="space-y-2 bg-[#F6F8FA] rounded-lg p-2.5">
+                                  <p className="text-xs font-medium text-[#0A2540]">Assign Team</p>
+                                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                    {teamMembers.map((tm) => {
+                                      const isSelected = editAssignUserIds.includes(tm.id)
+                                      return (
+                                        <label
+                                          key={tm.id}
+                                          className={cn(
+                                            "flex items-center gap-2 p-1.5 rounded cursor-pointer text-xs",
+                                            isSelected ? "bg-[#635BFF]/10" : "hover:bg-gray-100"
+                                          )}
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => {
+                                              setEditAssignUserIds((prev) =>
+                                                isSelected
+                                                  ? prev.filter((id) => id !== tm.id)
+                                                  : [...prev, tm.id]
+                                              )
+                                            }}
+                                            className="rounded border-gray-300 text-[#635BFF] focus:ring-[#635BFF]"
+                                          />
+                                          <div
+                                            className="w-2 h-2 rounded-full flex-shrink-0"
+                                            style={{ backgroundColor: tm.color || "#635BFF" }}
+                                          />
+                                          <span className="text-[#425466]">
+                                            {tm.firstName} {tm.lastName}
+                                          </span>
+                                        </label>
+                                      )
+                                    })}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleAssignVisit(visit.id)}
+                                      disabled={isLoading}
+                                      className="bg-[#635BFF] hover:bg-[#5851ea] text-white text-xs h-7"
+                                    >
+                                      {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                                      Save
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => setEditAssignVisitId(null)}
+                                      className="text-xs h-7"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditAssignVisitId(visit.id)
+                                    setEditAssignUserIds(visit.assignments.map((a) => a.user.id))
+                                  }}
+                                  className="text-xs h-7 border-[#E3E8EE]"
+                                >
+                                  <UserPlus className="w-3 h-3 mr-1" />
+                                  {visit.assignments.length > 0 ? "Change Team" : "Assign Team"}
+                                </Button>
+                              )}
                             </div>
                           </div>
-                        )}
-
-                        {/* Completion notes */}
-                        {isCompleted && visit.completionNotes && (
-                          <p className="text-xs text-[#425466] mt-2 italic bg-[#F6F8FA] rounded p-2">
-                            {visit.completionNotes}
-                          </p>
                         )}
                       </div>
                     </div>
@@ -925,74 +1425,230 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
       {/* ================================================================== */}
       {/* 4. Line Items                                                       */}
       {/* ================================================================== */}
-      {job.lineItems.length > 0 && (
-        <Card className="border-[#E3E8EE] mb-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold text-[#0A2540]">
-              Line Items
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[#E3E8EE]">
-                    <th className="text-left py-2 text-xs font-semibold uppercase text-[#8898AA]">
-                      Item
-                    </th>
-                    <th className="text-left py-2 text-xs font-semibold uppercase text-[#8898AA]">
-                      Visit
-                    </th>
-                    <th className="text-right py-2 text-xs font-semibold uppercase text-[#8898AA]">
-                      Qty
-                    </th>
-                    <th className="text-right py-2 text-xs font-semibold uppercase text-[#8898AA]">
-                      Unit Price
-                    </th>
-                    <th className="text-right py-2 text-xs font-semibold uppercase text-[#8898AA]">
-                      Total
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {job.lineItems.map((li) => {
-                    // Find the visit this line item belongs to
-                    const linkedVisit = li.visitId
-                      ? job.visits.find((v) => v.id === li.visitId)
-                      : null
+      <Card className="border-[#E3E8EE] mb-6">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <CardTitle className="text-base font-semibold text-[#0A2540]">
+            Line Items ({job.lineItems.length})
+          </CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowAddLineItem(true)}
+            className="border-[#E3E8EE]"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Add Item
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#E3E8EE]">
+                  <th className="text-left py-2 text-xs font-semibold uppercase text-[#8898AA]">
+                    Item
+                  </th>
+                  <th className="text-left py-2 text-xs font-semibold uppercase text-[#8898AA]">
+                    Visit
+                  </th>
+                  <th className="text-right py-2 text-xs font-semibold uppercase text-[#8898AA]">
+                    Qty
+                  </th>
+                  <th className="text-right py-2 text-xs font-semibold uppercase text-[#8898AA]">
+                    Unit Price
+                  </th>
+                  <th className="text-right py-2 text-xs font-semibold uppercase text-[#8898AA]">
+                    Total
+                  </th>
+                  <th className="w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {job.lineItems.map((li) => {
+                  const linkedVisit = li.visitId
+                    ? job.visits.find((v) => v.id === li.visitId)
+                    : null
+                  const isEditing = editingLineItemId === li.id
+                  const isDeleting = deletingLineItemId === li.id
+
+                  if (isEditing) {
                     return (
-                      <tr
-                        key={li.id}
-                        className="border-b border-[#E3E8EE]"
-                      >
-                        <td className="py-2.5">
-                          <p className="text-[#0A2540] font-medium">
-                            {li.name}
-                          </p>
-                          {li.description && (
-                            <p className="text-xs text-[#8898AA]">
-                              {li.description}
-                            </p>
-                          )}
+                      <tr key={li.id} className="border-b border-[#E3E8EE] bg-[#F6F8FA]">
+                        <td className="py-2.5 pr-2">
+                          <Input
+                            value={editLIName}
+                            onChange={(e) => setEditLIName(e.target.value)}
+                            className="h-7 text-xs border-[#E3E8EE]"
+                          />
                         </td>
                         <td className="py-2.5 text-xs text-[#8898AA]">
-                          {linkedVisit
-                            ? `Visit #${linkedVisit.visitNumber}`
-                            : "--"}
+                          {linkedVisit ? `Visit #${linkedVisit.visitNumber}` : "--"}
                         </td>
-                        <td className="py-2.5 text-right text-[#425466]">
-                          {li.quantity}
+                        <td className="py-2.5 pr-2">
+                          <Input
+                            type="number"
+                            value={editLIQty}
+                            onChange={(e) => setEditLIQty(e.target.value)}
+                            className="h-7 text-xs text-right w-16 ml-auto border-[#E3E8EE]"
+                            min="1"
+                          />
                         </td>
-                        <td className="py-2.5 text-right text-[#425466]">
-                          {formatCurrency(li.unitPrice)}
+                        <td className="py-2.5 pr-2">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={editLIPrice}
+                            onChange={(e) => setEditLIPrice(e.target.value)}
+                            className="h-7 text-xs text-right w-24 ml-auto border-[#E3E8EE]"
+                          />
                         </td>
-                        <td className="py-2.5 text-right font-medium text-[#0A2540]">
-                          {formatCurrency(li.total)}
+                        <td className="py-2.5 text-right text-xs font-medium text-[#0A2540]">
+                          {formatCurrency((Number(editLIQty) || 0) * (Number(editLIPrice) || 0))}
+                        </td>
+                        <td className="py-2.5 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleUpdateLineItem(li.id)}
+                              disabled={savingLineItem}
+                              className="h-6 w-6 p-0 text-green-600 hover:text-green-700"
+                            >
+                              {savingLineItem ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingLineItemId(null)}
+                              className="h-6 w-6 p-0 text-[#8898AA]"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     )
-                  })}
-                </tbody>
+                  }
+
+                  return (
+                    <tr
+                      key={li.id}
+                      className="border-b border-[#E3E8EE] group hover:bg-[#F6F8FA]/50"
+                    >
+                      <td className="py-2.5">
+                        <p className="text-[#0A2540] font-medium">
+                          {li.name}
+                        </p>
+                        {li.description && (
+                          <p className="text-xs text-[#8898AA]">
+                            {li.description}
+                          </p>
+                        )}
+                      </td>
+                      <td className="py-2.5 text-xs text-[#8898AA]">
+                        {linkedVisit
+                          ? `Visit #${linkedVisit.visitNumber}`
+                          : "--"}
+                      </td>
+                      <td className="py-2.5 text-right text-[#425466]">
+                        {li.quantity}
+                      </td>
+                      <td className="py-2.5 text-right text-[#425466]">
+                        {formatCurrency(li.unitPrice)}
+                      </td>
+                      <td className="py-2.5 text-right font-medium text-[#0A2540]">
+                        {formatCurrency(li.total)}
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingLineItemId(li.id)
+                              setEditLIName(li.name)
+                              setEditLIQty(String(li.quantity))
+                              setEditLIPrice(String(li.unitPrice))
+                            }}
+                            className="h-6 w-6 p-0 text-[#8898AA] hover:text-[#635BFF]"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteLineItem(li.id)}
+                            disabled={isDeleting}
+                            className="h-6 w-6 p-0 text-[#8898AA] hover:text-red-500"
+                          >
+                            {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+
+                {/* Add line item inline row */}
+                {showAddLineItem && (
+                  <tr className="border-b border-[#E3E8EE] bg-[#F6F8FA]">
+                    <td className="py-2.5 pr-2">
+                      <Input
+                        value={newLIName}
+                        onChange={(e) => setNewLIName(e.target.value)}
+                        placeholder="Item name"
+                        className="h-7 text-xs border-[#E3E8EE]"
+                        autoFocus
+                      />
+                    </td>
+                    <td className="py-2.5 text-xs text-[#8898AA]">--</td>
+                    <td className="py-2.5 pr-2">
+                      <Input
+                        type="number"
+                        value={newLIQty}
+                        onChange={(e) => setNewLIQty(e.target.value)}
+                        className="h-7 text-xs text-right w-16 ml-auto border-[#E3E8EE]"
+                        min="1"
+                      />
+                    </td>
+                    <td className="py-2.5 pr-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={newLIPrice}
+                        onChange={(e) => setNewLIPrice(e.target.value)}
+                        placeholder="0.00"
+                        className="h-7 text-xs text-right w-24 ml-auto border-[#E3E8EE]"
+                      />
+                    </td>
+                    <td className="py-2.5 text-right text-xs font-medium text-[#0A2540]">
+                      {formatCurrency((Number(newLIQty) || 0) * (Number(newLIPrice) || 0))}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleAddLineItem}
+                          disabled={savingLineItem || !newLIName.trim() || !newLIPrice}
+                          className="h-6 w-6 p-0 text-green-600 hover:text-green-700"
+                        >
+                          {savingLineItem ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => { setShowAddLineItem(false); setNewLIName(""); setNewLIPrice(""); setNewLIQty("1") }}
+                          className="h-6 w-6 p-0 text-[#8898AA]"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+              {job.lineItems.length > 0 && (
                 <tfoot>
                   <tr>
                     <td
@@ -1009,13 +1665,19 @@ export function JobDetailV2({ job, currentUserId }: JobDetailV2Props) {
                         )
                       )}
                     </td>
+                    <td></td>
                   </tr>
                 </tfoot>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              )}
+            </table>
+          </div>
+          {job.lineItems.length === 0 && !showAddLineItem && (
+            <p className="text-sm text-[#8898AA] text-center py-4">
+              No line items yet. Click &quot;Add Item&quot; to add one.
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ================================================================== */}
       {/* 5. Invoices Section                                                 */}

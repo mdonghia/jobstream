@@ -97,10 +97,25 @@ export default async function JobDetailPage({
     notFound()
   }
 
+  // Fetch team members for tech assignment dropdowns
+  const teamMembers = await prisma.user.findMany({
+    where: { organizationId: user.organizationId, isActive: true },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      avatar: true,
+      color: true,
+      role: true,
+    },
+    orderBy: { firstName: "asc" },
+  })
+
   return (
     <JobDetailV2
       job={serialize(job)}
       currentUserId={user.id}
+      teamMembers={serialize(teamMembers)}
     />
   )
 }

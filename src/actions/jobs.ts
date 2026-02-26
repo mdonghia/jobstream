@@ -1273,7 +1273,148 @@ export async function updateJob(
 }
 
 // =============================================================================
-// 12. uploadJobAttachment - Upload a file attachment to a job
+// 12a. addJobLineItem - Add a line item to a job
+// =============================================================================
+
+export async function addJobLineItem(
+  jobId: string,
+  data: {
+    name: string
+    description?: string
+    quantity: number
+    unitPrice: number
+    taxable?: boolean
+    serviceId?: string
+  }
+) {
+  try {
+    const user = await requireAuth()
+
+    const job = await prisma.job.findFirst({
+      where: { id: jobId, organizationId: user.organizationId },
+    })
+    if (!job) return { error: "Job not found" }
+    if (!data.name.trim()) return { error: "Item name is required" }
+
+    // Get next sort order
+    const maxSort = await prisma.jobLineItem.aggregate({
+      where: { jobId },
+      _max: { sortOrder: true },
+    })
+    const sortOrder = (maxSort._max.sortOrder ?? -1) + 1
+
+    const lineItem = await prisma.jobLineItem.create({
+      data: {
+        jobId,
+        serviceId: data.serviceId || null,
+        name: data.name.trim(),
+        description: data.description?.trim() || null,
+        quantity: data.quantity,
+        unitPrice: data.unitPrice,
+        total: data.quantity * data.unitPrice,
+        taxable: data.taxable ?? true,
+        sortOrder,
+      },
+    })
+
+    return {
+      lineItem: {
+        ...lineItem,
+        quantity: Number(lineItem.quantity),
+        unitPrice: Number(lineItem.unitPrice),
+        total: Number(lineItem.total),
+      },
+    }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("addJobLineItem error:", error)
+    return { error: "Failed to add line item" }
+  }
+}
+
+// =============================================================================
+// 12b. updateJobLineItem - Update an existing line item
+// =============================================================================
+
+export async function updateJobLineItem(
+  itemId: string,
+  data: {
+    name?: string
+    description?: string
+    quantity?: number
+    unitPrice?: number
+    taxable?: boolean
+  }
+) {
+  try {
+    const user = await requireAuth()
+
+    const item = await prisma.jobLineItem.findUnique({
+      where: { id: itemId },
+      include: { job: { select: { organizationId: true } } },
+    })
+    if (!item || item.job.organizationId !== user.organizationId) {
+      return { error: "Line item not found" }
+    }
+
+    const newQty = data.quantity ?? Number(item.quantity)
+    const newPrice = data.unitPrice ?? Number(item.unitPrice)
+
+    const updated = await prisma.jobLineItem.update({
+      where: { id: itemId },
+      data: {
+        name: data.name?.trim() ?? item.name,
+        description: data.description !== undefined ? (data.description.trim() || null) : item.description,
+        quantity: newQty,
+        unitPrice: newPrice,
+        total: newQty * newPrice,
+        taxable: data.taxable ?? item.taxable,
+      },
+    })
+
+    return {
+      lineItem: {
+        ...updated,
+        quantity: Number(updated.quantity),
+        unitPrice: Number(updated.unitPrice),
+        total: Number(updated.total),
+      },
+    }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateJobLineItem error:", error)
+    return { error: "Failed to update line item" }
+  }
+}
+
+// =============================================================================
+// 12c. deleteJobLineItem - Delete a line item from a job
+// =============================================================================
+
+export async function deleteJobLineItem(itemId: string) {
+  try {
+    const user = await requireAuth()
+
+    const item = await prisma.jobLineItem.findUnique({
+      where: { id: itemId },
+      include: { job: { select: { organizationId: true } } },
+    })
+    if (!item || item.job.organizationId !== user.organizationId) {
+      return { error: "Line item not found" }
+    }
+
+    await prisma.jobLineItem.delete({ where: { id: itemId } })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("deleteJobLineItem error:", error)
+    return { error: "Failed to delete line item" }
+  }
+}
+
+// =============================================================================
+// 13. uploadJobAttachment - Upload a file attachment to a job
 // =============================================================================
 
 export async function uploadJobAttachment(jobId: string, formData: FormData) {
