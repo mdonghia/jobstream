@@ -103,6 +103,20 @@ const RECURRENCE_LABELS: Record<string, string> = {
   MONTHLY: "Monthly",
   QUARTERLY: "Quarterly",
   ANNUALLY: "Annually",
+  ANNUAL: "Annual",
+}
+
+function getRecurrenceLabel(rule: string | null | undefined): string {
+  if (!rule) return "Recurring"
+  try {
+    const parsed = JSON.parse(rule)
+    if (typeof parsed === "object" && parsed.frequency) {
+      return RECURRENCE_LABELS[parsed.frequency] || parsed.frequency
+    }
+  } catch {
+    // Legacy plain string
+  }
+  return RECURRENCE_LABELS[rule] || rule
 }
 
 // =============================================================================
@@ -596,9 +610,7 @@ export default function JobListV2() {
               {job.title}
             </TableCell>
             <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {(job as any).recurrenceRule
-                ? RECURRENCE_LABELS[(job as any).recurrenceRule] || (job as any).recurrenceRule
-                : "Recurring"}
+              {getRecurrenceLabel((job as any).recurrenceRule)}
             </TableCell>
             <TableCell className="px-4 py-3 text-sm text-[#425466]">
               {nextVisit?.scheduledStart

@@ -1,8 +1,8 @@
 import { requireAuth } from "@/lib/auth-utils"
 import { getJob } from "@/actions/jobs"
 import { getServices, getTeamMembers } from "@/actions/settings"
-import { getCustomers } from "@/actions/customers"
 import { getChecklistTemplates } from "@/actions/checklists"
+import { prisma } from "@/lib/db"
 import { JobBuilder } from "@/components/jobs/job-builder"
 import { notFound } from "next/navigation"
 
@@ -11,15 +11,37 @@ interface EditJobPageProps {
 }
 
 export default async function EditJobPage({ params }: EditJobPageProps) {
-  await requireAuth()
+  const user = await requireAuth()
   const { id } = await params
 
-  const [jobResult, servicesResult, teamResult, customersResult, checklistResult] =
+  const [jobResult, servicesResult, teamResult, customers, checklistResult] =
     await Promise.all([
       getJob(id),
       getServices(),
       getTeamMembers(),
-      getCustomers({ status: "active", perPage: 50 }),
+      prisma.customer.findMany({
+        where: { organizationId: user.organizationId, isArchived: false },
+        take: 50,
+        orderBy: { firstName: "asc" },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          properties: {
+            select: {
+              id: true,
+              addressLine1: true,
+              city: true,
+              state: true,
+              zip: true,
+              isPrimary: true,
+            },
+            orderBy: { isPrimary: "desc" },
+          },
+        },
+      }),
       getChecklistTemplates(),
     ])
 
@@ -32,11 +54,6 @@ export default async function EditJobPage({ params }: EditJobPageProps) {
   const services =
     servicesResult && "services" in servicesResult
       ? servicesResult.services
-      : []
-
-  const customers =
-    customersResult && !("error" in customersResult)
-      ? customersResult.customers
       : []
 
   const teamMembers =

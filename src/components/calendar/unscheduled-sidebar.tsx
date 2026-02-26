@@ -33,10 +33,10 @@ interface UnscheduledSidebarProps {
 
 function getPriorityConfig(priority: string) {
   const config: Record<string, { label: string; className: string }> = {
-    LOW: { label: "Low", className: "bg-gray-50 text-gray-600 border-gray-200" },
-    MEDIUM: { label: "Medium", className: "bg-blue-50 text-blue-600 border-blue-200" },
-    HIGH: { label: "High", className: "bg-orange-50 text-orange-600 border-orange-200" },
-    URGENT: { label: "Urgent", className: "bg-red-50 text-red-600 border-red-200" },
+    LOW: { label: "Standard", className: "bg-blue-50 text-blue-600 border-blue-200" },
+    MEDIUM: { label: "Standard", className: "bg-blue-50 text-blue-600 border-blue-200" },
+    HIGH: { label: "Standard", className: "bg-blue-50 text-blue-600 border-blue-200" },
+    URGENT: { label: "Emergency", className: "bg-red-50 text-red-600 border-red-200" },
   }
   return config[priority] || config.MEDIUM
 }

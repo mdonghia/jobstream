@@ -391,17 +391,31 @@ export function CustomerForm({
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-medium text-[#425466]">
                           Property {index + 1}
-                          {prop.isPrimary && (
-                            <span className="ml-2 text-[#635BFF]">(Primary)</span>
-                          )}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => removeProperty(index)}
-                          className="text-[#8898AA] hover:text-red-600"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={prop.isPrimary}
+                              onChange={() => {
+                                const updated = properties.map((p, i) => ({
+                                  ...p,
+                                  isPrimary: i === index,
+                                }))
+                                setProperties(updated)
+                              }}
+                              className="w-3.5 h-3.5 rounded border-[#E3E8EE] text-[#635BFF] focus:ring-[#635BFF]"
+                            />
+                            <span className="text-xs text-[#425466]">Primary</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => removeProperty(index)}
+                            className="text-[#8898AA] hover:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     )}
 

@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/auth-utils"
 import { jobSchema } from "@/lib/validations"
 
 import { logActivityEvent, ActivityEventTypes } from "@/lib/activity-logger"
+import { calculateNextOccurrence } from "@/lib/recurrence"
 
 // =============================================================================
 // Types
@@ -564,40 +565,7 @@ export async function updateJobStatus(
   }
 }
 
-/**
- * Calculate the next occurrence date for a recurring job.
- * Uses proper Date methods for month/year boundaries.
- */
-function calculateNextOccurrence(currentStart: Date, recurrenceRule: string): Date {
-  const next = new Date(currentStart)
-
-  switch (recurrenceRule) {
-    case "DAILY":
-      next.setDate(next.getDate() + 1)
-      break
-    case "WEEKLY":
-      next.setDate(next.getDate() + 7)
-      break
-    case "BIWEEKLY":
-      next.setDate(next.getDate() + 14)
-      break
-    case "MONTHLY":
-      next.setMonth(next.getMonth() + 1)
-      break
-    case "QUARTERLY":
-      next.setMonth(next.getMonth() + 3)
-      break
-    case "ANNUALLY":
-      next.setFullYear(next.getFullYear() + 1)
-      break
-    default:
-      // Fallback to weekly
-      next.setDate(next.getDate() + 7)
-      break
-  }
-
-  return next
-}
+// calculateNextOccurrence imported from @/lib/recurrence
 
 /**
  * V2: Create the next recurring Visit on a Job when the current visit is completed.

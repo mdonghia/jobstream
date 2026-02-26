@@ -543,10 +543,17 @@ export function CustomerDetail({
                       <div className="flex items-start gap-3">
                         <MapPin className="w-4 h-4 text-[#8898AA] mt-0.5" />
                         <div>
-                          <p className="text-sm text-[#0A2540]">
-                            {prop.addressLine1}
-                            {prop.addressLine2 && `, ${prop.addressLine2}`}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-[#0A2540]">
+                              {prop.addressLine1}
+                              {prop.addressLine2 && `, ${prop.addressLine2}`}
+                            </p>
+                            {prop.isPrimary && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#635BFF]/10 text-[#635BFF]">
+                                Primary
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-[#425466]">
                             {prop.city}, {prop.state} {prop.zip}
                           </p>
@@ -696,14 +703,9 @@ export function CustomerDetail({
             <div className="py-12 text-center">
               <FileText className="w-12 h-12 text-[#8898AA] mx-auto mb-3" />
               <p className="text-sm text-[#8898AA]">No quotes yet</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3 border-[#E3E8EE]"
-                asChild
-              >
-                <Link href={`/quotes/new?customerId=${customer.id}`}>New Quote</Link>
-              </Button>
+              <p className="text-xs text-[#8898AA] mt-1">
+                Quotes are created from within a job
+              </p>
             </div>
           ) : (
             <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden overflow-x-auto">

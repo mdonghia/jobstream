@@ -46,7 +46,7 @@ import { Separator } from "@/components/ui/separator"
 import { cn, formatCurrency, formatDate, getInitials } from "@/lib/utils"
 import { toast } from "sonner"
 import { createJob, updateJob } from "@/actions/jobs"
-import { getCustomers } from "@/actions/customers"
+import { searchCustomersWithProperties } from "@/actions/customers"
 import { format } from "date-fns"
 
 // ---- Types ----
@@ -76,6 +76,7 @@ interface Property {
   city: string
   state: string
   zip: string
+  isPrimary?: boolean
 }
 
 interface TeamMember {
@@ -161,6 +162,11 @@ function formatTimeLabel(time: string): string {
   return `${hour12}:${m.toString().padStart(2, "0")} ${period}`
 }
 
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+]
+
 function generateId(): string {
   return Math.random().toString(36).slice(2, 11)
 }
@@ -220,8 +226,36 @@ export function JobBuilder({
 
   // Recurring
   const [isRecurring, setIsRecurring] = useState(initialData?.isRecurring ?? false)
-  const [frequency, setFrequency] = useState(initialData?.recurrenceRule || "WEEKLY")
-  const [weeklyDays, setWeeklyDays] = useState<number[]>([])
+
+  // Parse recurrenceRule: could be a plain string like "WEEKLY" or JSON like {"frequency":"MONTHLY","dayOfWeek":1,"weekOfMonth":2}
+  const parsedRule = (() => {
+    const raw = initialData?.recurrenceRule
+    if (!raw) return null
+    try {
+      const parsed = JSON.parse(raw)
+      if (typeof parsed === "object" && parsed.frequency) return parsed
+    } catch {
+      // Legacy plain string
+    }
+    return { frequency: raw }
+  })()
+
+  const [frequency, setFrequency] = useState(parsedRule?.frequency || "WEEKLY")
+  const [recurDayOfWeek, setRecurDayOfWeek] = useState<number>(
+    parsedRule?.dayOfWeek ?? new Date().getDay()
+  )
+  const [recurWeekOfMonth, setRecurWeekOfMonth] = useState<number>(
+    parsedRule?.weekOfMonth ?? 1
+  )
+  const [recurMonth, setRecurMonth] = useState<number>(
+    parsedRule?.month ?? 0
+  )
+  const [recurQuarterMonths, setRecurQuarterMonths] = useState<number[]>(
+    parsedRule?.months ?? [0, 3, 6, 9]
+  )
+  const [recurrenceStartDate, setRecurrenceStartDate] = useState<Date>(
+    initialData?.recurrenceStartDate ? new Date(initialData.recurrenceStartDate) : new Date()
+  )
   const [recurrenceEnd, setRecurrenceEnd] = useState<"never" | "date">(
     initialData?.recurrenceEndDate ? "date" : "never"
   )
@@ -302,13 +336,9 @@ export function JobBuilder({
   useEffect(() => {
     if (!customerSearch.trim()) return
     const timer = setTimeout(async () => {
-      const result = await getCustomers({
-        search: customerSearch,
-        status: "active",
-        perPage: 10,
-      })
+      const result = await searchCustomersWithProperties(customerSearch)
       if (!("error" in result)) {
-        setCustomers(result.customers as any)
+        setCustomers(result.customers)
       }
     }, 300)
     return () => clearTimeout(timer)
@@ -446,6 +476,28 @@ export function JobBuilder({
     return end
   }
 
+  // Build a JSON recurrence rule from the form state
+  function buildRecurrenceRule(): string {
+    const rule: any = { frequency }
+
+    if (frequency === "WEEKLY" || frequency === "BIWEEKLY") {
+      rule.dayOfWeek = recurDayOfWeek
+    } else if (frequency === "MONTHLY") {
+      rule.dayOfWeek = recurDayOfWeek
+      rule.weekOfMonth = recurWeekOfMonth
+    } else if (frequency === "QUARTERLY") {
+      rule.dayOfWeek = recurDayOfWeek
+      rule.weekOfMonth = recurWeekOfMonth
+      rule.months = recurQuarterMonths
+    } else if (frequency === "ANNUAL") {
+      rule.dayOfWeek = recurDayOfWeek
+      rule.weekOfMonth = recurWeekOfMonth
+      rule.month = recurMonth
+    }
+
+    return JSON.stringify(rule)
+  }
+
   // Submit
   async function handleSubmit() {
     if (!selectedCustomerId) {
@@ -496,7 +548,7 @@ export function JobBuilder({
             : [],
         internalNote: internalNote.trim() || undefined,
         isRecurring,
-        recurrenceRule: isRecurring ? frequency : undefined,
+        recurrenceRule: isRecurring ? buildRecurrenceRule() : undefined,
         recurrenceEndDate:
           isRecurring && recurrenceEnd === "date" && recurrenceEndDate
             ? recurrenceEndDate.toISOString()
@@ -601,7 +653,8 @@ export function JobBuilder({
                               value={c.id}
                               onSelect={() => {
                                 setSelectedCustomerId(c.id)
-                                setSelectedPropertyId("")
+                                const primary = c.properties?.find((p) => p.isPrimary)
+                                setSelectedPropertyId(primary?.id || c.properties?.[0]?.id || "")
                                 setCustomerOpen(false)
                               }}
                             >
@@ -689,10 +742,8 @@ export function JobBuilder({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
-                    <SelectItem value="HIGH">High</SelectItem>
-                    <SelectItem value="URGENT">Urgent</SelectItem>
+                    <SelectItem value="MEDIUM">Standard</SelectItem>
+                    <SelectItem value="URGENT">Emergency</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -986,6 +1037,73 @@ export function JobBuilder({
             </CardHeader>
             {isRecurring && (
               <CardContent className="space-y-4">
+                {/* Start / End dates */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm text-[#425466]">Start Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start h-10 text-left font-normal border-[#E3E8EE] text-sm"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {format(recurrenceStartDate, "MMM d, yyyy")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={recurrenceStartDate}
+                          onSelect={(d) => d && setRecurrenceStartDate(d)}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-sm text-[#425466]">End Date</Label>
+                    <Select
+                      value={recurrenceEnd}
+                      onValueChange={(v) => setRecurrenceEnd(v as "never" | "date")}
+                    >
+                      <SelectTrigger className="h-10 border-[#E3E8EE] text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="never">Never</SelectItem>
+                        <SelectItem value="date">On a date</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {recurrenceEnd === "date" && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start h-10 text-left font-normal border-[#E3E8EE] text-sm",
+                              !recurrenceEndDate && "text-[#8898AA]"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {recurrenceEndDate
+                              ? format(recurrenceEndDate, "MMM d, yyyy")
+                              : "Pick end date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={recurrenceEndDate}
+                            onSelect={setRecurrenceEndDate}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
+                </div>
+
+                {/* Frequency */}
                 <div className="space-y-1.5">
                   <Label className="text-sm text-[#425466]">Frequency</Label>
                   <Select value={frequency} onValueChange={setFrequency}>
@@ -997,30 +1115,25 @@ export function JobBuilder({
                       <SelectItem value="WEEKLY">Weekly</SelectItem>
                       <SelectItem value="BIWEEKLY">Biweekly</SelectItem>
                       <SelectItem value="MONTHLY">Monthly</SelectItem>
+                      <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                      <SelectItem value="ANNUAL">Annual</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {(frequency === "WEEKLY" || frequency === "BIWEEKLY") && (
+                {/* Day of Week -- for weekly, bi-weekly, monthly, quarterly, annual */}
+                {frequency !== "DAILY" && (
                   <div className="space-y-1.5">
-                    <Label className="text-sm text-[#425466]">
-                      Repeat on days
-                    </Label>
+                    <Label className="text-sm text-[#425466]">Day of the week</Label>
                     <div className="flex flex-wrap gap-2">
                       {WEEKDAYS.map((day, index) => (
                         <button
                           key={day}
                           type="button"
-                          onClick={() =>
-                            setWeeklyDays((prev) =>
-                              prev.includes(index)
-                                ? prev.filter((d) => d !== index)
-                                : [...prev, index]
-                            )
-                          }
+                          onClick={() => setRecurDayOfWeek(index)}
                           className={cn(
                             "w-9 h-9 rounded-full text-xs font-medium transition-colors",
-                            weeklyDays.includes(index)
+                            recurDayOfWeek === index
                               ? "bg-[#635BFF] text-white"
                               : "bg-[#F6F8FA] text-[#425466] hover:bg-[#E3E8EE]"
                           )}
@@ -1032,49 +1145,85 @@ export function JobBuilder({
                   </div>
                 )}
 
-                <div className="space-y-1.5">
-                  <Label className="text-sm text-[#425466]">Ends</Label>
-                  <Select
-                    value={recurrenceEnd}
-                    onValueChange={(v) =>
-                      setRecurrenceEnd(v as "never" | "date")
-                    }
-                  >
-                    <SelectTrigger className="w-[200px] h-10 border-[#E3E8EE] text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="never">Never</SelectItem>
-                      <SelectItem value="date">On a date</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {recurrenceEnd === "date" && (
+                {/* Week of Month -- for monthly, quarterly, annual */}
+                {(frequency === "MONTHLY" || frequency === "QUARTERLY" || frequency === "ANNUAL") && (
                   <div className="space-y-1.5">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
+                    <Label className="text-sm text-[#425466]">Week of the month</Label>
+                    <Select
+                      value={String(recurWeekOfMonth)}
+                      onValueChange={(v) => setRecurWeekOfMonth(parseInt(v))}
+                    >
+                      <SelectTrigger className="w-[200px] h-10 border-[#E3E8EE] text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1st week</SelectItem>
+                        <SelectItem value="2">2nd week</SelectItem>
+                        <SelectItem value="3">3rd week</SelectItem>
+                        <SelectItem value="4">4th week</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-[#8898AA]">
+                      e.g., the {recurWeekOfMonth === 1 ? "1st" : recurWeekOfMonth === 2 ? "2nd" : recurWeekOfMonth === 3 ? "3rd" : "4th"}{" "}
+                      {WEEKDAYS[recurDayOfWeek]} of each {frequency === "MONTHLY" ? "month" : frequency === "QUARTERLY" ? "quarter" : "year"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Month selector -- for annual */}
+                {frequency === "ANNUAL" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm text-[#425466]">Month</Label>
+                    <Select
+                      value={String(recurMonth)}
+                      onValueChange={(v) => setRecurMonth(parseInt(v))}
+                    >
+                      <SelectTrigger className="w-[200px] h-10 border-[#E3E8EE] text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTH_NAMES.map((m, i) => (
+                          <SelectItem key={i} value={String(i)}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Quarter months selector -- for quarterly */}
+                {frequency === "QUARTERLY" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-sm text-[#425466]">
+                      Select 4 months (one per quarter)
+                    </Label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {MONTH_NAMES.map((m, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            setRecurQuarterMonths((prev) => {
+                              if (prev.includes(i)) {
+                                return prev.filter((x) => x !== i)
+                              }
+                              if (prev.length >= 4) return prev
+                              return [...prev, i].sort((a, b) => a - b)
+                            })
+                          }}
                           className={cn(
-                            "w-[200px] justify-start h-10 text-left font-normal border-[#E3E8EE] text-sm",
-                            !recurrenceEndDate && "text-[#8898AA]"
+                            "px-2 py-1.5 rounded text-xs font-medium transition-colors",
+                            recurQuarterMonths.includes(i)
+                              ? "bg-[#635BFF] text-white"
+                              : "bg-[#F6F8FA] text-[#425466] hover:bg-[#E3E8EE]"
                           )}
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {recurrenceEndDate
-                            ? format(recurrenceEndDate, "MMM d, yyyy")
-                            : "Pick end date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={recurrenceEndDate}
-                          onSelect={setRecurrenceEndDate}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                          {m.slice(0, 3)}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-[#8898AA]">
+                      {recurQuarterMonths.length}/4 selected
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -1327,13 +1476,12 @@ export function JobBuilder({
                     variant="secondary"
                     className={cn(
                       "text-xs",
-                      priority === "LOW" && "bg-gray-100 text-gray-700",
-                      priority === "MEDIUM" && "bg-blue-50 text-blue-700",
-                      priority === "HIGH" && "bg-amber-50 text-amber-700",
-                      priority === "URGENT" && "bg-red-50 text-red-700"
+                      priority === "URGENT"
+                        ? "bg-red-50 text-red-700"
+                        : "bg-blue-50 text-blue-700"
                     )}
                   >
-                    {priority.charAt(0) + priority.slice(1).toLowerCase()}
+                    {priority === "URGENT" ? "Emergency" : "Standard"}
                   </Badge>
                 </div>
 

@@ -271,6 +271,64 @@ export async function getCustomers(params: GetCustomersParams = {}) {
 }
 
 // =============================================================================
+// 1b. searchCustomersWithProperties - Search customers with full property data
+//     Used by the job builder combobox to show address details and auto-select
+//     the primary property when a customer is chosen.
+// =============================================================================
+
+export async function searchCustomersWithProperties(search: string) {
+  try {
+    const user = await requireAuth()
+
+    const where: any = {
+      organizationId: user.organizationId,
+      isArchived: false,
+    }
+
+    if (search.trim()) {
+      const words = search.trim().split(/\s+/)
+      where.AND = words.map((word: string) => ({
+        OR: [
+          { firstName: { contains: word, mode: "insensitive" } },
+          { lastName: { contains: word, mode: "insensitive" } },
+          { email: { contains: word, mode: "insensitive" } },
+          { phone: { contains: word, mode: "insensitive" } },
+        ],
+      }))
+    }
+
+    const customers = await prisma.customer.findMany({
+      where,
+      take: 10,
+      orderBy: { firstName: "asc" },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        properties: {
+          select: {
+            id: true,
+            addressLine1: true,
+            city: true,
+            state: true,
+            zip: true,
+            isPrimary: true,
+          },
+          orderBy: { isPrimary: "desc" },
+        },
+      },
+    })
+
+    return { customers }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    return { error: "Failed to search customers" }
+  }
+}
+
+// =============================================================================
 // 2. getCustomer - Get single customer with all relations
 // =============================================================================
 

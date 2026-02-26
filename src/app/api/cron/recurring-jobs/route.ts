@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/db"
 import { logActivityEvent, ActivityEventTypes } from "@/lib/activity-logger"
+import { calculateNextOccurrence } from "@/lib/recurrence"
 
 // =============================================================================
 // Recurring jobs cron handler
@@ -11,40 +12,6 @@ import { logActivityEvent, ActivityEventTypes } from "@/lib/activity-logger"
 // missed (e.g. if the server action failed to create the next visit due to
 // a transient error).
 // =============================================================================
-
-/**
- * Calculate the next occurrence date for a recurring job.
- * Duplicated here to avoid importing from server actions in a route handler.
- */
-function calculateNextOccurrence(currentStart: Date, recurrenceRule: string): Date {
-  const next = new Date(currentStart)
-
-  switch (recurrenceRule) {
-    case "DAILY":
-      next.setDate(next.getDate() + 1)
-      break
-    case "WEEKLY":
-      next.setDate(next.getDate() + 7)
-      break
-    case "BIWEEKLY":
-      next.setDate(next.getDate() + 14)
-      break
-    case "MONTHLY":
-      next.setMonth(next.getMonth() + 1)
-      break
-    case "QUARTERLY":
-      next.setMonth(next.getMonth() + 3)
-      break
-    case "ANNUALLY":
-      next.setFullYear(next.getFullYear() + 1)
-      break
-    default:
-      next.setDate(next.getDate() + 7)
-      break
-  }
-
-  return next
-}
 
 export async function GET(req: NextRequest) {
   // Verify cron secret to prevent unauthorized access
