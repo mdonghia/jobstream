@@ -18,6 +18,8 @@ interface AutomationSettingsProps {
   autoInvoiceOnJobComplete: boolean
   invoiceRemindersEnabled: boolean
   invoiceReminderDays: string | null
+  quoteRemindersEnabled: boolean
+  quoteReminderDays: string | null
 }
 
 // ============================================================================
@@ -29,6 +31,8 @@ export function AutomationSettings({
   autoInvoiceOnJobComplete: initialAutoInvoice,
   invoiceRemindersEnabled: initialRemindersEnabled,
   invoiceReminderDays: initialReminderDays,
+  quoteRemindersEnabled: initialQuoteRemindersEnabled,
+  quoteReminderDays: initialQuoteReminderDays,
 }: AutomationSettingsProps) {
   // State
   const [autoConvertQuoteToJob, setAutoConvertQuoteToJob] = useState(
@@ -42,6 +46,12 @@ export function AutomationSettings({
   )
   const [invoiceReminderDays, setInvoiceReminderDays] = useState(
     initialReminderDays ?? "3,7,14"
+  )
+  const [quoteRemindersEnabled, setQuoteRemindersEnabled] = useState(
+    initialQuoteRemindersEnabled ?? true
+  )
+  const [quoteReminderDays, setQuoteReminderDays] = useState(
+    initialQuoteReminderDays ?? "3,7,14"
   )
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState(0)
@@ -128,6 +138,40 @@ export function AutomationSettings({
     }
   }
 
+  async function handleQuoteRemindersToggle(checked: boolean) {
+    setQuoteRemindersEnabled(checked)
+    try {
+      const result = await updateWorkflowSettings({
+        quoteRemindersEnabled: checked,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+        setQuoteRemindersEnabled(!checked)
+      } else {
+        setLastSaved(Date.now())
+      }
+    } catch {
+      toast.error("Failed to update workflow setting")
+      setQuoteRemindersEnabled(!checked)
+    }
+  }
+
+  async function handleQuoteReminderDaysChange(value: string) {
+    setQuoteReminderDays(value)
+    try {
+      const result = await updateWorkflowSettings({
+        quoteReminderDays: value,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        setLastSaved(Date.now())
+      }
+    } catch {
+      toast.error("Failed to update reminder schedule")
+    }
+  }
+
   // -----------------------------------------------------------------------
   // Save all settings at once (manual fallback)
   // -----------------------------------------------------------------------
@@ -140,6 +184,8 @@ export function AutomationSettings({
         autoInvoiceOnJobComplete,
         invoiceRemindersEnabled,
         invoiceReminderDays,
+        quoteRemindersEnabled,
+        quoteReminderDays,
       })
       if ("error" in result) {
         toast.error(result.error)
@@ -245,6 +291,49 @@ export function AutomationSettings({
                   />
                   <p className="text-xs text-[#8898AA]">
                     Comma-separated list of days after the invoice due date
+                    (e.g. 3,7,14).
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-[#E3E8EE] p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <Label className="text-sm font-medium text-[#0A2540]">
+                  Send follow-up reminders for pending quotes
+                </Label>
+                <p className="text-sm text-[#8898AA]">
+                  When enabled, automatic reminders will be sent to customers
+                  who have received a quote but haven&apos;t responded yet.
+                </p>
+              </div>
+              <Switch
+                checked={quoteRemindersEnabled}
+                onCheckedChange={handleQuoteRemindersToggle}
+                aria-label="Enable quote follow-up reminders"
+              />
+            </div>
+
+            {quoteRemindersEnabled && (
+              <div className="mt-4 border-t border-[#E3E8EE] pt-4">
+                <div className="max-w-xs space-y-1.5">
+                  <Label className={labelClass}>
+                    Send reminders after (days since sent)
+                  </Label>
+                  <Input
+                    value={quoteReminderDays}
+                    onChange={(e) => setQuoteReminderDays(e.target.value)}
+                    onBlur={(e) =>
+                      handleQuoteReminderDaysChange(e.target.value)
+                    }
+                    placeholder="3,7,14"
+                    className={inputClass}
+                    aria-label="Quote reminder days"
+                  />
+                  <p className="text-xs text-[#8898AA]">
+                    Comma-separated list of days after the quote was sent
                     (e.g. 3,7,14).
                   </p>
                 </div>

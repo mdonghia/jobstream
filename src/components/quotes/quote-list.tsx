@@ -52,6 +52,7 @@ interface QuoteListProps {
   initialTotal: number
   initialPage: number
   initialTotalPages: number
+  initialTab?: string
 }
 
 // ── Status badge (local) ───────────────────────────────────────────────────
@@ -99,6 +100,7 @@ export function QuoteList({
   initialTotal,
   initialPage,
   initialTotalPages,
+  initialTab,
 }: QuoteListProps) {
   const router = useRouter()
 
@@ -110,7 +112,7 @@ export function QuoteList({
   const [loading, setLoading] = useState(false)
 
   const [search, setSearch] = useState("")
-  const [activeTab, setActiveTab] = useState("ALL")
+  const [activeTab, setActiveTab] = useState(initialTab ?? "ALL")
   const [sortBy, setSortBy] = useState("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
 
@@ -179,6 +181,14 @@ export function QuoteList({
   function handleTabChange(value: string) {
     setActiveTab(value)
     setPage(1)
+    // Keep URL in sync with active tab
+    const url = new URL(window.location.href)
+    if (value === "ALL") {
+      url.searchParams.delete("tab")
+    } else {
+      url.searchParams.set("tab", value)
+    }
+    window.history.replaceState({}, "", url.toString())
     fetchQuotes({ status: value, page: 1 })
   }
 

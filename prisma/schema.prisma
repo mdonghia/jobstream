@@ -208,6 +208,8 @@ model Organization {
   autoInvoiceOnJobComplete  Boolean  @default(true)
   invoiceRemindersEnabled   Boolean  @default(true)
   invoiceReminderDays       String   @default("3,7,14")
+  quoteRemindersEnabled     Boolean  @default(true)
+  quoteReminderDays         String   @default("3,7,14")
 
   // Scheduling (Features 5-6)
   defaultArrivalWindow        Int      @default(60)
@@ -410,6 +412,8 @@ model Quote {
   accessToken      String      @default(cuid())
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
+  reminderCount      Int         @default(0)
+  lastReminderSentAt DateTime?
 
   selectedOptionId  String?
 
@@ -431,6 +435,7 @@ model Quote {
   @@index([organizationId, status])
   @@index([organizationId, customerId])
   @@index([accessToken])
+  @@index([organizationId, sentAt])
 }
 
 // 6b. QuoteOption (Feature 9 - Multi-Option Quotes)

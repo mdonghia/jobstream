@@ -14,7 +14,6 @@ import {
   Users,
   Calendar,
   Briefcase,
-  ClipboardList,
   Receipt,
   Star,
   BarChart3,
@@ -25,7 +24,6 @@ import {
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
   { label: "Jobs", icon: Briefcase, href: "/jobs" },
-  { label: "Quotes", icon: ClipboardList, href: "/quotes" },
   { label: "Customers", icon: Users, href: "/customers" },
   { label: "Schedule", icon: Calendar, href: "/schedule" },
   { label: "Invoices", icon: Receipt, href: "/invoices" },

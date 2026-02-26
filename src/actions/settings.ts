@@ -96,6 +96,8 @@ export async function updateWorkflowSettings(data: {
   autoInvoiceOnJobComplete?: boolean
   invoiceRemindersEnabled?: boolean
   invoiceReminderDays?: string
+  quoteRemindersEnabled?: boolean
+  quoteReminderDays?: string
 }) {
   try {
     const user = await requireRole(["OWNER", "ADMIN"])
@@ -112,6 +114,12 @@ export async function updateWorkflowSettings(data: {
     }
     if (data.invoiceReminderDays !== undefined) {
       updateData.invoiceReminderDays = data.invoiceReminderDays
+    }
+    if (data.quoteRemindersEnabled !== undefined) {
+      updateData.quoteRemindersEnabled = data.quoteRemindersEnabled
+    }
+    if (data.quoteReminderDays !== undefined) {
+      updateData.quoteReminderDays = data.quoteReminderDays
     }
 
     await prisma.organization.update({

@@ -107,15 +107,15 @@ export function DashboardPageV2({ stats, userName }: DashboardPageV2Props) {
             </Card>
           </Link>
 
-          {/* Overdue Quotes */}
-          <Link href="/jobs?tab=awaiting_approval">
+          {/* Expired Quotes */}
+          <Link href="/quotes?tab=EXPIRED">
             <Card className="border-[#E3E8EE] hover:border-[#F5A623] hover:shadow-md transition-all cursor-pointer group">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-[#8898AA] font-medium">Overdue Quotes</p>
+                    <p className="text-sm text-[#8898AA] font-medium">Expired Quotes</p>
                     <p className="text-2xl font-semibold text-[#0A2540] mt-1">
-                      {stats.overdueQuotesCount}
+                      {stats.expiredQuotesCount}
                     </p>
                   </div>
                   <div className="w-10 h-10 rounded-lg bg-[#F5A623]/10 flex items-center justify-center">

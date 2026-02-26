@@ -23,7 +23,7 @@ export default async function DashboardPage() {
       ? {
           unscheduledJobsCount: 0,
           needsInvoicingCount: 0,
-          overdueQuotesCount: 0,
+          expiredQuotesCount: 0,
           overdueInvoicesCount: 0,
           visitsScheduledToday: 0,
           visitsCompletedToday: 0,

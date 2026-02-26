@@ -12,7 +12,7 @@ export type DashboardV2Stats = {
   // Action Items
   unscheduledJobsCount: number
   needsInvoicingCount: number
-  overdueQuotesCount: number
+  expiredQuotesCount: number
   overdueInvoicesCount: number
 
   // Today's Progress
@@ -79,7 +79,7 @@ export async function getDashboardV2Stats(): Promise<
       needsInvoicingCandidates,
 
       // 3. Overdue Quotes: quotes with status SENT and validUntil < now
-      overdueQuotesCount,
+      expiredQuotesCount,
 
       // 4. Overdue Invoices: invoices with status SENT and dueDate < now
       overdueInvoicesCount,
@@ -254,7 +254,7 @@ export async function getDashboardV2Stats(): Promise<
     return {
       unscheduledJobsCount,
       needsInvoicingCount,
-      overdueQuotesCount,
+      expiredQuotesCount,
       overdueInvoicesCount,
       visitsScheduledToday,
       visitsCompletedToday,
