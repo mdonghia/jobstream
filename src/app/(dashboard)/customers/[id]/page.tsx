@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth-utils"
 import { getCustomer, getCustomerNotes, getCustomerStats } from "@/actions/customers"
 import { getCommunications } from "@/actions/communications"
 import { prisma } from "@/lib/db"
-import { featureFlags } from "@/lib/feature-flags"
+
 import { CustomerDetail } from "@/components/customers/customer-detail"
 
 export default async function CustomerDetailPage({
@@ -84,22 +84,19 @@ export default async function CustomerDetailPage({
     ? statsResult
     : { totalRevenue: 0, totalJobs: 0, totalQuotes: 0, openInvoicesCount: 0, openInvoicesAmount: 0 }
 
-  // V2: Fetch the last 5 ActivityEvent records across all of this customer's jobs
-  let recentActivityEvents: any[] = []
-  if (featureFlags.v2Visits) {
-    recentActivityEvents = await prisma.activityEvent.findMany({
-      where: {
-        organizationId: user.organizationId,
-        job: { customerId: id },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: {
-        job: { select: { id: true, jobNumber: true, title: true } },
-        user: { select: { id: true, firstName: true, lastName: true } },
-      },
-    })
-  }
+  // Fetch the last 5 ActivityEvent records across all of this customer's jobs
+  const recentActivityEvents = await prisma.activityEvent.findMany({
+    where: {
+      organizationId: user.organizationId,
+      job: { customerId: id },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    include: {
+      job: { select: { id: true, jobNumber: true, title: true } },
+      user: { select: { id: true, firstName: true, lastName: true } },
+    },
+  })
 
   // Serialize for client component using JSON round-trip to handle Dates and Decimals
   const serialize = (obj: any) => JSON.parse(JSON.stringify(obj, (_key, value) =>

@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireAuth } from "@/lib/auth-utils"
 import { jobSchema } from "@/lib/validations"
-import { featureFlags } from "@/lib/feature-flags"
+
 import { logActivityEvent, ActivityEventTypes } from "@/lib/activity-logger"
 
 // =============================================================================
@@ -532,44 +532,16 @@ export async function updateJobStatus(
           const seriesDone = job.recurrenceEndDate && nextStart > job.recurrenceEndDate
 
           if (!seriesDone) {
-            if (featureFlags.v2Visits) {
-              // ---------------------------------------------------------------
-              // V2 path: create a new Visit on the same Job for the next
-              // occurrence. This preserves visit history instead of
-              // overwriting dates on the Job row.
-              // ---------------------------------------------------------------
-              await createNextRecurringVisit({
-                jobId: id,
-                organizationId: user.organizationId,
-                userId: user.id,
-                nextStart,
-                duration,
-              })
-            } else {
-              // V1 path: cycle the job back to SCHEDULED with new dates
-              await prisma.job.update({
-                where: { id },
-                data: {
-                  status: "SCHEDULED",
-                  scheduledStart: nextStart,
-                  scheduledEnd: new Date(nextStart.getTime() + duration),
-                  actualStart: null,
-                  actualEnd: null,
-                  completionNotes: null,
-                  onMyWaySentAt: null,
-                },
-              })
-
-              // Reset checklist items for the next occurrence
-              await prisma.jobChecklistItem.updateMany({
-                where: { jobId: id },
-                data: {
-                  isCompleted: false,
-                  completedAt: null,
-                  completedByUserId: null,
-                },
-              })
-            }
+            // Create a new Visit on the same Job for the next occurrence.
+            // This preserves visit history instead of overwriting dates on
+            // the Job row.
+            await createNextRecurringVisit({
+              jobId: id,
+              organizationId: user.organizationId,
+              userId: user.id,
+              nextStart,
+              duration,
+            })
           }
         } catch (e) {
           // Don't fail the status update if recurring cycling fails

@@ -1,19 +1,15 @@
 import { NextRequest } from "next/server"
 import { prisma } from "@/lib/db"
-import { featureFlags } from "@/lib/feature-flags"
 import { logActivityEvent, ActivityEventTypes } from "@/lib/activity-logger"
 
 // =============================================================================
 // Recurring jobs cron handler
 //
-// V1 (feature flag off): Jobs cycle automatically in updateJobStatus() when
-//     marked as complete. This cron is a no-op.
-//
-// V2 (featureFlags.v2Visits): Finds recurring jobs where the latest visit is
-//     COMPLETED and creates the next Visit on the same Job. This acts as a
-//     safety net -- the primary path is still in updateJobStatus(), but this
-//     cron catches any jobs that were missed (e.g. if the server action failed
-//     to create the next visit due to a transient error).
+// Finds recurring jobs where the latest visit is COMPLETED and creates the
+// next Visit on the same Job. This acts as a safety net -- the primary path
+// is still in updateJobStatus(), but this cron catches any jobs that were
+// missed (e.g. if the server action failed to create the next visit due to
+// a transient error).
 // =============================================================================
 
 /**
@@ -60,16 +56,9 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  // V1: no-op -- recurring cycling happens inline in updateJobStatus()
-  if (!featureFlags.v2Visits) {
-    return Response.json({
-      message: "Recurring job generation disabled - jobs cycle automatically in v1 mode",
-    })
-  }
-
   // ---------------------------------------------------------------------------
-  // V2: Find recurring jobs whose latest visit is COMPLETED, then create the
-  //     next Visit. This is a catch-up mechanism for any that were missed.
+  // Find recurring jobs whose latest visit is COMPLETED, then create the
+  // next Visit. This is a catch-up mechanism for any that were missed.
   // ---------------------------------------------------------------------------
   try {
     // Find all recurring jobs that are not cancelled and have a recurrence rule
@@ -212,7 +201,7 @@ export async function GET(req: NextRequest) {
     }
 
     return Response.json({
-      message: "Recurring jobs cron completed (v2 mode)",
+      message: "Recurring jobs cron completed",
       totalRecurring: recurringJobs.length,
       created,
       skipped,
