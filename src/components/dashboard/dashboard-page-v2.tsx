@@ -182,22 +182,6 @@ export function DashboardPageV2({ stats, userName }: DashboardPageV2Props) {
                   </p>
                 </div>
               </div>
-              {/* Progress bar */}
-              {stats.visitsScheduledToday > 0 && (
-                <div className="mt-4">
-                  <div className="w-full h-2 bg-[#E3E8EE] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#30D158] rounded-full transition-all duration-500"
-                      style={{
-                        width: `${Math.min(
-                          (stats.visitsCompletedToday / stats.visitsScheduledToday) * 100,
-                          100
-                        )}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
               <div className="flex items-center gap-1 mt-3 text-xs text-[#635BFF] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                 View schedule <ArrowRight className="w-3 h-3" />
               </div>

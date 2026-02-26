@@ -497,6 +497,7 @@ export async function getCalendarVisits(params: {
       job: { customer: { isArchived: false } },
       status: { not: "CANCELLED" },
       scheduledStart: { gte: rangeStart, lte: rangeEnd },
+      assignments: { some: {} },
     }
 
     if (params.userIds && params.userIds.length > 0) {
@@ -547,10 +548,18 @@ export async function getUnscheduledVisits(params?: { userIds?: string[] }) {
     const where: any = {
       organizationId: user.organizationId,
       job: { customer: { isArchived: false } },
-      status: "UNSCHEDULED",
+      OR: [
+        { status: "UNSCHEDULED" },
+        // Include scheduled/anytime visits with no team member assigned
+        {
+          status: { in: ["SCHEDULED", "ANYTIME"] },
+          assignments: { none: {} },
+        },
+      ],
     }
 
     if (params?.userIds && params.userIds.length > 0) {
+      where.OR = [{ status: "UNSCHEDULED" }]
       where.assignments = { some: { userId: { in: params.userIds } } }
     }
 

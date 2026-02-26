@@ -155,12 +155,14 @@ export async function getDashboardV2Stats(): Promise<
         },
       }),
 
-      // 5. Visits scheduled today (exclude archived customers)
+      // 5. Visits scheduled today (exclude archived customers, cancelled, unassigned)
       prisma.visit.count({
         where: {
           organizationId: orgId,
           job: { customer: { isArchived: false } },
           scheduledStart: { gte: dayStart, lte: dayEnd },
+          status: { not: "CANCELLED" },
+          assignments: { some: {} },
         },
       }),
 
