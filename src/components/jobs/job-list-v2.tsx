@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useCallback, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Search, Plus, Briefcase } from "lucide-react"
+import { Search, Plus, Briefcase, Repeat, AlertTriangle } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
@@ -68,6 +68,7 @@ interface SerializedJob {
   jobNumber: string
   title: string
   isEmergency: boolean
+  isRecurring: boolean
   createdAt: string
   customer: {
     id: string
@@ -86,36 +87,21 @@ interface SerializedJob {
 
 const TAB_CONFIG: { value: JobFilterTab; label: string }[] = [
   { value: "unscheduled", label: "Unscheduled" },
-  { value: "upcoming", label: "Upcoming" },
-  { value: "awaiting_approval", label: "Awaiting Approval" },
+  { value: "scheduled", label: "Scheduled" },
+  { value: "quoted", label: "Quoted" },
   { value: "needs_invoicing", label: "Needs Invoicing" },
   { value: "awaiting_payment", label: "Awaiting Payment" },
   { value: "closed", label: "Closed" },
-  { value: "recurring", label: "Recurring" },
 ]
 
-// Recurrence label lookup for the Recurring tab
-const RECURRENCE_LABELS: Record<string, string> = {
-  DAILY: "Daily",
-  WEEKLY: "Weekly",
-  BIWEEKLY: "Biweekly",
-  MONTHLY: "Monthly",
-  QUARTERLY: "Quarterly",
-  ANNUALLY: "Annually",
-  ANNUAL: "Annual",
-}
-
-function getRecurrenceLabel(rule: string | null | undefined): string {
-  if (!rule) return "Recurring"
-  try {
-    const parsed = JSON.parse(rule)
-    if (typeof parsed === "object" && parsed.frequency) {
-      return RECURRENCE_LABELS[parsed.frequency] || parsed.frequency
-    }
-  } catch {
-    // Legacy plain string
-  }
-  return RECURRENCE_LABELS[rule] || rule
+// Context column header label per tab
+const CONTEXT_COLUMN_HEADERS: Record<JobFilterTab, string> = {
+  unscheduled: "Days Since Created",
+  scheduled: "Next Visit",
+  quoted: "Quote",
+  needs_invoicing: "Last Visit",
+  awaiting_payment: "Invoice",
+  closed: "Invoice",
 }
 
 // =============================================================================
@@ -159,25 +145,8 @@ function nextUpcomingVisit(visits: SerializedVisit[]): SerializedVisit | null {
   return active[0] ?? null
 }
 
-/** Count completed (non-cancelled) visits */
-function completedVisitCount(visits: SerializedVisit[]): number {
-  return visits.filter((v) => v.status === "COMPLETED").length
-}
-
-/** Sum line item totals */
-function lineItemsTotal(items: SerializedLineItem[]): number {
-  return items.reduce((sum, li) => sum + li.total, 0)
-}
-
-/** Get the first assigned tech for the next visit */
-function assignedTech(visit: SerializedVisit | null): string {
-  if (!visit || visit.assignments.length === 0) return "Unassigned"
-  const tech = visit.assignments[0].user
-  return `${tech.firstName} ${tech.lastName}`
-}
-
-/** Find the date a job was closed -- uses latest completed visit, falling back to latest cancelled visit */
-function closedDate(visits: SerializedVisit[]): string | null {
+/** Find the date of the latest completed visit (for "Last Visit" / "Date Closed") */
+function lastCompletedVisitDate(visits: SerializedVisit[]): string | null {
   const completed = visits
     .filter((v) => v.status === "COMPLETED" && v.scheduledStart)
     .sort((a, b) => {
@@ -220,10 +189,9 @@ export default function JobListV2() {
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [tabCounts, setTabCounts] = useState<Record<JobFilterTab, number>>({
-    recurring: 0,
-    awaiting_approval: 0,
     unscheduled: 0,
-    upcoming: 0,
+    scheduled: 0,
+    quoted: 0,
     needs_invoicing: 0,
     awaiting_payment: 0,
     closed: 0,
@@ -306,87 +274,98 @@ export default function JobListV2() {
   }
 
   // ==========================================================================
-  // Column renderers per tab
+  // Standardized column renderers
   // ==========================================================================
 
   function renderTableHeaders() {
     const headerClass =
       "px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]"
 
+    return (
+      <TableRow className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
+        <TableHead className={headerClass}>Job #</TableHead>
+        <TableHead className={headerClass}>Customer</TableHead>
+        <TableHead className={headerClass}>Service</TableHead>
+        <TableHead className={headerClass}>
+          {CONTEXT_COLUMN_HEADERS[activeTab]}
+        </TableHead>
+        <TableHead className={headerClass}>Created Date</TableHead>
+      </TableRow>
+    )
+  }
+
+  /** Render the context column cell (column 4) -- varies by active tab */
+  function renderContextCell(job: SerializedJob) {
+    const cellClass = "px-4 py-3 text-sm text-[#425466]"
+
     switch (activeTab) {
-      case "unscheduled":
+      case "unscheduled": {
+        const days = daysSince(job.createdAt)
         return (
-          <TableRow className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
-            <TableHead className={headerClass}>Job #</TableHead>
-            <TableHead className={headerClass}>Customer</TableHead>
-            <TableHead className={headerClass}>Service</TableHead>
-            <TableHead className={headerClass}>Emergency</TableHead>
-            <TableHead className={headerClass}>Date Created</TableHead>
-          </TableRow>
+          <TableCell className={cellClass}>
+            {days === 1 ? "1 day" : `${days} days`}
+          </TableCell>
         )
-      case "upcoming":
+      }
+
+      case "scheduled": {
+        const nextVisit = nextUpcomingVisit(job.visits)
         return (
-          <TableRow className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
-            <TableHead className={headerClass}>Job #</TableHead>
-            <TableHead className={headerClass}>Customer</TableHead>
-            <TableHead className={headerClass}>Service</TableHead>
-            <TableHead className={headerClass}>Next Visit</TableHead>
-            <TableHead className={headerClass}>Assigned Tech</TableHead>
-          </TableRow>
+          <TableCell className={cellClass}>
+            {nextVisit?.scheduledStart
+              ? formatDate(nextVisit.scheduledStart)
+              : "Not scheduled"}
+          </TableCell>
         )
-      case "awaiting_approval":
+      }
+
+      case "quoted": {
+        const quote = primaryQuote(job.quotes)
         return (
-          <TableRow className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
-            <TableHead className={headerClass}>Job #</TableHead>
-            <TableHead className={headerClass}>Customer</TableHead>
-            <TableHead className={headerClass}>Quote #</TableHead>
-            <TableHead className={headerClass}>Quote Amount</TableHead>
-            <TableHead className={headerClass}>Sent Date</TableHead>
-            <TableHead className={headerClass}>Days Waiting</TableHead>
-          </TableRow>
+          <TableCell className="px-4 py-3">
+            {quote ? (
+              <Link
+                href={`/quotes/${quote.id}`}
+                className="text-sm font-medium text-[#635BFF] hover:underline font-mono"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {quote.quoteNumber}
+              </Link>
+            ) : (
+              <span className="text-sm text-[#8898AA]">--</span>
+            )}
+          </TableCell>
         )
-      case "needs_invoicing":
+      }
+
+      case "needs_invoicing": {
+        const lastVisit = lastCompletedVisitDate(job.visits)
         return (
-          <TableRow className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
-            <TableHead className={headerClass}>Job #</TableHead>
-            <TableHead className={headerClass}>Customer</TableHead>
-            <TableHead className={headerClass}>Service</TableHead>
-            <TableHead className={headerClass}>Visits Completed</TableHead>
-            <TableHead className={headerClass}>Line Items Total</TableHead>
-          </TableRow>
+          <TableCell className={cellClass}>
+            {lastVisit ? formatDate(lastVisit) : "--"}
+          </TableCell>
         )
+      }
+
       case "awaiting_payment":
+      case "closed": {
+        const invoice = primaryInvoice(job.invoices)
         return (
-          <TableRow className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
-            <TableHead className={headerClass}>Job #</TableHead>
-            <TableHead className={headerClass}>Customer</TableHead>
-            <TableHead className={headerClass}>Invoice #</TableHead>
-            <TableHead className={headerClass}>Invoice Amount</TableHead>
-            <TableHead className={headerClass}>Due Date</TableHead>
-            <TableHead className={headerClass}>Days Outstanding</TableHead>
-          </TableRow>
+          <TableCell className="px-4 py-3">
+            {invoice ? (
+              <Link
+                href={`/invoices/${invoice.id}`}
+                className="text-sm font-medium text-[#635BFF] hover:underline font-mono"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {invoice.invoiceNumber}
+              </Link>
+            ) : (
+              <span className="text-sm text-[#8898AA]">--</span>
+            )}
+          </TableCell>
         )
-      case "closed":
-        return (
-          <TableRow className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
-            <TableHead className={headerClass}>Job #</TableHead>
-            <TableHead className={headerClass}>Customer</TableHead>
-            <TableHead className={headerClass}>Service</TableHead>
-            <TableHead className={headerClass}>Total Invoiced</TableHead>
-            <TableHead className={headerClass}>Date Closed</TableHead>
-          </TableRow>
-        )
-      case "recurring":
-        return (
-          <TableRow className="bg-[#F6F8FA] border-b border-[#E3E8EE]">
-            <TableHead className={headerClass}>Job #</TableHead>
-            <TableHead className={headerClass}>Customer</TableHead>
-            <TableHead className={headerClass}>Service</TableHead>
-            <TableHead className={headerClass}>Frequency</TableHead>
-            <TableHead className={headerClass}>Next Visit</TableHead>
-            <TableHead className={headerClass}>Last Completed</TableHead>
-          </TableRow>
-        )
+      }
     }
   }
 
@@ -403,226 +382,48 @@ export default function JobListV2() {
 
     const customerName = `${job.customer.firstName} ${job.customer.lastName}`
 
-    const emergencyBadge = job.isEmergency ? (
-      <Badge variant="destructive" className="text-[10px]">
-        Emergency
-      </Badge>
-    ) : (
-      <span className="text-sm text-[#8898AA]">--</span>
+    return (
+      <TableRow
+        key={job.id}
+        className="border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50 cursor-pointer"
+        onClick={() => router.push(`/jobs/${job.id}`)}
+      >
+        {/* Column 1: Job # (linked) */}
+        <TableCell className="px-4 py-3">{jobLink}</TableCell>
+
+        {/* Column 2: Customer (linked) */}
+        <TableCell className="px-4 py-3">
+          <Link
+            href={`/customers/${job.customer.id}`}
+            className="text-sm text-[#0A2540] hover:text-[#635BFF] hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {customerName}
+          </Link>
+        </TableCell>
+
+        {/* Column 3: Service (with emergency/recurring icons) */}
+        <TableCell className="px-4 py-3">
+          <div className="flex items-center gap-1.5 max-w-[250px]">
+            <span className="text-sm text-[#425466] truncate">{job.title}</span>
+            {job.isEmergency && (
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+            )}
+            {job.isRecurring && (
+              <Repeat className="w-3.5 h-3.5 text-[#635BFF] shrink-0" />
+            )}
+          </div>
+        </TableCell>
+
+        {/* Column 4: Context (varies by tab) */}
+        {renderContextCell(job)}
+
+        {/* Column 5: Created Date */}
+        <TableCell className="px-4 py-3 text-sm text-[#425466]">
+          {formatDate(job.createdAt)}
+        </TableCell>
+      </TableRow>
     )
-
-    switch (activeTab) {
-      case "unscheduled":
-        return (
-          <TableRow
-            key={job.id}
-            className="border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50 cursor-pointer"
-            onClick={() => router.push(`/jobs/${job.id}`)}
-          >
-            <TableCell className="px-4 py-3">{jobLink}</TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#0A2540]">
-              {customerName}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466] max-w-[250px] truncate">
-              {job.title}
-            </TableCell>
-            <TableCell className="px-4 py-3">{emergencyBadge}</TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {formatDate(job.createdAt)}
-            </TableCell>
-          </TableRow>
-        )
-
-      case "upcoming": {
-        const nextVisit = nextUpcomingVisit(job.visits)
-        return (
-          <TableRow
-            key={job.id}
-            className="border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50 cursor-pointer"
-            onClick={() => router.push(`/jobs/${job.id}`)}
-          >
-            <TableCell className="px-4 py-3">{jobLink}</TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#0A2540]">
-              {customerName}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466] max-w-[250px] truncate">
-              {job.title}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {nextVisit?.scheduledStart
-                ? formatDate(nextVisit.scheduledStart)
-                : "Not scheduled"}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {assignedTech(nextVisit)}
-            </TableCell>
-          </TableRow>
-        )
-      }
-
-      case "awaiting_approval": {
-        const quote = primaryQuote(job.quotes)
-        const isOverdue =
-          quote?.validUntil != null && new Date(quote.validUntil) < new Date()
-        const overdueClass = isOverdue ? "text-red-600 font-medium" : "text-[#425466]"
-        return (
-          <TableRow
-            key={job.id}
-            className="border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50 cursor-pointer"
-            onClick={() => router.push(`/jobs/${job.id}`)}
-          >
-            <TableCell className="px-4 py-3">{jobLink}</TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#0A2540]">
-              {customerName}
-            </TableCell>
-            <TableCell className="px-4 py-3">
-              {quote ? (
-                <Link
-                  href={`/quotes/${quote.id}`}
-                  className="text-sm font-medium text-[#635BFF] hover:underline font-mono"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {quote.quoteNumber}
-                </Link>
-              ) : (
-                <span className="text-sm text-[#8898AA]">--</span>
-              )}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {quote ? formatCurrency(quote.total) : "--"}
-            </TableCell>
-            <TableCell className={`px-4 py-3 text-sm ${overdueClass}`}>
-              {quote?.sentAt ? formatDate(quote.sentAt) : "--"}
-            </TableCell>
-            <TableCell className={`px-4 py-3 text-sm ${overdueClass}`}>
-              {quote?.sentAt ? `${daysSince(quote.sentAt)}d` : "--"}
-            </TableCell>
-          </TableRow>
-        )
-      }
-
-      case "needs_invoicing":
-        return (
-          <TableRow
-            key={job.id}
-            className="border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50 cursor-pointer"
-            onClick={() => router.push(`/jobs/${job.id}`)}
-          >
-            <TableCell className="px-4 py-3">{jobLink}</TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#0A2540]">
-              {customerName}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466] max-w-[250px] truncate">
-              {job.title}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {completedVisitCount(job.visits)}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {formatCurrency(lineItemsTotal(job.lineItems))}
-            </TableCell>
-          </TableRow>
-        )
-
-      case "awaiting_payment": {
-        const invoice = primaryInvoice(job.invoices)
-        return (
-          <TableRow
-            key={job.id}
-            className="border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50 cursor-pointer"
-            onClick={() => router.push(`/jobs/${job.id}`)}
-          >
-            <TableCell className="px-4 py-3">{jobLink}</TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#0A2540]">
-              {customerName}
-            </TableCell>
-            <TableCell className="px-4 py-3">
-              {invoice ? (
-                <Link
-                  href={`/invoices/${invoice.id}`}
-                  className="text-sm font-medium text-[#635BFF] hover:underline font-mono"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {invoice.invoiceNumber}
-                </Link>
-              ) : (
-                <span className="text-sm text-[#8898AA]">--</span>
-              )}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {invoice ? formatCurrency(invoice.amountDue) : "--"}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {invoice?.dueDate ? formatDate(invoice.dueDate) : "--"}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {invoice?.dueDate ? `${daysSince(invoice.dueDate)}d` : "--"}
-            </TableCell>
-          </TableRow>
-        )
-      }
-
-      case "closed": {
-        const totalInvoiced = job.invoices.reduce((sum, inv) => sum + inv.total, 0)
-        // Use the latest completed visit date as "date closed", falling back to cancelled
-        const jobClosedDate = closedDate(job.visits)
-        return (
-          <TableRow
-            key={job.id}
-            className="border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50 cursor-pointer"
-            onClick={() => router.push(`/jobs/${job.id}`)}
-          >
-            <TableCell className="px-4 py-3">{jobLink}</TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#0A2540]">
-              {customerName}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466] max-w-[250px] truncate">
-              {job.title}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {formatCurrency(totalInvoiced)}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {jobClosedDate ? formatDate(jobClosedDate) : "--"}
-            </TableCell>
-          </TableRow>
-        )
-      }
-
-      case "recurring": {
-        const nextVisit = nextUpcomingVisit(job.visits)
-        const lastCompleted = closedDate(job.visits)
-        // Try to infer frequency from visit purpose or fallback
-        // The recurrence rule is on the Job model, not in the serialized data currently.
-        // We'll show frequency based on visit pattern or fallback.
-        return (
-          <TableRow
-            key={job.id}
-            className="border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50 cursor-pointer"
-            onClick={() => router.push(`/jobs/${job.id}`)}
-          >
-            <TableCell className="px-4 py-3">{jobLink}</TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#0A2540]">
-              {customerName}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466] max-w-[250px] truncate">
-              {job.title}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {getRecurrenceLabel((job as any).recurrenceRule)}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {nextVisit?.scheduledStart
-                ? formatDate(nextVisit.scheduledStart)
-                : "Not scheduled"}
-            </TableCell>
-            <TableCell className="px-4 py-3 text-sm text-[#425466]">
-              {lastCompleted ? formatDate(lastCompleted) : "--"}
-            </TableCell>
-          </TableRow>
-        )
-      }
-    }
   }
 
   // ==========================================================================

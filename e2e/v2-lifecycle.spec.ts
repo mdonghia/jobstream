@@ -209,12 +209,12 @@ test.describe.serial("V2 Full Lifecycle", () => {
     ).toBeVisible({ timeout: 10000 });
 
     // The job was created with a scheduled date, so its visit is SCHEDULED
-    // and computeJobFilterTab classifies it as "upcoming". The default tab
-    // is "unscheduled", so we must switch to Upcoming first. Search is
+    // and computeJobFilterTab classifies it as "scheduled". The default tab
+    // is "unscheduled", so we must switch to Scheduled first. Search is
     // scoped to the active tab.
-    const upcomingTab = page.getByRole("tab", { name: /Upcoming/i });
-    await expect(upcomingTab).toBeVisible({ timeout: 5000 });
-    await upcomingTab.click();
+    const scheduledTab = page.getByRole("tab", { name: /Scheduled/i });
+    await expect(scheduledTab).toBeVisible({ timeout: 5000 });
+    await scheduledTab.click();
 
     // Wait for the tab data to load
     await page.waitForTimeout(2000);
@@ -335,7 +335,7 @@ test.describe.serial("V2 Full Lifecycle", () => {
 
     // After adding an unscheduled visit in Step 5, the job now has both a
     // SCHEDULED visit (original) and an UNSCHEDULED visit. Per filter tab
-    // priority, "unscheduled" (priority 3) beats "upcoming" (priority 4).
+    // priority, "unscheduled" (priority 2) beats "scheduled" (priority 3).
     // So the job should now be in the Unscheduled tab (the default).
     // Search within the active tab (unscheduled).
     const searchInput = page.getByPlaceholder(/search by job number/i);

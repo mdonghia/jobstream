@@ -220,20 +220,18 @@ interface JobDetailV2Props {
 // =============================================================================
 
 const TAB_LABELS: Record<JobFilterTab, string> = {
-  recurring: "Recurring",
-  awaiting_approval: "Awaiting Approval",
   unscheduled: "Unscheduled",
-  upcoming: "Upcoming",
+  scheduled: "Scheduled",
+  quoted: "Quoted",
   needs_invoicing: "Needs Invoicing",
   awaiting_payment: "Awaiting Payment",
   closed: "Closed",
 }
 
 const TAB_VARIANTS: Record<JobFilterTab, "default" | "success" | "warning" | "danger" | "info"> = {
-  recurring: "info",
-  awaiting_approval: "warning",
   unscheduled: "warning",
-  upcoming: "default",
+  scheduled: "default",
+  quoted: "warning",
   needs_invoicing: "danger",
   awaiting_payment: "info",
   closed: "success",

@@ -29,40 +29,24 @@ async function loginAsDemo(page: Page) {
 // ---------------------------------------------------------------------------
 
 const TAB_COLUMNS: Record<string, string[]> = {
-  Unscheduled: ["Job #", "Customer", "Service", "Emergency", "Date Created"],
-  Upcoming: ["Job #", "Customer", "Service", "Next Visit", "Assigned Tech"],
-  "Awaiting Approval": [
-    "Job #",
-    "Customer",
-    "Quote #",
-    "Quote Amount",
-    "Sent Date",
-    "Days Waiting",
-  ],
+  Unscheduled: ["Job #", "Customer", "Service", "Days Since Created", "Created Date"],
+  Scheduled: ["Job #", "Customer", "Service", "Next Visit", "Created Date"],
+  Quoted: ["Job #", "Customer", "Service", "Quote", "Created Date"],
   "Needs Invoicing": [
     "Job #",
     "Customer",
     "Service",
-    "Visits Completed",
-    "Line Items Total",
+    "Last Visit",
+    "Created Date",
   ],
   "Awaiting Payment": [
     "Job #",
     "Customer",
-    "Invoice #",
-    "Invoice Amount",
-    "Due Date",
-    "Days Outstanding",
-  ],
-  Closed: ["Job #", "Customer", "Service", "Total Invoiced", "Date Closed"],
-  Recurring: [
-    "Job #",
-    "Customer",
     "Service",
-    "Frequency",
-    "Next Visit",
-    "Last Completed",
+    "Invoice",
+    "Created Date",
   ],
+  Closed: ["Job #", "Customer", "Service", "Invoice", "Created Date"],
 };
 
 const ALL_TABS = Object.keys(TAB_COLUMNS);

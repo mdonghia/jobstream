@@ -7,19 +7,17 @@
 // =============================================================================
 
 export type JobFilterTab =
-  | "recurring"
-  | "awaiting_approval"
   | "unscheduled"
-  | "upcoming"
+  | "scheduled"
+  | "quoted"
   | "needs_invoicing"
   | "awaiting_payment"
   | "closed"
 
 export const ALL_TABS: JobFilterTab[] = [
-  "recurring",
-  "awaiting_approval",
   "unscheduled",
-  "upcoming",
+  "scheduled",
+  "quoted",
   "needs_invoicing",
   "awaiting_payment",
   "closed",
@@ -39,29 +37,26 @@ export type JobForTabComputation = {
  * Determine which filter tab a job belongs to based on priority order.
  *
  * Priority (highest wins):
- *   1. Recurring        -- isRecurring flag is true
- *   2. Awaiting Approval-- has a quote with status SENT
- *   3. Unscheduled      -- has non-completed/cancelled visits with UNSCHEDULED scheduling type
- *   4. Upcoming         -- has visits that are SCHEDULED, EN_ROUTE, or IN_PROGRESS
- *   5. Needs Invoicing  -- all non-cancelled visits completed, no actionable invoice
- *   6. Awaiting Payment -- has an invoice that is SENT, VIEWED, OVERDUE, or PARTIALLY_PAID
- *   7. Closed           -- everything else (fully paid or all cancelled)
+ *   1. Quoted           -- has a quote with status SENT
+ *   2. Unscheduled      -- has non-completed/cancelled visits with UNSCHEDULED status
+ *   3. Scheduled        -- has visits that are SCHEDULED, EN_ROUTE, or IN_PROGRESS
+ *   4. Needs Invoicing  -- all non-cancelled visits completed, no actionable invoice
+ *   5. Awaiting Payment -- has an invoice that is SENT, VIEWED, OVERDUE, or PARTIALLY_PAID
+ *   6. Closed           -- everything else (fully paid or all cancelled)
+ *
+ * Note: Recurring jobs (isRecurring=true) are no longer separated into their
+ * own tab. They fall through to whichever status-based tab is most actionable.
  */
 export function computeJobFilterTab(job: JobForTabComputation): JobFilterTab {
-  // 1. Recurring always wins
-  if (job.isRecurring) {
-    return "recurring"
-  }
-
-  // 2. Awaiting Approval -- any associated quote with status SENT
+  // 1. Quoted -- any associated quote with status SENT
   const hasQuoteSent =
     job.quotesInContext.some((q) => q.status === "SENT") ||
     (job.quote !== null && job.quote.status === "SENT")
   if (hasQuoteSent) {
-    return "awaiting_approval"
+    return "quoted"
   }
 
-  // 3. Unscheduled -- any visit with unified status UNSCHEDULED
+  // 2. Unscheduled -- any visit with unified status UNSCHEDULED
   const hasUnscheduledVisit = job.visits.some(
     (v) => v.status === "UNSCHEDULED"
   )
@@ -69,7 +64,7 @@ export function computeJobFilterTab(job: JobForTabComputation): JobFilterTab {
     return "unscheduled"
   }
 
-  // 4. Upcoming -- any visit that is ANYTIME, SCHEDULED, EN_ROUTE, or IN_PROGRESS
+  // 3. Scheduled -- any visit that is ANYTIME, SCHEDULED, EN_ROUTE, or IN_PROGRESS
   const hasActiveVisit = job.visits.some(
     (v) =>
       v.status === "ANYTIME" ||
@@ -78,10 +73,10 @@ export function computeJobFilterTab(job: JobForTabComputation): JobFilterTab {
       v.status === "IN_PROGRESS"
   )
   if (hasActiveVisit) {
-    return "upcoming"
+    return "scheduled"
   }
 
-  // 5. Needs Invoicing -- all non-cancelled visits are COMPLETED, and
+  // 4. Needs Invoicing -- all non-cancelled visits are COMPLETED, and
   //    no invoice exists (or all invoices are VOID).
   //    A DRAFT invoice counts as actionable -- the invoice exists, it
   //    just hasn't been sent yet, so the job should not stay in needs_invoicing.
@@ -99,7 +94,7 @@ export function computeJobFilterTab(job: JobForTabComputation): JobFilterTab {
     }
   }
 
-  // 6. Awaiting Payment -- any invoice that is SENT, VIEWED, OVERDUE, or PARTIALLY_PAID
+  // 5. Awaiting Payment -- any invoice that is SENT, VIEWED, OVERDUE, or PARTIALLY_PAID
   const awaitingPaymentStatuses = ["SENT", "VIEWED", "OVERDUE", "PARTIALLY_PAID"]
   const hasUnpaidInvoice = job.invoices.some((inv) =>
     awaitingPaymentStatuses.includes(inv.status)
@@ -108,6 +103,6 @@ export function computeJobFilterTab(job: JobForTabComputation): JobFilterTab {
     return "awaiting_payment"
   }
 
-  // 7. Closed -- everything else (fully paid, all cancelled, etc.)
+  // 6. Closed -- everything else (fully paid, all cancelled, etc.)
   return "closed"
 }

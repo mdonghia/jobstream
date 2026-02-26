@@ -75,6 +75,7 @@ function serializeJob(job: any) {
     jobNumber: job.jobNumber,
     title: job.title,
     isEmergency: job.isEmergency,
+    isRecurring: job.isRecurring,
     createdAt: job.createdAt,
     customer: job.customer,
     visits: job.visits.map((v: any) => ({
@@ -143,10 +144,7 @@ export async function getJobsV2(params: {
     }
 
     switch (tab) {
-      case "recurring":
-        where.isRecurring = true
-        break
-      case "awaiting_approval":
+      case "quoted":
         where.OR = [
           { quotesInContext: { some: { status: "SENT" } } },
           { quote: { status: "SENT" } },
@@ -159,7 +157,7 @@ export async function getJobsV2(params: {
           },
         }
         break
-      case "upcoming":
+      case "scheduled":
         where.visits = {
           some: {
             status: { in: ["SCHEDULED", "EN_ROUTE", "IN_PROGRESS"] },
@@ -268,10 +266,9 @@ export async function getJobTabCounts(): Promise<Record<JobFilterTab, number>> {
     console.error("getJobTabCounts error:", error)
     // Return zeroes on failure so the UI doesn't break
     return {
-      recurring: 0,
-      awaiting_approval: 0,
       unscheduled: 0,
-      upcoming: 0,
+      scheduled: 0,
+      quoted: 0,
       needs_invoicing: 0,
       awaiting_payment: 0,
       closed: 0,
@@ -309,10 +306,9 @@ async function computeTabCountsForOrg(
   })
 
   const counts: Record<JobFilterTab, number> = {
-    recurring: 0,
-    awaiting_approval: 0,
     unscheduled: 0,
-    upcoming: 0,
+    scheduled: 0,
+    quoted: 0,
     needs_invoicing: 0,
     awaiting_payment: 0,
     closed: 0,
