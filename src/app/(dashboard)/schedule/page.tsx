@@ -25,12 +25,12 @@ export default async function SchedulePage() {
       ? []
       : JSON.parse(JSON.stringify(scheduledResult.visits))
 
-  // Separate SCHEDULED visits from ANYTIME visits
+  // Separate visits by status: calendar-scheduled vs anytime
   const initialVisits = allVisits.filter(
-    (v: { schedulingType: string }) => v.schedulingType === "SCHEDULED"
+    (v: { status: string }) => v.status !== "ANYTIME" && v.status !== "UNSCHEDULED"
   )
   const anytimeVisits = allVisits.filter(
-    (v: { schedulingType: string }) => v.schedulingType === "ANYTIME"
+    (v: { status: string }) => v.status === "ANYTIME"
   )
 
   const unscheduledVisits =

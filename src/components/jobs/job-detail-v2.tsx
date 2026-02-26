@@ -24,7 +24,6 @@ import {
   Trash2,
   Check,
   X,
-  Navigation,
   UserPlus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -66,7 +65,7 @@ import {
   cn,
 } from "@/lib/utils"
 import { toast } from "sonner"
-import { createVisit, rescheduleVisit, assignVisit, updateVisitStatus, completeVisit, sendOnMyWayForVisit } from "@/actions/visits"
+import { createVisit, rescheduleVisit, assignVisit, updateVisitStatus, completeVisit, unscheduleVisit, updateVisitPurpose, updateVisitNotes } from "@/actions/visits"
 import { addJobNote, updateJob, addJobLineItem, updateJobLineItem, deleteJobLineItem } from "@/actions/jobs"
 import { getActivityFeed } from "@/actions/activity"
 import { computeJobFilterTab, type JobFilterTab } from "@/lib/job-filter-tab"
@@ -94,7 +93,6 @@ interface VisitData {
   visitNumber: number
   purpose: string
   status: string
-  schedulingType: string
   scheduledStart: string | null
   scheduledEnd: string | null
   actualStart: string | null
@@ -296,7 +294,7 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
   const [creatingVisit, setCreatingVisit] = useState(false)
   const [showAddVisitDialog, setShowAddVisitDialog] = useState(false)
   const [visitPurpose, setVisitPurpose] = useState<"DIAGNOSTIC" | "SERVICE" | "FOLLOW_UP" | "MAINTENANCE">("SERVICE")
-  const [visitSchedulingType, setVisitSchedulingType] = useState<"SCHEDULED" | "ANYTIME" | "UNSCHEDULED">("UNSCHEDULED")
+  const [visitInitialStatus, setVisitInitialStatus] = useState<"SCHEDULED" | "ANYTIME" | "UNSCHEDULED">("UNSCHEDULED")
   const [visitScheduledStart, setVisitScheduledStart] = useState("")
   const [visitScheduledEnd, setVisitScheduledEnd] = useState("")
   const [visitNotes, setVisitNotes] = useState("")
@@ -307,8 +305,15 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
   const [visitActionLoading, setVisitActionLoading] = useState<string | null>(null)
   // Per-visit schedule edit state
   const [editScheduleVisitId, setEditScheduleVisitId] = useState<string | null>(null)
-  const [editSchedStart, setEditSchedStart] = useState("")
-  const [editSchedEnd, setEditSchedEnd] = useState("")
+  const [editSchedDate, setEditSchedDate] = useState("")
+  const [editSchedStartTime, setEditSchedStartTime] = useState("")
+  const [editSchedEndTime, setEditSchedEndTime] = useState("")
+  const [editSchedAnytime, setEditSchedAnytime] = useState(false)
+  // Per-visit purpose edit state
+  const [editPurposeVisitId, setEditPurposeVisitId] = useState<string | null>(null)
+  // Per-visit notes edit state
+  const [editNotesVisitId, setEditNotesVisitId] = useState<string | null>(null)
+  const [editNotesValue, setEditNotesValue] = useState("")
   // Per-visit tech assignment state
   const [editAssignVisitId, setEditAssignVisitId] = useState<string | null>(null)
   const [editAssignUserIds, setEditAssignUserIds] = useState<string[]>([])
@@ -372,7 +377,7 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
   ]
   const filterTab = computeJobFilterTab({
     isRecurring: job.isRecurring,
-    visits: job.visits.map((v) => ({ status: v.status, schedulingType: v.schedulingType })),
+    visits: job.visits.map((v) => ({ status: v.status })),
     quotesInContext: allQuotes,
     quote: job.quote ? { status: job.quote.status } : null,
     invoices: job.invoices.map((inv) => ({ status: inv.status, amountDue: inv.amountDue })),
@@ -443,9 +448,9 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
       const result = await createVisit({
         jobId: job.id,
         purpose: visitPurpose,
-        schedulingType: visitSchedulingType,
-        scheduledStart: visitSchedulingType === "SCHEDULED" && visitScheduledStart ? visitScheduledStart : undefined,
-        scheduledEnd: visitSchedulingType === "SCHEDULED" && visitScheduledEnd ? visitScheduledEnd : undefined,
+        status: visitInitialStatus,
+        scheduledStart: visitInitialStatus === "SCHEDULED" && visitScheduledStart ? visitScheduledStart : undefined,
+        scheduledEnd: visitInitialStatus === "SCHEDULED" && visitScheduledEnd ? visitScheduledEnd : undefined,
         notes: visitNotes.trim() || undefined,
         assignedUserIds: visitAssignedUserIds.length > 0 ? visitAssignedUserIds : undefined,
       })
@@ -456,7 +461,7 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
         setShowAddVisitDialog(false)
         // Reset form
         setVisitPurpose("SERVICE")
-        setVisitSchedulingType("UNSCHEDULED")
+        setVisitInitialStatus("UNSCHEDULED")
         setVisitScheduledStart("")
         setVisitScheduledEnd("")
         setVisitNotes("")
@@ -471,23 +476,6 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
   }
 
   // --- Visit action handlers ---
-
-  async function handleVisitOnMyWay(visitId: string) {
-    setVisitActionLoading(visitId)
-    try {
-      const result = await sendOnMyWayForVisit(visitId)
-      if ("error" in result) {
-        toast.error(result.error)
-      } else {
-        toast.success("On My Way sent")
-        router.refresh()
-      }
-    } catch {
-      toast.error("Failed to send On My Way")
-    } finally {
-      setVisitActionLoading(null)
-    }
-  }
 
   async function handleVisitStatusChange(visitId: string, newStatus: "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED") {
     if (newStatus === "COMPLETED" && !completionNotesVisitId) {
@@ -516,24 +504,90 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
   }
 
   async function handleRescheduleVisit(visitId: string) {
-    if (!editSchedStart || !editSchedEnd) {
+    if (!editSchedDate) {
+      toast.error("Date is required")
+      return
+    }
+    if (!editSchedAnytime && (!editSchedStartTime || !editSchedEndTime)) {
       toast.error("Start and end time required")
       return
     }
     setVisitActionLoading(visitId)
     try {
-      const result = await rescheduleVisit(visitId, editSchedStart, editSchedEnd)
+      const startDateTime = editSchedAnytime
+        ? `${editSchedDate}T00:00`
+        : `${editSchedDate}T${editSchedStartTime}`
+      const endDateTime = editSchedAnytime
+        ? null
+        : `${editSchedDate}T${editSchedEndTime}`
+      const result = await rescheduleVisit(visitId, startDateTime, endDateTime, { anytime: editSchedAnytime })
       if ("error" in result) {
         toast.error(result.error)
       } else {
-        toast.success("Visit rescheduled")
+        toast.success(editSchedAnytime ? "Visit set to anytime" : "Visit scheduled")
         setEditScheduleVisitId(null)
-        setEditSchedStart("")
-        setEditSchedEnd("")
+        setEditSchedDate("")
+        setEditSchedStartTime("")
+        setEditSchedEndTime("")
+        setEditSchedAnytime(false)
         router.refresh()
       }
     } catch {
-      toast.error("Failed to reschedule visit")
+      toast.error("Failed to schedule visit")
+    } finally {
+      setVisitActionLoading(null)
+    }
+  }
+
+  async function handleUnscheduleVisit(visitId: string) {
+    setVisitActionLoading(visitId)
+    try {
+      const result = await unscheduleVisit(visitId)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Schedule removed")
+        setEditScheduleVisitId(null)
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to remove schedule")
+    } finally {
+      setVisitActionLoading(null)
+    }
+  }
+
+  async function handleUpdateVisitPurpose(visitId: string, purpose: "DIAGNOSTIC" | "SERVICE" | "FOLLOW_UP" | "MAINTENANCE") {
+    setVisitActionLoading(visitId)
+    try {
+      const result = await updateVisitPurpose(visitId, purpose)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        setEditPurposeVisitId(null)
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to update visit type")
+    } finally {
+      setVisitActionLoading(null)
+    }
+  }
+
+  async function handleUpdateVisitNotes(visitId: string) {
+    setVisitActionLoading(visitId)
+    try {
+      const result = await updateVisitNotes(visitId, editNotesValue)
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        toast.success("Notes updated")
+        setEditNotesVisitId(null)
+        setEditNotesValue("")
+        router.refresh()
+      }
+    } catch {
+      toast.error("Failed to update notes")
     } finally {
       setVisitActionLoading(null)
     }
@@ -764,13 +818,6 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
             <Pencil className="w-4 h-4 mr-1.5" />
             Edit Job
           </Button>
-          <Button
-            onClick={() => setShowAddVisitDialog(true)}
-            className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
-          >
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Visit
-          </Button>
         </div>
       </div>
 
@@ -872,10 +919,10 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Scheduling</Label>
+              <Label>Status</Label>
               <Select
-                value={visitSchedulingType}
-                onValueChange={(v) => setVisitSchedulingType(v as typeof visitSchedulingType)}
+                value={visitInitialStatus}
+                onValueChange={(v) => setVisitInitialStatus(v as typeof visitInitialStatus)}
               >
                 <SelectTrigger className="w-full border-[#E3E8EE]">
                   <SelectValue />
@@ -887,7 +934,7 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
                 </SelectContent>
               </Select>
             </div>
-            {visitSchedulingType === "SCHEDULED" && (
+            {visitInitialStatus === "SCHEDULED" && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="visit-start">Schedule Start</Label>
@@ -995,11 +1042,19 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
       {/* 2. Visits Timeline                                                  */}
       {/* ================================================================== */}
       <Card className="border-[#E3E8EE] mb-6">
-        <CardHeader className="pb-3">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-[#8898AA]" />
             Visits ({job.visits.length})
           </CardTitle>
+          <Button
+            size="sm"
+            onClick={() => setShowAddVisitDialog(true)}
+            className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Add Visit
+          </Button>
         </CardHeader>
         <CardContent>
           {job.visits.length > 0 ? (
@@ -1054,29 +1109,65 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
                       {/* Visit card -- clickable to expand */}
                       <div
                         className={cn(
-                          "flex-1 border rounded-lg transition-colors",
+                          "flex-1 border rounded-lg transition-all",
                           isActive
                             ? "border-blue-200 bg-blue-50/30"
                             : "border-[#E3E8EE]",
-                          !isCompleted && !isCancelled && "cursor-pointer hover:border-[#635BFF]/40"
+                          !isCompleted && !isCancelled && "cursor-pointer hover:border-[#635BFF]/40 hover:shadow-sm"
                         )}
                       >
                         {/* Card header -- always visible */}
                         <div
                           className="p-3"
-                          onClick={() => setExpandedVisitId(isExpanded ? null : visit.id)}
+                          onClick={() => {
+                            if (!isCompleted && !isCancelled) {
+                              setExpandedVisitId(isExpanded ? null : visit.id)
+                            }
+                          }}
                         >
-                          <div className="flex items-start justify-between gap-2 flex-wrap">
-                            <div className="flex items-center gap-2 flex-wrap">
+                          {/* Top row: visit ID, purpose, status */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
                               <span className="text-sm font-medium text-[#0A2540]">
                                 {job.jobNumber}_{String(visit.visitNumber).padStart(2, "0")}
                               </span>
-                              <Badge
-                                variant="outline"
-                                className="text-[10px] border-[#E3E8EE] text-[#8898AA]"
-                              >
-                                {purposeLabel(visit.purpose)}
-                              </Badge>
+                              {/* Purpose badge - clickable when expanded */}
+                              {isExpanded && !isCompleted && !isCancelled ? (
+                                editPurposeVisitId === visit.id ? (
+                                  <Select
+                                    value={visit.purpose}
+                                    onValueChange={(v) => handleUpdateVisitPurpose(visit.id, v as any)}
+                                  >
+                                    <SelectTrigger className="h-6 w-auto text-[10px] border-[#E3E8EE] px-2" onClick={(e) => e.stopPropagation()}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="DIAGNOSTIC">Diagnostic</SelectItem>
+                                      <SelectItem value="SERVICE">Service</SelectItem>
+                                      <SelectItem value="FOLLOW_UP">Follow-up</SelectItem>
+                                      <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] border-[#E3E8EE] text-[#8898AA] cursor-pointer hover:border-[#635BFF] hover:text-[#635BFF] transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setEditPurposeVisitId(visit.id)
+                                    }}
+                                  >
+                                    {purposeLabel(visit.purpose)}
+                                  </Badge>
+                                )
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] border-[#E3E8EE] text-[#8898AA]"
+                                >
+                                  {purposeLabel(visit.purpose)}
+                                </Badge>
+                              )}
                               {!isCompleted && !isCancelled && (
                                 <span className="text-[#8898AA]">
                                   {isExpanded ? (
@@ -1090,14 +1181,16 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
                             <StatusBadge status={visit.status} />
                           </div>
 
-                          {/* Schedule */}
-                          <div className="flex items-center gap-4 mt-2 flex-wrap text-xs text-[#8898AA]">
-                            {visit.schedulingType === "UNSCHEDULED" ||
-                            !visit.scheduledStart ? (
-                              <span className="text-amber-600 font-medium">
-                                Unscheduled
+                          {/* Bottom row: schedule + assigned techs in one line */}
+                          <div className="flex items-center gap-4 mt-1.5 flex-wrap text-xs text-[#8898AA]">
+                            {visit.status === "UNSCHEDULED" ? (
+                              <span className="text-amber-600 font-medium">Unscheduled</span>
+                            ) : visit.status === "ANYTIME" && visit.scheduledStart ? (
+                              <span className="flex items-center gap-1">
+                                <CalendarIcon className="w-3 h-3" />
+                                {formatDate(visit.scheduledStart)} (Anytime)
                               </span>
-                            ) : (
+                            ) : visit.scheduledStart ? (
                               <span className="flex items-center gap-1">
                                 <CalendarIcon className="w-3 h-3" />
                                 {formatDate(visit.scheduledStart)}
@@ -1107,7 +1200,7 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
                                   <> - {formatTime(visit.scheduledEnd)}</>
                                 )}
                               </span>
-                            )}
+                            ) : null}
 
                             {duration && (
                               <span className="flex items-center gap-1">
@@ -1115,33 +1208,22 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
                                 {duration}
                               </span>
                             )}
-                          </div>
 
-                          {/* Assigned techs */}
-                          {visit.assignments.length > 0 && (
-                            <div className="flex items-center gap-2 mt-2">
-                              <Users className="w-3 h-3 text-[#8898AA]" />
-                              <div className="flex items-center gap-1.5 flex-wrap">
+                            {visit.assignments.length > 0 && (
+                              <span className="flex items-center gap-1.5">
+                                <Users className="w-3 h-3" />
                                 {visit.assignments.map((a) => (
-                                  <div
-                                    key={a.user.id}
-                                    className="flex items-center gap-1"
-                                  >
-                                    <div
-                                      className="w-2 h-2 rounded-full flex-shrink-0"
-                                      style={{
-                                        backgroundColor:
-                                          a.user.color || "#635BFF",
-                                      }}
+                                  <span key={a.user.id} className="flex items-center gap-0.5">
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full inline-block"
+                                      style={{ backgroundColor: a.user.color || "#635BFF" }}
                                     />
-                                    <span className="text-xs text-[#425466]">
-                                      {a.user.firstName} {a.user.lastName}
-                                    </span>
-                                  </div>
+                                    <span className="text-[#425466]">{a.user.firstName}</span>
+                                  </span>
                                 ))}
-                              </div>
-                            </div>
-                          )}
+                              </span>
+                            )}
+                          </div>
 
                           {/* Completion notes */}
                           {isCompleted && visit.completionNotes && (
@@ -1156,19 +1238,8 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
                         {/* ========================================== */}
                         {isExpanded && !isCompleted && !isCancelled && (
                           <div className="border-t border-[#E3E8EE] px-3 pb-3 pt-2 space-y-3">
-                            {/* --- Status transition buttons --- */}
+                            {/* --- Status transition buttons (no On My Way) --- */}
                             <div className="flex items-center gap-2 flex-wrap">
-                              {visit.status === "SCHEDULED" && (
-                                <Button
-                                  size="sm"
-                                  onClick={(e) => { e.stopPropagation(); handleVisitOnMyWay(visit.id) }}
-                                  disabled={isLoading}
-                                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7"
-                                >
-                                  {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Navigation className="w-3 h-3 mr-1" />}
-                                  On My Way
-                                </Button>
-                              )}
                               {visit.status === "EN_ROUTE" && (
                                 <Button
                                   size="sm"
@@ -1217,9 +1288,9 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
                                         </Button>
                                         <Button
                                           size="sm"
-                                          variant="ghost"
+                                          variant="outline"
                                           onClick={() => { setCompletionNotesVisitId(null); setCompletionNotes("") }}
-                                          className="text-xs h-7"
+                                          className="text-xs h-7 border-[#E3E8EE] hover:bg-gray-100"
                                         >
                                           Cancel
                                         </Button>
@@ -1240,153 +1311,265 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
                               )}
                             </div>
 
-                            {/* --- Schedule controls --- */}
-                            <div onClick={(e) => e.stopPropagation()}>
-                              {editScheduleVisitId === visit.id ? (
-                                <div className="space-y-2 bg-[#F6F8FA] rounded-lg p-2.5">
-                                  <p className="text-xs font-medium text-[#0A2540]">
-                                    {visit.scheduledStart ? "Reschedule" : "Schedule"} Visit
-                                  </p>
+                            {/* --- Action buttons row --- */}
+                            <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                              {editScheduleVisitId !== visit.id && editAssignVisitId !== visit.id && editNotesVisitId !== visit.id && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditScheduleVisitId(visit.id)
+                                      // Smart defaults
+                                      if (visit.scheduledStart) {
+                                        const d = new Date(visit.scheduledStart)
+                                        setEditSchedDate(d.toISOString().slice(0, 10))
+                                        setEditSchedStartTime(d.toTimeString().slice(0, 5))
+                                        if (visit.scheduledEnd) {
+                                          const e = new Date(visit.scheduledEnd)
+                                          setEditSchedEndTime(e.toTimeString().slice(0, 5))
+                                        } else {
+                                          const end = new Date(d.getTime() + 60 * 60 * 1000)
+                                          setEditSchedEndTime(end.toTimeString().slice(0, 5))
+                                        }
+                                        setEditSchedAnytime(visit.status === "ANYTIME")
+                                      } else {
+                                        // Default to today, next round hour
+                                        const now = new Date()
+                                        setEditSchedDate(now.toISOString().slice(0, 10))
+                                        const nextHour = new Date(now)
+                                        nextHour.setMinutes(0, 0, 0)
+                                        nextHour.setHours(nextHour.getHours() + 1)
+                                        setEditSchedStartTime(nextHour.toTimeString().slice(0, 5))
+                                        const endTime = new Date(nextHour.getTime() + 60 * 60 * 1000)
+                                        setEditSchedEndTime(endTime.toTimeString().slice(0, 5))
+                                        setEditSchedAnytime(false)
+                                      }
+                                    }}
+                                    className="text-xs h-7 border-[#E3E8EE] hover:bg-gray-100"
+                                  >
+                                    <CalendarIcon className="w-3 h-3 mr-1" />
+                                    {visit.status === "SCHEDULED" || visit.status === "ANYTIME" ? "Reschedule" : "Schedule"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditAssignVisitId(visit.id)
+                                      setEditAssignUserIds(visit.assignments.map((a) => a.user.id))
+                                    }}
+                                    className="text-xs h-7 border-[#E3E8EE] hover:bg-gray-100"
+                                  >
+                                    <UserPlus className="w-3 h-3 mr-1" />
+                                    {visit.assignments.length > 0 ? "Change Team" : "Assign Team"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditNotesVisitId(visit.id)
+                                      setEditNotesValue(visit.notes || "")
+                                    }}
+                                    className="text-xs h-7 border-[#E3E8EE] hover:bg-gray-100"
+                                  >
+                                    <StickyNote className="w-3 h-3 mr-1" />
+                                    {visit.notes ? "Edit Notes" : "Add Notes"}
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+
+                            {/* --- Schedule inline editor --- */}
+                            {editScheduleVisitId === visit.id && (
+                              <div className="space-y-2.5 bg-[#F6F8FA] rounded-lg p-3" onClick={(e) => e.stopPropagation()}>
+                                <p className="text-xs font-medium text-[#0A2540]">
+                                  {visit.status === "SCHEDULED" || visit.status === "ANYTIME" ? "Reschedule" : "Schedule"} Visit
+                                </p>
+
+                                {/* Any time checkbox */}
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={editSchedAnytime}
+                                    onChange={(e) => setEditSchedAnytime(e.target.checked)}
+                                    className="rounded border-gray-300 text-[#635BFF] focus:ring-[#635BFF]"
+                                  />
+                                  <span className="text-xs text-[#425466]">Any time (just pick the day)</span>
+                                </label>
+
+                                {/* Date */}
+                                <div>
+                                  <Label className="text-[10px] text-[#8898AA]">Date</Label>
+                                  <Input
+                                    type="date"
+                                    value={editSchedDate}
+                                    onChange={(e) => setEditSchedDate(e.target.value)}
+                                    className="h-8 text-xs border-[#E3E8EE]"
+                                  />
+                                </div>
+
+                                {/* Time inputs (hidden when anytime) */}
+                                {!editSchedAnytime && (
                                   <div className="grid grid-cols-2 gap-2">
                                     <div>
-                                      <Label className="text-[10px] text-[#8898AA]">Start</Label>
+                                      <Label className="text-[10px] text-[#8898AA]">Start Time</Label>
                                       <Input
-                                        type="datetime-local"
-                                        value={editSchedStart}
-                                        onChange={(e) => setEditSchedStart(e.target.value)}
+                                        type="time"
+                                        value={editSchedStartTime}
+                                        onChange={(e) => {
+                                          setEditSchedStartTime(e.target.value)
+                                          // Auto-adjust end time to 1 hour after
+                                          if (e.target.value) {
+                                            const [h, m] = e.target.value.split(":").map(Number)
+                                            const end = new Date(2000, 0, 1, h + 1, m)
+                                            setEditSchedEndTime(end.toTimeString().slice(0, 5))
+                                          }
+                                        }}
                                         className="h-8 text-xs border-[#E3E8EE]"
                                       />
                                     </div>
                                     <div>
-                                      <Label className="text-[10px] text-[#8898AA]">End</Label>
+                                      <Label className="text-[10px] text-[#8898AA]">End Time</Label>
                                       <Input
-                                        type="datetime-local"
-                                        value={editSchedEnd}
-                                        onChange={(e) => setEditSchedEnd(e.target.value)}
+                                        type="time"
+                                        value={editSchedEndTime}
+                                        onChange={(e) => setEditSchedEndTime(e.target.value)}
                                         className="h-8 text-xs border-[#E3E8EE]"
                                       />
                                     </div>
                                   </div>
+                                )}
+
+                                {/* Buttons */}
+                                <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
                                     <Button
                                       size="sm"
                                       onClick={() => handleRescheduleVisit(visit.id)}
-                                      disabled={isLoading || !editSchedStart || !editSchedEnd}
-                                      className="bg-[#635BFF] hover:bg-[#5851ea] text-white text-xs h-7"
+                                      disabled={isLoading || !editSchedDate || (!editSchedAnytime && (!editSchedStartTime || !editSchedEndTime))}
+                                      className="bg-[#635BFF] hover:bg-[#5851ea] text-white text-xs h-7 disabled:opacity-50"
                                     >
                                       {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
                                       Save
                                     </Button>
                                     <Button
                                       size="sm"
-                                      variant="ghost"
+                                      variant="outline"
                                       onClick={() => setEditScheduleVisitId(null)}
-                                      className="text-xs h-7"
+                                      className="text-xs h-7 border-[#E3E8EE] hover:bg-gray-100"
                                     >
                                       Cancel
                                     </Button>
                                   </div>
+                                  {(visit.status === "SCHEDULED" || visit.status === "ANYTIME") && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUnscheduleVisit(visit.id)}
+                                      className="text-[10px] text-[#8898AA] hover:text-red-500 underline transition-colors"
+                                    >
+                                      Remove schedule
+                                    </button>
+                                  )}
                                 </div>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setEditScheduleVisitId(visit.id)
-                                    // Pre-fill with existing values
-                                    if (visit.scheduledStart) {
-                                      setEditSchedStart(new Date(visit.scheduledStart).toISOString().slice(0, 16))
-                                    } else {
-                                      setEditSchedStart("")
-                                    }
-                                    if (visit.scheduledEnd) {
-                                      setEditSchedEnd(new Date(visit.scheduledEnd).toISOString().slice(0, 16))
-                                    } else {
-                                      setEditSchedEnd("")
-                                    }
-                                  }}
-                                  className="text-xs h-7 border-[#E3E8EE]"
-                                >
-                                  <CalendarIcon className="w-3 h-3 mr-1" />
-                                  {visit.scheduledStart ? "Reschedule" : "Schedule"}
-                                </Button>
-                              )}
-                            </div>
+                              </div>
+                            )}
 
-                            {/* --- Tech assignment --- */}
-                            <div onClick={(e) => e.stopPropagation()}>
-                              {editAssignVisitId === visit.id ? (
-                                <div className="space-y-2 bg-[#F6F8FA] rounded-lg p-2.5">
-                                  <p className="text-xs font-medium text-[#0A2540]">Assign Team</p>
-                                  <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                                    {teamMembers.map((tm) => {
-                                      const isSelected = editAssignUserIds.includes(tm.id)
-                                      return (
-                                        <label
-                                          key={tm.id}
-                                          className={cn(
-                                            "flex items-center gap-2 p-1.5 rounded cursor-pointer text-xs",
-                                            isSelected ? "bg-[#635BFF]/10" : "hover:bg-gray-100"
-                                          )}
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={() => {
-                                              setEditAssignUserIds((prev) =>
-                                                isSelected
-                                                  ? prev.filter((id) => id !== tm.id)
-                                                  : [...prev, tm.id]
-                                              )
-                                            }}
-                                            className="rounded border-gray-300 text-[#635BFF] focus:ring-[#635BFF]"
-                                          />
-                                          <div
-                                            className="w-2 h-2 rounded-full flex-shrink-0"
-                                            style={{ backgroundColor: tm.color || "#635BFF" }}
-                                          />
-                                          <span className="text-[#425466]">
-                                            {tm.firstName} {tm.lastName}
-                                          </span>
-                                        </label>
-                                      )
-                                    })}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleAssignVisit(visit.id)}
-                                      disabled={isLoading}
-                                      className="bg-[#635BFF] hover:bg-[#5851ea] text-white text-xs h-7"
-                                    >
-                                      {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-                                      Save
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => setEditAssignVisitId(null)}
-                                      className="text-xs h-7"
-                                    >
-                                      Cancel
-                                    </Button>
-                                  </div>
+                            {/* --- Tech assignment inline editor --- */}
+                            {editAssignVisitId === visit.id && (
+                              <div className="space-y-2 bg-[#F6F8FA] rounded-lg p-2.5" onClick={(e) => e.stopPropagation()}>
+                                <p className="text-xs font-medium text-[#0A2540]">Assign Team</p>
+                                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                                  {teamMembers.map((tm) => {
+                                    const isSelected = editAssignUserIds.includes(tm.id)
+                                    return (
+                                      <label
+                                        key={tm.id}
+                                        className={cn(
+                                          "flex items-center gap-2 p-1.5 rounded cursor-pointer text-xs",
+                                          isSelected ? "bg-[#635BFF]/10" : "hover:bg-gray-100"
+                                        )}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={isSelected}
+                                          onChange={() => {
+                                            setEditAssignUserIds((prev) =>
+                                              isSelected
+                                                ? prev.filter((id) => id !== tm.id)
+                                                : [...prev, tm.id]
+                                            )
+                                          }}
+                                          className="rounded border-gray-300 text-[#635BFF] focus:ring-[#635BFF]"
+                                        />
+                                        <div
+                                          className="w-2 h-2 rounded-full flex-shrink-0"
+                                          style={{ backgroundColor: tm.color || "#635BFF" }}
+                                        />
+                                        <span className="text-[#425466]">
+                                          {tm.firstName} {tm.lastName}
+                                        </span>
+                                      </label>
+                                    )
+                                  })}
                                 </div>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setEditAssignVisitId(visit.id)
-                                    setEditAssignUserIds(visit.assignments.map((a) => a.user.id))
-                                  }}
-                                  className="text-xs h-7 border-[#E3E8EE]"
-                                >
-                                  <UserPlus className="w-3 h-3 mr-1" />
-                                  {visit.assignments.length > 0 ? "Change Team" : "Assign Team"}
-                                </Button>
-                              )}
-                            </div>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleAssignVisit(visit.id)}
+                                    disabled={isLoading}
+                                    className="bg-[#635BFF] hover:bg-[#5851ea] text-white text-xs h-7"
+                                  >
+                                    {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setEditAssignVisitId(null)}
+                                    className="text-xs h-7 border-[#E3E8EE] hover:bg-gray-100"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* --- Notes inline editor --- */}
+                            {editNotesVisitId === visit.id && (
+                              <div className="space-y-2 bg-[#F6F8FA] rounded-lg p-2.5" onClick={(e) => e.stopPropagation()}>
+                                <p className="text-xs font-medium text-[#0A2540]">Visit Notes</p>
+                                <Textarea
+                                  value={editNotesValue}
+                                  onChange={(e) => setEditNotesValue(e.target.value)}
+                                  placeholder="Add notes for this visit..."
+                                  className="min-h-[60px] text-xs border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                                />
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleUpdateVisitNotes(visit.id)}
+                                    disabled={isLoading}
+                                    className="bg-[#635BFF] hover:bg-[#5851ea] text-white text-xs h-7"
+                                  >
+                                    {isLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                                    Save
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => { setEditNotesVisitId(null); setEditNotesValue("") }}
+                                    className="text-xs h-7 border-[#E3E8EE] hover:bg-gray-100"
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Show existing notes if not editing */}
+                            {editNotesVisitId !== visit.id && visit.notes && (
+                              <p className="text-xs text-[#425466] bg-[#F6F8FA] rounded p-2 italic">{visit.notes}</p>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1397,7 +1580,7 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
             </div>
           ) : (
             <p className="text-sm text-[#8898AA] text-center py-6">
-              No visits yet. Click &quot;Add Visit&quot; to create one.
+              No visits yet.
             </p>
           )}
         </CardContent>

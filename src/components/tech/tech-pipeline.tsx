@@ -44,7 +44,7 @@ type TechVisitsResult = Extract<
 
 type TechVisit = TechVisitsResult["visits"][number]
 
-type VisitStatus = "SCHEDULED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
+type VisitStatus = "UNSCHEDULED" | "ANYTIME" | "SCHEDULED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -245,7 +245,7 @@ function VisitCard({
         {/* Time */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock className="size-3.5 shrink-0" />
-          {visit.schedulingType === "ANYTIME" ? (
+          {visit.status === "ANYTIME" ? (
             <Badge variant="outline" className="text-xs py-0">Anytime</Badge>
           ) : visit.scheduledStart ? (
             <span>

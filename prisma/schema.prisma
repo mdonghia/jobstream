@@ -119,20 +119,15 @@ enum ScheduledStatus {
   CANCELLED
 }
 
-// V2: Visit lifecycle status
+// V2: Unified visit lifecycle status
 enum VisitStatus {
+  UNSCHEDULED
+  ANYTIME
   SCHEDULED
   EN_ROUTE
   IN_PROGRESS
   COMPLETED
   CANCELLED
-}
-
-// V2: How a visit is scheduled
-enum SchedulingType {
-  SCHEDULED
-  ANYTIME
-  UNSCHEDULED
 }
 
 // V2: Purpose of a visit
@@ -1122,8 +1117,7 @@ model Visit {
   organizationId  String
   visitNumber     Int            // Sequential within the job (1, 2, 3...)
   purpose         VisitPurpose   @default(SERVICE)
-  status          VisitStatus    @default(SCHEDULED)
-  schedulingType  SchedulingType @default(UNSCHEDULED)
+  status          VisitStatus    @default(UNSCHEDULED)
   scheduledStart  DateTime?
   scheduledEnd    DateTime?
   actualStart     DateTime?

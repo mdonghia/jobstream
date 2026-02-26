@@ -12,7 +12,7 @@ import { calculateNextOccurrence } from "@/lib/recurrence"
 export async function createVisit(data: {
   jobId: string
   purpose?: "DIAGNOSTIC" | "SERVICE" | "FOLLOW_UP" | "MAINTENANCE"
-  schedulingType?: "SCHEDULED" | "ANYTIME" | "UNSCHEDULED"
+  status?: "UNSCHEDULED" | "ANYTIME" | "SCHEDULED"
   scheduledStart?: string | Date
   scheduledEnd?: string | Date
   arrivalWindowMinutes?: number
@@ -41,8 +41,7 @@ export async function createVisit(data: {
           organizationId: user.organizationId,
           visitNumber,
           purpose: data.purpose || "SERVICE",
-          status: "SCHEDULED",
-          schedulingType: data.schedulingType || "UNSCHEDULED",
+          status: data.status || "UNSCHEDULED",
           scheduledStart: data.scheduledStart ? new Date(data.scheduledStart) : null,
           scheduledEnd: data.scheduledEnd ? new Date(data.scheduledEnd) : null,
           arrivalWindowMinutes: data.arrivalWindowMinutes ?? null,
@@ -78,7 +77,7 @@ export async function createVisit(data: {
 
 export async function updateVisitStatus(
   visitId: string,
-  newStatus: "SCHEDULED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED",
+  newStatus: "UNSCHEDULED" | "ANYTIME" | "SCHEDULED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED",
   data?: { completionNotes?: string }
 ) {
   try {
@@ -91,11 +90,13 @@ export async function updateVisitStatus(
 
     // Validate status transitions
     const validTransitions: Record<string, string[]> = {
-      SCHEDULED: ["EN_ROUTE", "CANCELLED"],
+      UNSCHEDULED: ["ANYTIME", "SCHEDULED", "CANCELLED"],
+      ANYTIME: ["UNSCHEDULED", "SCHEDULED", "EN_ROUTE", "CANCELLED"],
+      SCHEDULED: ["UNSCHEDULED", "ANYTIME", "EN_ROUTE", "CANCELLED"],
       EN_ROUTE: ["IN_PROGRESS", "CANCELLED"],
       IN_PROGRESS: ["COMPLETED", "CANCELLED"],
       COMPLETED: [], // Can't transition from completed
-      CANCELLED: ["SCHEDULED"], // Reopen
+      CANCELLED: ["UNSCHEDULED"], // Reopen
     }
 
     if (!validTransitions[visit.status]?.includes(newStatus)) {
@@ -214,7 +215,6 @@ export async function updateVisitStatus(
                     visitNumber: nextVisitNumber,
                     purpose: "MAINTENANCE",
                     status: "SCHEDULED",
-                    schedulingType: "SCHEDULED",
                     scheduledStart: nextStart,
                     scheduledEnd: nextEnd,
                     arrivalWindowMinutes:
@@ -306,7 +306,8 @@ export async function completeVisit(
 export async function rescheduleVisit(
   visitId: string,
   scheduledStart: string | Date,
-  scheduledEnd: string | Date
+  scheduledEnd?: string | Date | null,
+  options?: { anytime?: boolean }
 ) {
   try {
     const user = await requireAuth()
@@ -332,14 +333,15 @@ export async function rescheduleVisit(
     if (!visit) return { error: "Visit not found" }
 
     const newStartDate = new Date(scheduledStart)
-    const newEndDate = new Date(scheduledEnd)
+    const newEndDate = scheduledEnd ? new Date(scheduledEnd) : null
+    const newStatus = options?.anytime ? "ANYTIME" : "SCHEDULED"
 
     await prisma.visit.update({
       where: { id: visitId },
       data: {
         scheduledStart: newStartDate,
         scheduledEnd: newEndDate,
-        schedulingType: "SCHEDULED",
+        status: newStatus,
       },
     })
 
@@ -531,7 +533,7 @@ export async function getCalendarVisits(params: {
 }
 
 // =============================================================================
-// 6b. getUnscheduledVisits - Get visits with schedulingType UNSCHEDULED
+// 6b. getUnscheduledVisits - Get visits with status UNSCHEDULED
 // =============================================================================
 
 export async function getUnscheduledVisits(params?: { userIds?: string[] }) {
@@ -541,8 +543,7 @@ export async function getUnscheduledVisits(params?: { userIds?: string[] }) {
     const where: any = {
       organizationId: user.organizationId,
       job: { customer: { isArchived: false } },
-      status: { not: "CANCELLED" },
-      schedulingType: "UNSCHEDULED",
+      status: "UNSCHEDULED",
     }
 
     if (params?.userIds && params.userIds.length > 0) {
@@ -610,8 +611,8 @@ export async function sendOnMyWayForVisit(visitId: string) {
     })
     if (!visit) return { error: "Visit not found" }
 
-    // Check visit is SCHEDULED
-    if (visit.status !== "SCHEDULED") {
+    // Check visit is SCHEDULED or ANYTIME
+    if (visit.status !== "SCHEDULED" && visit.status !== "ANYTIME") {
       return { error: "Visit must be scheduled to send 'On My Way'" }
     }
 
@@ -895,8 +896,7 @@ export async function createVisitFromApprovedQuote(
           organizationId,
           visitNumber,
           purpose: "SERVICE",
-          status: "SCHEDULED",
-          schedulingType: "UNSCHEDULED",
+          status: "UNSCHEDULED",
         },
       })
 
@@ -953,16 +953,16 @@ export async function getTechVisits(params: { date: string; tomorrow?: boolean }
         organizationId: user.organizationId,
         job: { customer: { isArchived: false } },
         assignments: { some: { userId: user.id } },
-        status: { not: "CANCELLED" },
+        status: { notIn: ["CANCELLED", "COMPLETED"] },
         OR: [
           // SCHEDULED / ANYTIME visits with scheduledStart in range
           {
-            schedulingType: { in: ["SCHEDULED", "ANYTIME"] },
+            status: { in: ["SCHEDULED", "ANYTIME", "EN_ROUTE", "IN_PROGRESS"] },
             scheduledStart: { gte: dayStart, lte: dayEnd },
           },
           // UNSCHEDULED visits (no date set) -- include all
           {
-            schedulingType: "UNSCHEDULED",
+            status: "UNSCHEDULED",
           },
         ],
       },
@@ -987,23 +987,24 @@ export async function getTechVisits(params: { date: string; tomorrow?: boolean }
         },
       },
       orderBy: [
-        { schedulingType: "asc" }, // ANYTIME sorts after SCHEDULED alphabetically
         { scheduledStart: "asc" },
       ],
     })
 
-    // Sort so SCHEDULED visits come first (by scheduledStart), then ANYTIME, then UNSCHEDULED
+    // Sort: EN_ROUTE/IN_PROGRESS first, then SCHEDULED (by time), then ANYTIME, then UNSCHEDULED
     const sortOrder: Record<string, number> = {
-      SCHEDULED: 0,
-      ANYTIME: 1,
-      UNSCHEDULED: 2,
+      EN_ROUTE: 0,
+      IN_PROGRESS: 0,
+      SCHEDULED: 1,
+      ANYTIME: 2,
+      UNSCHEDULED: 3,
     }
 
     const sortedVisits = visits.sort((a, b) => {
-      const aOrder = sortOrder[a.schedulingType] ?? 2
-      const bOrder = sortOrder[b.schedulingType] ?? 2
+      const aOrder = sortOrder[a.status] ?? 3
+      const bOrder = sortOrder[b.status] ?? 3
       if (aOrder !== bOrder) return aOrder - bOrder
-      // Within the same scheduling type, sort by scheduledStart ascending
+      // Within the same status group, sort by scheduledStart ascending
       const aTime = a.scheduledStart?.getTime() ?? Infinity
       const bTime = b.scheduledStart?.getTime() ?? Infinity
       return aTime - bTime
@@ -1027,6 +1028,96 @@ export async function getTechVisits(params: { date: string; tomorrow?: boolean }
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
     console.error("getTechVisits error:", error)
     return { error: "Failed to fetch tech visits" }
+  }
+}
+
+// =============================================================================
+// 10. unscheduleVisit - Remove schedule from a visit
+// =============================================================================
+
+export async function unscheduleVisit(visitId: string) {
+  try {
+    const user = await requireAuth()
+
+    const visit = await prisma.visit.findFirst({
+      where: { id: visitId, organizationId: user.organizationId },
+    })
+    if (!visit) return { error: "Visit not found" }
+
+    // Only allow unscheduling from SCHEDULED or ANYTIME
+    if (visit.status !== "SCHEDULED" && visit.status !== "ANYTIME") {
+      return { error: "Visit must be scheduled or anytime to unschedule" }
+    }
+
+    await prisma.visit.update({
+      where: { id: visitId },
+      data: {
+        status: "UNSCHEDULED",
+        scheduledStart: null,
+        scheduledEnd: null,
+      },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("unscheduleVisit error:", error)
+    return { error: "Failed to unschedule visit" }
+  }
+}
+
+// =============================================================================
+// 11. updateVisitPurpose - Change visit type/purpose
+// =============================================================================
+
+export async function updateVisitPurpose(
+  visitId: string,
+  purpose: "DIAGNOSTIC" | "SERVICE" | "FOLLOW_UP" | "MAINTENANCE"
+) {
+  try {
+    const user = await requireAuth()
+
+    const visit = await prisma.visit.findFirst({
+      where: { id: visitId, organizationId: user.organizationId },
+    })
+    if (!visit) return { error: "Visit not found" }
+
+    await prisma.visit.update({
+      where: { id: visitId },
+      data: { purpose },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateVisitPurpose error:", error)
+    return { error: "Failed to update visit purpose" }
+  }
+}
+
+// =============================================================================
+// 12. updateVisitNotes - Update visit notes
+// =============================================================================
+
+export async function updateVisitNotes(visitId: string, notes: string) {
+  try {
+    const user = await requireAuth()
+
+    const visit = await prisma.visit.findFirst({
+      where: { id: visitId, organizationId: user.organizationId },
+    })
+    if (!visit) return { error: "Visit not found" }
+
+    await prisma.visit.update({
+      where: { id: visitId },
+      data: { notes: notes.trim() || null },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateVisitNotes error:", error)
+    return { error: "Failed to update visit notes" }
   }
 }
 

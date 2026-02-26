@@ -29,8 +29,7 @@ const jobIncludeForV2 = {
       visitNumber: true,
       status: true,
       scheduledStart: true,
-      schedulingType: true,
-      purpose: true,
+            purpose: true,
       assignments: {
         include: {
           user: {
@@ -83,7 +82,6 @@ function serializeJob(job: any) {
       visitNumber: v.visitNumber,
       status: v.status,
       scheduledStart: v.scheduledStart,
-      schedulingType: v.schedulingType,
       purpose: v.purpose,
       assignments: v.assignments,
     })),
@@ -157,8 +155,7 @@ export async function getJobsV2(params: {
       case "unscheduled":
         where.visits = {
           some: {
-            schedulingType: "UNSCHEDULED",
-            status: { notIn: ["COMPLETED", "CANCELLED"] },
+            status: "UNSCHEDULED",
           },
         }
         break
@@ -224,7 +221,7 @@ export async function getJobsV2(params: {
     const matchingJobs = allCandidates.filter((job) => {
       const computed = computeJobFilterTab({
         isRecurring: job.isRecurring,
-        visits: job.visits.map((v) => ({ status: v.status, schedulingType: v.schedulingType })),
+        visits: job.visits.map((v) => ({ status: v.status })),
         quotesInContext: job.quotesInContext.map((q) => ({ status: q.status })),
         quote: job.quote ? { status: job.quote.status } : null,
         invoices: job.invoices.map((inv) => ({ status: inv.status, amountDue: inv.amountDue })),
@@ -297,7 +294,7 @@ async function computeTabCountsForOrg(
     select: {
       isRecurring: true,
       visits: {
-        select: { status: true, schedulingType: true },
+        select: { status: true },
       },
       quote: {
         select: { status: true },
@@ -324,7 +321,7 @@ async function computeTabCountsForOrg(
   for (const job of jobs) {
     const tab = computeJobFilterTab({
       isRecurring: job.isRecurring,
-      visits: job.visits.map((v) => ({ status: v.status, schedulingType: v.schedulingType })),
+      visits: job.visits.map((v) => ({ status: v.status })),
       quotesInContext: job.quotesInContext.map((q) => ({ status: q.status })),
       quote: job.quote ? { status: job.quote.status } : null,
       invoices: job.invoices.map((inv) => ({ status: inv.status, amountDue: inv.amountDue })),
@@ -374,7 +371,7 @@ export async function getJobSearchResults(query: string) {
     const results = jobs.map((job) => {
       const tab = computeJobFilterTab({
         isRecurring: job.isRecurring,
-        visits: job.visits.map((v) => ({ status: v.status, schedulingType: v.schedulingType })),
+        visits: job.visits.map((v) => ({ status: v.status })),
         quotesInContext: job.quotesInContext.map((q) => ({ status: q.status })),
         quote: job.quote ? { status: job.quote.status } : null,
         invoices: job.invoices.map((inv) => ({ status: inv.status, amountDue: inv.amountDue })),

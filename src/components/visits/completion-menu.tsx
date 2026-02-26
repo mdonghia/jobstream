@@ -57,7 +57,7 @@ function AddVisitForm({
   const [purpose, setPurpose] = useState<
     "DIAGNOSTIC" | "SERVICE" | "FOLLOW_UP" | "MAINTENANCE"
   >("FOLLOW_UP")
-  const [schedulingType, setSchedulingType] = useState<
+  const [status, setStatus] = useState<
     "SCHEDULED" | "ANYTIME" | "UNSCHEDULED"
   >("UNSCHEDULED")
   const [scheduledStart, setScheduledStart] = useState("")
@@ -72,7 +72,7 @@ function AddVisitForm({
       const result = await createVisit({
         jobId,
         purpose,
-        schedulingType,
+        status,
         scheduledStart: scheduledStart || undefined,
         scheduledEnd: scheduledEnd || undefined,
         notes: notes || undefined,
@@ -108,14 +108,14 @@ function AddVisitForm({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="visit-scheduling">Scheduling</Label>
+        <Label htmlFor="visit-status">Status</Label>
         <Select
-          value={schedulingType}
+          value={status}
           onValueChange={(v) =>
-            setSchedulingType(v as typeof schedulingType)
+            setStatus(v as typeof status)
           }
         >
-          <SelectTrigger id="visit-scheduling" className="w-full">
+          <SelectTrigger id="visit-status" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -126,7 +126,7 @@ function AddVisitForm({
         </Select>
       </div>
 
-      {schedulingType === "SCHEDULED" && (
+      {status === "SCHEDULED" && (
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label htmlFor="visit-start">Start</Label>

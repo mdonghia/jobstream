@@ -313,8 +313,7 @@ export async function createJob(data: {
           organizationId: user.organizationId,
           visitNumber: 1,
           purpose: "SERVICE",
-          status: "SCHEDULED",
-          schedulingType: isUnscheduled ? "UNSCHEDULED" : "SCHEDULED",
+          status: isUnscheduled ? "UNSCHEDULED" : "SCHEDULED",
           scheduledStart: new Date(data.scheduledStart),
           scheduledEnd: new Date(data.scheduledEnd),
           arrivalWindowMinutes: data.arrivalWindowMinutes ?? null,
@@ -610,7 +609,6 @@ async function createNextRecurringVisit(params: {
         visitNumber: nextVisitNumber,
         purpose: "MAINTENANCE",
         status: "SCHEDULED",
-        schedulingType: "SCHEDULED",
         scheduledStart: nextStart,
         scheduledEnd: nextEnd,
         arrivalWindowMinutes: lastVisit?.arrivalWindowMinutes ?? null,
@@ -992,7 +990,7 @@ export async function rescheduleJob(
       data: {
         scheduledStart: newStartDate,
         scheduledEnd: newEndDate,
-        schedulingType: isUndoToUnscheduled ? "UNSCHEDULED" : "SCHEDULED",
+        status: isUndoToUnscheduled ? "UNSCHEDULED" : "SCHEDULED",
       },
     })
 

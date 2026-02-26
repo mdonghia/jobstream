@@ -58,8 +58,7 @@ export interface CalendarVisit {
   id: string
   visitNumber: number
   purpose: "DIAGNOSTIC" | "SERVICE" | "FOLLOW_UP" | "MAINTENANCE"
-  status: "SCHEDULED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
-  schedulingType: "SCHEDULED" | "ANYTIME" | "UNSCHEDULED"
+  status: "UNSCHEDULED" | "ANYTIME" | "SCHEDULED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
   scheduledStart: string | null
   scheduledEnd: string | null
   arrivalWindowMinutes: number | null
@@ -302,8 +301,8 @@ export function CalendarViewV2({
           const allVisits = JSON.parse(JSON.stringify(scheduledResult.visits)) as CalendarVisit[]
 
           // Separate scheduled vs anytime
-          const scheduled = allVisits.filter((v) => v.schedulingType === "SCHEDULED")
-          const anytime = allVisits.filter((v) => v.schedulingType === "ANYTIME")
+          const scheduled = allVisits.filter((v) => v.status === "SCHEDULED" || v.status === "EN_ROUTE" || v.status === "IN_PROGRESS" || v.status === "COMPLETED" || v.status === "CANCELLED")
+          const anytime = allVisits.filter((v) => v.status === "ANYTIME")
 
           setVisits(scheduled)
           setAnytimeVisits(anytime)
@@ -1081,7 +1080,7 @@ function VisitListView({
         {allVisits.map((visit) => {
           const color = getVisitColor(visit)
           const isEmergency = visit.job.priority === "URGENT"
-          const isAnytime = visit.schedulingType === "ANYTIME"
+          const isAnytime = visit.status === "ANYTIME"
 
           return (
             <div

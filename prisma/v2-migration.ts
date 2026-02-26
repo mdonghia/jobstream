@@ -19,29 +19,19 @@ const prisma = new PrismaClient({ adapter })
 // -- Helpers -------------------------------------------------------------------
 
 type JobStatus = "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
-type VisitStatus = "SCHEDULED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
-type SchedulingType = "SCHEDULED" | "ANYTIME" | "UNSCHEDULED"
+type VisitStatus = "UNSCHEDULED" | "ANYTIME" | "SCHEDULED" | "EN_ROUTE" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"
 
-function mapJobStatusToVisitStatus(status: JobStatus): VisitStatus {
-  const map: Record<JobStatus, VisitStatus> = {
-    SCHEDULED: "SCHEDULED",
-    IN_PROGRESS: "IN_PROGRESS",
-    COMPLETED: "COMPLETED",
-    CANCELLED: "CANCELLED",
-  }
-  return map[status]
-}
+function mapJobToVisitStatus(status: JobStatus, scheduledStart: Date, createdAt: Date): VisitStatus {
+  // For jobs that have progressed past scheduling, keep their status
+  if (status === "IN_PROGRESS") return "IN_PROGRESS"
+  if (status === "COMPLETED") return "COMPLETED"
+  if (status === "CANCELLED") return "CANCELLED"
 
-function determineSchedulingType(
-  scheduledStart: Date,
-  createdAt: Date,
-): SchedulingType {
+  // For SCHEDULED jobs, determine if they're actually unscheduled
   const year2000 = new Date("2000-01-01T00:00:00Z")
   if (scheduledStart < year2000) return "UNSCHEDULED"
-
   const diffMs = Math.abs(scheduledStart.getTime() - createdAt.getTime())
   if (diffMs <= 60_000) return "UNSCHEDULED"
-
   return "SCHEDULED"
 }
 
@@ -110,11 +100,7 @@ async function main() {
             organizationId: job.organizationId,
             visitNumber: 1,
             purpose: "SERVICE",
-            status: mapJobStatusToVisitStatus(job.status as JobStatus),
-            schedulingType: determineSchedulingType(
-              job.scheduledStart,
-              job.createdAt,
-            ),
+            status: mapJobToVisitStatus(job.status as JobStatus, job.scheduledStart, job.createdAt),
             scheduledStart: job.scheduledStart,
             scheduledEnd: job.scheduledEnd,
             actualStart: job.actualStart,

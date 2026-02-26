@@ -30,7 +30,6 @@ interface SerializedVisit {
   visitNumber: number
   status: string
   scheduledStart: string | null
-  schedulingType: string
   purpose: string | null
   assignments: {
     user: {

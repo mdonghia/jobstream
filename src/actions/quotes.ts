@@ -910,8 +910,7 @@ async function _internalConvertQuoteToJob(
         organizationId,
         visitNumber: 1,
         purpose: "SERVICE",
-        status: "SCHEDULED",
-        schedulingType: "UNSCHEDULED", // Quote-converted jobs start unscheduled
+        status: "UNSCHEDULED", // Quote-converted jobs start unscheduled
         scheduledStart: new Date("2000-01-01T00:00:00.000Z"),
         scheduledEnd: new Date("2000-01-01T02:00:00.000Z"),
       },

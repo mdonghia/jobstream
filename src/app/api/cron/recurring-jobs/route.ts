@@ -125,7 +125,6 @@ export async function GET(req: NextRequest) {
               visitNumber: nextVisitNumber,
               purpose: "MAINTENANCE",
               status: "SCHEDULED",
-              schedulingType: "SCHEDULED",
               scheduledStart: nextStart,
               scheduledEnd: nextEnd,
               arrivalWindowMinutes: latestVisit.arrivalWindowMinutes ?? null,

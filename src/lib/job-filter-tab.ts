@@ -29,7 +29,7 @@ export const ALL_TABS: JobFilterTab[] = [
 // This is passed into the pure function so it can work without a database.
 export type JobForTabComputation = {
   isRecurring: boolean
-  visits: { status: string; schedulingType: string }[]
+  visits: { status: string }[]
   quotesInContext: { status: string }[]
   quote: { status: string } | null
   invoices: { status: string; amountDue: any }[]
@@ -61,20 +61,18 @@ export function computeJobFilterTab(job: JobForTabComputation): JobFilterTab {
     return "awaiting_approval"
   }
 
-  // 3. Unscheduled -- any active visit with schedulingType UNSCHEDULED
+  // 3. Unscheduled -- any visit with unified status UNSCHEDULED
   const hasUnscheduledVisit = job.visits.some(
-    (v) =>
-      v.schedulingType === "UNSCHEDULED" &&
-      v.status !== "COMPLETED" &&
-      v.status !== "CANCELLED"
+    (v) => v.status === "UNSCHEDULED"
   )
   if (hasUnscheduledVisit) {
     return "unscheduled"
   }
 
-  // 4. Upcoming -- any visit that is SCHEDULED, EN_ROUTE, or IN_PROGRESS
+  // 4. Upcoming -- any visit that is ANYTIME, SCHEDULED, EN_ROUTE, or IN_PROGRESS
   const hasActiveVisit = job.visits.some(
     (v) =>
+      v.status === "ANYTIME" ||
       v.status === "SCHEDULED" ||
       v.status === "EN_ROUTE" ||
       v.status === "IN_PROGRESS"

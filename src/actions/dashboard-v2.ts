@@ -72,7 +72,7 @@ export async function getDashboardV2Stats(): Promise<
 
     const [
       // 1. Unscheduled Jobs: jobs with at least one visit where
-      //    schedulingType = UNSCHEDULED and the job is not completed/cancelled
+      //    status = UNSCHEDULED
       unscheduledJobsCount,
 
       // 2. Needs Invoicing: uses computeJobFilterTab for consistency with Jobs page
@@ -108,8 +108,7 @@ export async function getDashboardV2Stats(): Promise<
           status: { notIn: ["COMPLETED", "CANCELLED"] },
           visits: {
             some: {
-              schedulingType: "UNSCHEDULED",
-              status: { notIn: ["COMPLETED", "CANCELLED"] },
+              status: "UNSCHEDULED",
             },
           },
         },
@@ -129,7 +128,7 @@ export async function getDashboardV2Stats(): Promise<
         },
         select: {
           isRecurring: true,
-          visits: { select: { status: true, schedulingType: true } },
+          visits: { select: { status: true } },
           quote: { select: { status: true } },
           quotesInContext: { select: { status: true } },
           invoices: { select: { status: true, amountDue: true } },
@@ -243,7 +242,7 @@ export async function getDashboardV2Stats(): Promise<
     const needsInvoicingCount = needsInvoicingCandidates.filter((job) => {
       const tab = computeJobFilterTab({
         isRecurring: job.isRecurring,
-        visits: job.visits.map((v) => ({ status: v.status, schedulingType: v.schedulingType })),
+        visits: job.visits.map((v) => ({ status: v.status })),
         quotesInContext: job.quotesInContext.map((q) => ({ status: q.status })),
         quote: job.quote ? { status: job.quote.status } : null,
         invoices: job.invoices.map((inv) => ({ status: inv.status, amountDue: inv.amountDue })),
