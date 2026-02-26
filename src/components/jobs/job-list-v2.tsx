@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useTransition, useCallback, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Search, Plus, Briefcase } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { getJobsV2, getJobTabCounts } from "@/actions/jobs-v2"
-import type { JobFilterTab } from "@/lib/job-filter-tab"
+import { ALL_TABS, type JobFilterTab } from "@/lib/job-filter-tab"
 
 // =============================================================================
 // Types
@@ -190,10 +190,16 @@ function closedDate(visits: SerializedVisit[]): string | null {
 
 export default function JobListV2() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
+  // Read initial tab from URL query parameter (?tab=needs_invoicing, etc.)
+  const urlTab = searchParams.get("tab") as JobFilterTab | null
+  const initialTab: JobFilterTab =
+    urlTab && ALL_TABS.includes(urlTab) ? urlTab : "unscheduled"
+
   // State
-  const [activeTab, setActiveTab] = useState<JobFilterTab>("unscheduled")
+  const [activeTab, setActiveTab] = useState<JobFilterTab>(initialTab)
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
   const [jobs, setJobs] = useState<SerializedJob[]>([])

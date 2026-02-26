@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/db"
 import { requireAuth } from "@/lib/auth-utils"
+import { computeJobFilterTab } from "@/lib/job-filter-tab"
 
 // =============================================================================
 // Types
@@ -74,8 +75,8 @@ export async function getDashboardV2Stats(): Promise<
       //    schedulingType = UNSCHEDULED and the job is not completed/cancelled
       unscheduledJobsCount,
 
-      // 2. Needs Invoicing: completed jobs without any invoice
-      needsInvoicingCount,
+      // 2. Needs Invoicing: uses computeJobFilterTab for consistency with Jobs page
+      needsInvoicingCandidates,
 
       // 3. Overdue Quotes: quotes with status SENT and validUntil < now
       overdueQuotesCount,
@@ -113,12 +114,23 @@ export async function getDashboardV2Stats(): Promise<
         },
       }),
 
-      // 2. Needs Invoicing -- completed jobs with zero invoices
-      prisma.job.count({
+      // 2. Needs Invoicing -- fetch candidate jobs (all visits completed/cancelled,
+      //    at least one completed) and classify with computeJobFilterTab to match
+      //    the Jobs page filter exactly.
+      prisma.job.findMany({
         where: {
           organizationId: orgId,
-          status: "COMPLETED",
-          invoices: { none: {} },
+          visits: {
+            every: { status: { in: ["COMPLETED", "CANCELLED"] } },
+            some: { status: "COMPLETED" },
+          },
+        },
+        select: {
+          isRecurring: true,
+          visits: { select: { status: true, schedulingType: true } },
+          quote: { select: { status: true } },
+          quotesInContext: { select: { status: true } },
+          invoices: { select: { status: true, amountDue: true } },
         },
       }),
 
@@ -214,6 +226,18 @@ export async function getDashboardV2Stats(): Promise<
         },
       }),
     ])
+
+    // Classify candidate jobs using the same logic as the Jobs page filter
+    const needsInvoicingCount = needsInvoicingCandidates.filter((job) => {
+      const tab = computeJobFilterTab({
+        isRecurring: job.isRecurring,
+        visits: job.visits.map((v) => ({ status: v.status, schedulingType: v.schedulingType })),
+        quotesInContext: job.quotesInContext.map((q) => ({ status: q.status })),
+        quote: job.quote ? { status: job.quote.status } : null,
+        invoices: job.invoices.map((inv) => ({ status: inv.status, amountDue: inv.amountDue })),
+      })
+      return tab === "needs_invoicing"
+    }).length
 
     return {
       unscheduledJobsCount,

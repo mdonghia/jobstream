@@ -3,10 +3,23 @@ import { requireAuth } from "@/lib/auth-utils"
 import { getInvoicesV2 } from "@/actions/invoices"
 import { InvoiceListV2 } from "@/components/invoices/invoice-list-v2"
 
-export default async function InvoicesPage() {
+const VALID_TABS = ["draft", "sent", "overdue", "partially_paid", "paid", "cancelled"] as const
+type InvoiceTab = (typeof VALID_TABS)[number]
+
+export default async function InvoicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>
+}) {
   await requireAuth()
 
-  const result = await getInvoicesV2({ tab: "draft", page: 1, perPage: 25 })
+  // Read the ?tab= query parameter and validate it
+  const params = await searchParams
+  const requestedTab = params.tab as InvoiceTab | undefined
+  const tab: InvoiceTab =
+    requestedTab && VALID_TABS.includes(requestedTab) ? requestedTab : "draft"
+
+  const result = await getInvoicesV2({ tab, page: 1, perPage: 25 })
 
   if ("error" in result) {
     return (
@@ -26,7 +39,7 @@ export default async function InvoicesPage() {
         initialTotal={serialized.total}
         initialPage={serialized.page}
         initialTotalPages={serialized.totalPages}
-        initialTab="draft"
+        initialTab={tab}
       />
     </Suspense>
   )

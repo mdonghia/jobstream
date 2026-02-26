@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
   FileText,
@@ -101,6 +101,13 @@ export function QuoteList({
   initialTotalPages,
 }: QuoteListProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Read initial status filter from URL query parameter (?status=SENT, etc.)
+  const validStatuses = STATUS_TABS.map((t) => t.value)
+  const urlStatus = searchParams.get("status")
+  const initialStatus =
+    urlStatus && validStatuses.includes(urlStatus) ? urlStatus : "ALL"
 
   const [quotes, setQuotes] = useState<QuoteRow[]>(initialQuotes)
   const [statusCounts, setStatusCounts] = useState(initialStatusCounts)
@@ -110,7 +117,7 @@ export function QuoteList({
   const [loading, setLoading] = useState(false)
 
   const [search, setSearch] = useState("")
-  const [activeTab, setActiveTab] = useState("ALL")
+  const [activeTab, setActiveTab] = useState(initialStatus)
   const [sortBy, setSortBy] = useState("createdAt")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
 
