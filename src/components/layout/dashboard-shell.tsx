@@ -18,10 +18,11 @@ interface DashboardShellProps {
     notificationsEnabled?: boolean
   }
   orgName: string
+  orgFavicon?: string | null
   marketingSuiteEnabled?: boolean
 }
 
-export function DashboardShell({ children, user, orgName, marketingSuiteEnabled = false }: DashboardShellProps) {
+export function DashboardShell({ children, user, orgName, orgFavicon, marketingSuiteEnabled = false }: DashboardShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
@@ -39,6 +40,7 @@ export function DashboardShell({ children, user, orgName, marketingSuiteEnabled 
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           orgName={orgName}
+          orgFavicon={orgFavicon}
           user={user}
           marketingSuiteEnabled={marketingSuiteEnabled}
         />
@@ -50,6 +52,7 @@ export function DashboardShell({ children, user, orgName, marketingSuiteEnabled 
           open={mobileNavOpen}
           onClose={() => setMobileNavOpen(false)}
           orgName={orgName}
+          orgFavicon={orgFavicon}
           user={user}
           marketingSuiteEnabled={marketingSuiteEnabled}
         />

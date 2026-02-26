@@ -88,6 +88,68 @@ export async function updateOrganizationSettings(
 }
 
 // =============================================================================
+// 2a. uploadOrgFavicon - Upload a favicon/icon for the organization
+// =============================================================================
+
+export async function uploadOrgFavicon(formData: FormData) {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    const file = formData.get("file") as File
+    if (!file) return { error: "No file provided" }
+
+    // Validate file type (images only)
+    const allowedTypes = ["image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/x-icon", "image/vnd.microsoft.icon"]
+    if (!allowedTypes.includes(file.type)) {
+      return { error: "Invalid file type. Please upload a PNG, JPG, WebP, SVG, or ICO file." }
+    }
+
+    // Validate file size (max 512KB -- it's a favicon, should be small)
+    if (file.size > 512 * 1024) {
+      return { error: "File too large. Favicon must be under 512KB." }
+    }
+
+    const { uploadFile } = await import("@/lib/s3")
+    const ext = file.name.split(".").pop() || "png"
+    const key = `${user.organizationId}/favicon.${ext}`
+    const buffer = Buffer.from(await file.arrayBuffer())
+    const fileUrl = await uploadFile(buffer, key, file.type)
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: { logo: fileUrl },
+    })
+
+    return { url: fileUrl }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("uploadOrgFavicon error:", error)
+    return { error: "Failed to upload favicon" }
+  }
+}
+
+// =============================================================================
+// 2a-2. removeOrgFavicon - Remove the organization's favicon
+// =============================================================================
+
+export async function removeOrgFavicon() {
+  try {
+    const user = await requireRole(["OWNER", "ADMIN"])
+
+    await prisma.organization.update({
+      where: { id: user.organizationId },
+      data: { logo: null },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("removeOrgFavicon error:", error)
+    return { error: "Failed to remove favicon" }
+  }
+}
+
+// =============================================================================
 // 2b. updateWorkflowSettings - Update workflow automation settings (OWNER/ADMIN)
 // =============================================================================
 

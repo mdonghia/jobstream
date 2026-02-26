@@ -44,13 +44,14 @@ interface MobileNavProps {
   open: boolean
   onClose: () => void
   orgName: string
+  orgFavicon?: string | null
   user: {
     role: string
   }
   marketingSuiteEnabled?: boolean
 }
 
-export function MobileNav({ open, onClose, orgName, user, marketingSuiteEnabled = false }: MobileNavProps) {
+export function MobileNav({ open, onClose, orgName, orgFavicon, user, marketingSuiteEnabled = false }: MobileNavProps) {
   const pathname = usePathname()
 
   function isActive(href: string) {
@@ -69,9 +70,13 @@ export function MobileNav({ open, onClose, orgName, user, marketingSuiteEnabled 
     <Sheet open={open} onOpenChange={onClose}>
       <SheetContent side="left" className="w-64 p-0" showCloseButton={false}>
         <SheetHeader className="border-b border-[#E3E8EE] px-4 h-14 flex flex-row items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-[#635BFF] flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-sm font-bold">J</span>
-          </div>
+          {orgFavicon ? (
+            <img src={orgFavicon} alt={orgName} className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
+          ) : (
+            <div className="w-7 h-7 rounded-md bg-[#635BFF] flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-sm font-bold">{orgName.charAt(0).toUpperCase()}</span>
+            </div>
+          )}
           <SheetTitle className="text-sm font-semibold text-[#0A2540] truncate">
             {orgName}
           </SheetTitle>

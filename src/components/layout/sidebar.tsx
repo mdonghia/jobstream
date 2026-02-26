@@ -45,17 +45,19 @@ interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
   orgName: string
+  orgFavicon?: string | null
   user: {
     role: string
   }
   marketingSuiteEnabled?: boolean
 }
 
-export function Sidebar({ collapsed, onToggle, orgName, user, marketingSuiteEnabled = false }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, orgName, orgFavicon, user, marketingSuiteEnabled = false }: SidebarProps) {
   // Technicians don't see the sidebar -- they get the pipeline view (Phase 8)
   if (user.role === "TECHNICIAN") return null
 
   const pathname = usePathname()
+  const orgInitial = orgName.charAt(0).toUpperCase()
 
   // Only show marketing items (Reviews, Campaigns) when the Marketing Suite is enabled
   const visibleConditionalItems = marketingSuiteEnabled ? conditionalItems : []
@@ -79,9 +81,13 @@ export function Sidebar({ collapsed, onToggle, orgName, user, marketingSuiteEnab
       )}>
         {!collapsed && (
           <Link href="/" className="flex items-center gap-2 min-w-0">
-            <div className="w-7 h-7 rounded-md bg-[#635BFF] flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-sm font-bold">J</span>
-            </div>
+            {orgFavicon ? (
+              <img src={orgFavicon} alt={orgName} className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-7 h-7 rounded-md bg-[#635BFF] flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-sm font-bold">{orgInitial}</span>
+              </div>
+            )}
             <span className="text-sm font-semibold text-[#0A2540] truncate">
               {orgName}
             </span>
@@ -89,9 +95,13 @@ export function Sidebar({ collapsed, onToggle, orgName, user, marketingSuiteEnab
         )}
         {collapsed && (
           <Link href="/">
-            <div className="w-7 h-7 rounded-md bg-[#635BFF] flex items-center justify-center">
-              <span className="text-white text-sm font-bold">J</span>
-            </div>
+            {orgFavicon ? (
+              <img src={orgFavicon} alt={orgName} className="w-7 h-7 rounded-md object-cover" />
+            ) : (
+              <div className="w-7 h-7 rounded-md bg-[#635BFF] flex items-center justify-center">
+                <span className="text-white text-sm font-bold">{orgInitial}</span>
+              </div>
+            )}
           </Link>
         )}
         <button

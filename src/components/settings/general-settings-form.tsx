@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { toast } from "sonner"
-import { Loader2 } from "lucide-react"
+import { Loader2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select"
 import { US_STATES, US_TIMEZONES, DEFAULT_BUSINESS_HOURS } from "@/lib/constants"
 import { AddressAutocomplete, type ParsedAddress } from "@/components/ui/address-autocomplete"
-import { updateOrganizationSettings } from "@/actions/settings"
+import { updateOrganizationSettings, uploadOrgFavicon, removeOrgFavicon } from "@/actions/settings"
 
 // ============================================================================
 // Types
@@ -46,6 +46,7 @@ interface OrganizationData {
   invoiceDueDays: number
   quoteValidDays: number
   businessHours: BusinessHours | null
+  favicon?: string | null
   [key: string]: unknown
 }
 
@@ -124,6 +125,11 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
       : DEFAULT_BUSINESS_HOURS
   )
 
+  // Favicon
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(organization.favicon || null)
+  const [uploadingFavicon, setUploadingFavicon] = useState(false)
+  const faviconInputRef = useRef<HTMLInputElement>(null)
+
   // -----------------------------------------------------------------------
   // Business hours helpers
   // -----------------------------------------------------------------------
@@ -140,6 +146,54 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
         [field]: value,
       },
     }))
+  }
+
+  // -----------------------------------------------------------------------
+  // Favicon upload / remove
+  // -----------------------------------------------------------------------
+
+  async function handleFaviconUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingFavicon(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const result = await uploadOrgFavicon(formData)
+
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        // Show a local preview immediately (the resolved URL comes on next page load)
+        const objectUrl = URL.createObjectURL(file)
+        setFaviconUrl(objectUrl)
+        toast.success("Favicon uploaded")
+      }
+    } catch {
+      toast.error("Failed to upload favicon")
+    } finally {
+      setUploadingFavicon(false)
+      // Reset the input so the same file can be re-selected
+      if (faviconInputRef.current) faviconInputRef.current.value = ""
+    }
+  }
+
+  async function handleFaviconRemove() {
+    setUploadingFavicon(true)
+    try {
+      const result = await removeOrgFavicon()
+      if ("error" in result) {
+        toast.error(result.error)
+      } else {
+        setFaviconUrl(null)
+        toast.success("Favicon removed")
+      }
+    } catch {
+      toast.error("Failed to remove favicon")
+    } finally {
+      setUploadingFavicon(false)
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -241,6 +295,68 @@ export function GeneralSettingsForm({ organization }: GeneralSettingsFormProps) 
         <p className="mt-1 text-sm text-[#425466]">
           Core information about your business.
         </p>
+
+        {/* Favicon upload */}
+        <div className="mt-4 flex items-center gap-4">
+          <div className="relative">
+            {faviconUrl ? (
+              <img
+                src={faviconUrl}
+                alt="Company favicon"
+                className="w-12 h-12 rounded-lg object-cover border border-[#E3E8EE]"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-lg bg-[#635BFF] flex items-center justify-center border border-[#E3E8EE]">
+                <span className="text-white text-lg font-bold">
+                  {name.charAt(0).toUpperCase() || "?"}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label className={labelClass}>Company Icon</Label>
+            <div className="flex items-center gap-2">
+              <input
+                ref={faviconInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml,image/x-icon"
+                onChange={handleFaviconUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => faviconInputRef.current?.click()}
+                disabled={uploadingFavicon}
+                className="h-8 text-xs border-[#E3E8EE]"
+              >
+                {uploadingFavicon ? (
+                  <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                ) : (
+                  <Upload className="mr-1.5 h-3 w-3" />
+                )}
+                Upload
+              </Button>
+              {faviconUrl && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleFaviconRemove}
+                  disabled={uploadingFavicon}
+                  className="h-8 text-xs text-red-500 hover:text-red-600 hover:bg-red-50"
+                >
+                  <X className="mr-1.5 h-3 w-3" />
+                  Remove
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-[#8898AA]">
+              PNG, JPG, or SVG. Max 512KB.
+            </p>
+          </div>
+        </div>
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">

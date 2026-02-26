@@ -19,6 +19,17 @@ export default async function SettingsGeneralPage() {
 
   // Map and serialize only the fields the form needs (Prisma Decimal -> number)
   const org = result.organization
+  // Resolve favicon URL if stored in S3
+  let faviconUrl: string | null = null
+  if (org.logo) {
+    if (org.logo.startsWith("s3://")) {
+      const { getFileUrl } = await import("@/lib/s3")
+      faviconUrl = await getFileUrl(org.logo)
+    } else {
+      faviconUrl = org.logo
+    }
+  }
+
   const settings = {
     id: org.id,
     name: org.name,
@@ -41,6 +52,7 @@ export default async function SettingsGeneralPage() {
       string,
       { start: string; end: string; open: boolean }
     > | null,
+    favicon: faviconUrl,
   }
 
   return <GeneralSettingsForm organization={settings} />
