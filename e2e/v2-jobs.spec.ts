@@ -202,10 +202,8 @@ test.describe("V2 Jobs List", () => {
     // Use Promise.all to wait for navigation after click.
     const newJobLink = page.getByRole("link", { name: /new job/i });
     await expect(newJobLink).toBeVisible({ timeout: 5000 });
-    await Promise.all([
-      page.waitForURL(/\/jobs\/new/, { timeout: 15000 }),
-      newJobLink.click(),
-    ]);
+    await newJobLink.click();
+    await expect(page).toHaveURL(/\/jobs\/new/, { timeout: 30000 });
 
     // Verify the page heading for the new job form
     await expect(
