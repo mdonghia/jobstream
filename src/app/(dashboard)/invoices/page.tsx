@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth-utils"
 import { getInvoicesV2 } from "@/actions/invoices"
 import { InvoiceListV2 } from "@/components/invoices/invoice-list-v2"
 
-const VALID_TABS = ["draft", "sent", "overdue", "partially_paid", "paid", "cancelled"] as const
+const VALID_TABS = ["draft", "sent", "past_due", "paid"] as const
 type InvoiceTab = (typeof VALID_TABS)[number]
 
 export default async function InvoicesPage({

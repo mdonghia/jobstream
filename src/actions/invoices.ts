@@ -1,6 +1,7 @@
 "use server"
 
 import { prisma } from "@/lib/db"
+import type { Prisma } from "@/generated/prisma/client"
 import { requireAuth } from "@/lib/auth-utils"
 import { invoiceSchema } from "@/lib/validations"
 
@@ -1021,18 +1022,46 @@ export async function sendInvoiceReminder(id: string) {
 }
 
 // =============================================================================
-// 11. getInvoicesV2 - Invoice list with 6 tab filters for v2 UI
+// 11. getInvoicesV2 - Invoice list with 4 tab filters for v2 UI
 // =============================================================================
 
-type InvoiceTab = "draft" | "sent" | "overdue" | "partially_paid" | "paid" | "cancelled"
+type InvoiceTab = "draft" | "sent" | "past_due" | "paid"
 
-const TAB_STATUS_MAP: Record<InvoiceTab, string[]> = {
-  draft: ["DRAFT"],
-  sent: ["SENT", "VIEWED"],
-  overdue: ["OVERDUE"],
-  partially_paid: ["PARTIALLY_PAID"],
-  paid: ["PAID"],
-  cancelled: ["VOID"],
+// Build the Prisma where clause for a given tab.
+// "sent" and "past_due" use date-aware logic, not just the status enum.
+function buildTabWhere(tab: InvoiceTab, orgId: string): Prisma.InvoiceWhereInput {
+  const base = {
+    organizationId: orgId,
+    customer: { isArchived: false },
+  }
+  const now = new Date()
+
+  switch (tab) {
+    case "draft":
+      return { ...base, status: "DRAFT" }
+    case "sent":
+      // Sent but not fully paid, and not past due
+      return {
+        ...base,
+        status: { in: ["SENT", "VIEWED", "PARTIALLY_PAID"] },
+        dueDate: { gte: now },
+      }
+    case "past_due":
+      // Not fully paid and past due date (includes OVERDUE status, plus
+      // SENT/VIEWED/PARTIALLY_PAID that have slipped past their due date)
+      return {
+        ...base,
+        OR: [
+          { status: "OVERDUE" },
+          {
+            status: { in: ["SENT", "VIEWED", "PARTIALLY_PAID"] },
+            dueDate: { lt: now },
+          },
+        ],
+      }
+    case "paid":
+      return { ...base, status: "PAID" }
+  }
 }
 
 export async function getInvoicesV2(params: {
@@ -1045,12 +1074,7 @@ export async function getInvoicesV2(params: {
     const user = await requireAuth()
     const { tab, search, page = 1, perPage = 25 } = params
 
-    const statuses = TAB_STATUS_MAP[tab]
-    const where: any = {
-      organizationId: user.organizationId,
-      customer: { isArchived: false },
-      status: { in: statuses },
-    }
+    const where: any = buildTabWhere(tab, user.organizationId!)
 
     // Split on whitespace so multi-word searches match across fields
     if (search && search.trim()) {
@@ -1069,7 +1093,8 @@ export async function getInvoicesV2(params: {
 
     const skip = (page - 1) * perPage
 
-    const [total, invoices, statusCounts] = await Promise.all([
+    // Tab counts need individual queries because sent/past_due are date-aware
+    const [total, invoices, draftCount, sentCount, pastDueCount, paidCount] = await Promise.all([
       prisma.invoice.count({ where }),
       prisma.invoice.findMany({
         where,
@@ -1082,27 +1107,17 @@ export async function getInvoicesV2(params: {
           payments: { orderBy: { createdAt: "desc" } },
         },
       }),
-      // Get counts per status for all tabs (excluding archived customers)
-      prisma.invoice.groupBy({
-        by: ["status"],
-        where: { organizationId: user.organizationId, customer: { isArchived: false } },
-        _count: true,
-      }),
+      prisma.invoice.count({ where: buildTabWhere("draft", user.organizationId!) }),
+      prisma.invoice.count({ where: buildTabWhere("sent", user.organizationId!) }),
+      prisma.invoice.count({ where: buildTabWhere("past_due", user.organizationId!) }),
+      prisma.invoice.count({ where: buildTabWhere("paid", user.organizationId!) }),
     ])
 
-    // Build tab counts from status group-by
-    const rawCounts: Record<string, number> = {}
-    statusCounts.forEach((s) => {
-      rawCounts[s.status] = s._count
-    })
-
     const tabCounts: Record<InvoiceTab, number> = {
-      draft: rawCounts.DRAFT ?? 0,
-      sent: (rawCounts.SENT ?? 0) + (rawCounts.VIEWED ?? 0),
-      overdue: rawCounts.OVERDUE ?? 0,
-      partially_paid: rawCounts.PARTIALLY_PAID ?? 0,
-      paid: rawCounts.PAID ?? 0,
-      cancelled: rawCounts.VOID ?? 0,
+      draft: draftCount,
+      sent: sentCount,
+      past_due: pastDueCount,
+      paid: paidCount,
     }
 
     return {

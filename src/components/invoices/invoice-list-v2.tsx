@@ -46,7 +46,7 @@ import { getInvoicesV2, voidInvoice, recordPayment } from "@/actions/invoices"
 
 // ---- Types ----
 
-type InvoiceTab = "draft" | "sent" | "overdue" | "partially_paid" | "paid" | "cancelled"
+type InvoiceTab = "draft" | "sent" | "past_due" | "paid"
 
 interface PaymentRow {
   id: string
@@ -88,10 +88,8 @@ interface InvoiceRowV2 {
 interface TabCounts {
   draft: number
   sent: number
-  overdue: number
-  partially_paid: number
+  past_due: number
   paid: number
-  cancelled: number
 }
 
 interface InvoiceListV2Props {
@@ -114,30 +112,35 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
     label: "Sent",
     className: "bg-blue-50 text-blue-700 border-blue-200",
   },
-  VIEWED: {
-    label: "Viewed",
-    className: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  },
-  OVERDUE: {
-    label: "Overdue",
-    className: "bg-red-50 text-red-700 border-red-200",
-  },
   PARTIALLY_PAID: {
-    label: "Partial",
+    label: "Partially Paid",
     className: "bg-amber-50 text-amber-700 border-amber-200",
+  },
+  PAST_DUE: {
+    label: "Past Due",
+    className: "bg-red-50 text-red-700 border-red-200",
   },
   PAID: {
     label: "Paid",
     className: "bg-green-50 text-green-700 border-green-200",
   },
-  VOID: {
-    label: "Void",
-    className: "bg-gray-50 text-gray-400 border-gray-200 line-through",
-  },
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.DRAFT
+// Determines display status based on the active tab and the raw DB status.
+// On the past_due tab, everything shows "Past Due" regardless of DB status.
+// On the sent tab, SENT/VIEWED show "Sent" and PARTIALLY_PAID shows "Partially Paid".
+function getDisplayStatus(dbStatus: string, activeTab: InvoiceTab): string {
+  if (activeTab === "past_due") return "PAST_DUE"
+  if (activeTab === "draft") return "DRAFT"
+  if (activeTab === "paid") return "PAID"
+  // sent tab
+  if (dbStatus === "PARTIALLY_PAID") return "PARTIALLY_PAID"
+  return "SENT"
+}
+
+function StatusBadge({ status, activeTab }: { status: string; activeTab: InvoiceTab }) {
+  const displayStatus = getDisplayStatus(status, activeTab)
+  const config = STATUS_CONFIG[displayStatus] || STATUS_CONFIG.DRAFT
   return (
     <Badge
       variant="outline"
@@ -153,10 +156,8 @@ function StatusBadge({ status }: { status: string }) {
 const TAB_CONFIG: { key: InvoiceTab; label: string }[] = [
   { key: "draft", label: "Draft" },
   { key: "sent", label: "Sent" },
-  { key: "overdue", label: "Overdue" },
-  { key: "partially_paid", label: "Partially Paid" },
+  { key: "past_due", label: "Past Due" },
   { key: "paid", label: "Paid" },
-  { key: "cancelled", label: "Cancelled" },
 ]
 
 // ---- Main Component ----
@@ -334,7 +335,7 @@ export function InvoiceListV2({
         </Button>
       </div>
 
-      {/* 6 Filter Tabs */}
+      {/* Filter Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as InvoiceTab)} className="mb-4">
         <TabsList className="bg-transparent rounded-none w-full justify-start h-auto p-0 gap-1 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden">
           {TAB_CONFIG.map(({ key, label }) => (
@@ -394,22 +395,20 @@ export function InvoiceListV2({
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
                   Status
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase text-[#8898AA]">
-                  Paid / Due
-                </th>
                 <th className="px-4 py-3 w-10" />
               </tr>
             </thead>
             <tbody>
               {invoices.map((inv) => {
                 const isExpanded = expandedRowId === inv.id
-                const isOverdue = inv.status === "OVERDUE"
+                const isPastDue = activeTab === "past_due"
                 return (
                   <InvoiceRowWithExpansion
                     key={inv.id}
                     inv={inv}
                     isExpanded={isExpanded}
-                    isOverdue={isOverdue}
+                    isPastDue={isPastDue}
+                    activeTab={activeTab}
                     onToggleExpand={() =>
                       setExpandedRowId(isExpanded ? null : inv.id)
                     }
@@ -554,7 +553,8 @@ export function InvoiceListV2({
 function InvoiceRowWithExpansion({
   inv,
   isExpanded,
-  isOverdue,
+  isPastDue,
+  activeTab,
   onToggleExpand,
   onView,
   onVoid,
@@ -562,7 +562,8 @@ function InvoiceRowWithExpansion({
 }: {
   inv: InvoiceRowV2
   isExpanded: boolean
-  isOverdue: boolean
+  isPastDue: boolean
+  activeTab: InvoiceTab
   onToggleExpand: () => void
   onView: () => void
   onVoid: () => void
@@ -572,7 +573,7 @@ function InvoiceRowWithExpansion({
     <>
       <tr
         className={`border-b border-[#E3E8EE] hover:bg-[#F6F8FA]/50 cursor-pointer ${
-          isOverdue ? "bg-red-50/40" : ""
+          isPastDue ? "bg-red-50/40" : ""
         }`}
         onClick={onView}
       >
@@ -636,20 +637,7 @@ function InvoiceRowWithExpansion({
 
         {/* Status */}
         <td className="px-4 py-3">
-          <StatusBadge status={inv.status} />
-        </td>
-
-        {/* Paid / Due */}
-        <td className="px-4 py-3">
-          <div className="text-sm">
-            <span className="font-medium text-green-600">
-              {inv.amountPaid > 0 ? formatCurrency(inv.amountPaid) : "$0.00"}
-            </span>
-            <span className="text-[#8898AA] mx-1">/</span>
-            <span className={inv.amountDue > 0 ? "text-red-600 font-medium" : "text-[#8898AA]"}>
-              {formatCurrency(inv.amountDue)}
-            </span>
-          </div>
+          <StatusBadge status={inv.status} activeTab={activeTab} />
         </td>
 
         {/* Actions */}
@@ -688,7 +676,7 @@ function InvoiceRowWithExpansion({
       {/* Expanded payment history */}
       {isExpanded && (
         <tr className="border-b border-[#E3E8EE] bg-[#F9FAFB]">
-          <td colSpan={9} className="px-8 py-4">
+          <td colSpan={8} className="px-8 py-4">
             <div className="flex items-center justify-between mb-3">
               <h4 className="text-xs font-semibold uppercase text-[#8898AA] tracking-wide">
                 Payment History
