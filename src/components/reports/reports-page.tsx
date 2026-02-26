@@ -134,7 +134,7 @@ function getDateRangeForPreset(preset: DatePreset, customDateFrom?: string, cust
       }
     case "custom":
       return {
-        dateFrom: customDateFrom || format(subDays(now, 6), "yyyy-MM-dd"),
+        dateFrom: customDateFrom || format(now, "yyyy-MM-dd"),
         dateTo: customDateTo || format(now, "yyyy-MM-dd"),
       }
   }
@@ -597,29 +597,27 @@ export function ReportsPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-[#0A2540]">Reports</h1>
-        <p className="text-sm text-[#8898AA] mt-1">
-          Select a report type, choose a date range, and export or schedule it.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-semibold text-[#0A2540]">Reports</h1>
+          <p className="text-sm text-[#8898AA] mt-1">
+            Select a report type, choose a date range, and export or schedule it.
+          </p>
+        </div>
+        {schedulesLoaded && schedules.length > 0 && (
+          <Button
+            variant="outline"
+            className="border-[#E3E8EE] text-[#425466]"
+            onClick={() => setSheetOpen(true)}
+          >
+            <List className="w-4 h-4 mr-1.5" />
+            Scheduled Reports
+          </Button>
+        )}
       </div>
 
       <Card className="border-[#E3E8EE] max-w-2xl">
         <CardContent className="pt-4 space-y-6">
-          {/* View Scheduled Reports link (top right) */}
-          {schedulesLoaded && schedules.length > 0 && (
-            <div className="flex justify-end -mb-2">
-              <button
-                type="button"
-                className="text-sm text-[#635BFF] hover:text-[#5851ea] hover:underline inline-flex items-center gap-1.5"
-                onClick={() => setSheetOpen(true)}
-              >
-                <List className="w-3.5 h-3.5" />
-                View Scheduled Reports
-              </button>
-            </div>
-          )}
-
           {/* Report Type Selector */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-[#425466]">Report Type</Label>
