@@ -307,7 +307,7 @@ export async function rescheduleVisit(
   visitId: string,
   scheduledStart: string | Date,
   scheduledEnd?: string | Date | null,
-  options?: { anytime?: boolean }
+  options?: { anytime?: boolean; skipNotification?: boolean }
 ) {
   try {
     const user = await requireAuth()
@@ -348,6 +348,10 @@ export async function rescheduleVisit(
     // -----------------------------------------------------------------------
     // Bug C fix: Send reschedule notification email to the customer
     // -----------------------------------------------------------------------
+    if (options?.skipNotification) {
+      return { success: true }
+    }
+
     try {
       const { isNotificationEnabled } = await import("@/lib/notification-check")
 

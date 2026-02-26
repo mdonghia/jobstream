@@ -1,8 +1,9 @@
 import { requireAuth } from "@/lib/auth-utils"
 import { getCalendarVisits, getUnscheduledVisits } from "@/actions/visits"
-import { getTeamMembers } from "@/actions/settings"
+import { getTeamMembers, getOrganizationSettings } from "@/actions/settings"
 import { CalendarViewV2 } from "@/components/calendar/calendar-view-v2"
 import { startOfDay, endOfDay } from "date-fns"
+import { DEFAULT_BUSINESS_HOURS } from "@/components/calendar/calendar-types"
 
 export default async function SchedulePage() {
   await requireAuth()
@@ -11,13 +12,14 @@ export default async function SchedulePage() {
   const dayStart = startOfDay(now)
   const dayEnd = endOfDay(now)
 
-  const [scheduledResult, unscheduledResult, teamResult] = await Promise.all([
+  const [scheduledResult, unscheduledResult, teamResult, orgResult] = await Promise.all([
     getCalendarVisits({
       start: dayStart.toISOString(),
       end: dayEnd.toISOString(),
     }),
     getUnscheduledVisits(),
     getTeamMembers(),
+    getOrganizationSettings(),
   ])
 
   const allVisits =
@@ -43,6 +45,12 @@ export default async function SchedulePage() {
       ? []
       : JSON.parse(JSON.stringify(teamResult.members))
 
+  // Extract business hours from org settings
+  const businessHours =
+    !("error" in orgResult) && orgResult.organization?.businessHours
+      ? (orgResult.organization.businessHours as unknown as typeof DEFAULT_BUSINESS_HOURS)
+      : DEFAULT_BUSINESS_HOURS
+
   return (
     <div className="flex h-[calc(100vh-64px)]">
       <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
@@ -62,6 +70,7 @@ export default async function SchedulePage() {
             unscheduledVisits={unscheduledVisits}
             anytimeVisits={anytimeVisits}
             teamMembers={teamMembers}
+            businessHours={businessHours}
           />
         </div>
       </div>
