@@ -61,8 +61,8 @@ const statusStyles: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-700",
   SENT: "bg-blue-50 text-blue-700",
   APPROVED: "bg-green-50 text-green-700",
+  INVOICED: "bg-purple-50 text-purple-700",
   DECLINED: "bg-red-50 text-red-700",
-  CONVERTED: "bg-green-50 text-green-700",
   EXPIRED: "bg-amber-50 text-amber-700",
 }
 
@@ -88,6 +88,7 @@ const STATUS_TABS = [
   { value: "DRAFT", label: "Draft" },
   { value: "SENT", label: "Sent" },
   { value: "APPROVED", label: "Approved" },
+  { value: "INVOICED", label: "Invoiced" },
   { value: "DECLINED", label: "Declined" },
   { value: "EXPIRED", label: "Expired" },
 ]
@@ -357,8 +358,14 @@ export function QuoteList({
                       {quote.quoteNumber}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-sm text-[#0A2540]">
-                    {quote.customer.firstName} {quote.customer.lastName}
+                  <td className="px-4 py-3 text-sm">
+                    <Link
+                      href={`/customers/${quote.customer.id}`}
+                      className="text-[#0A2540] hover:text-[#635BFF] hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {quote.customer.firstName} {quote.customer.lastName}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-[#0A2540]">
                     {formatCurrency(quote.total)}

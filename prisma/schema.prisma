@@ -26,8 +26,8 @@ enum QuoteStatus {
   DRAFT
   SENT
   APPROVED
+  INVOICED
   DECLINED
-  CONVERTED
   EXPIRED
 }
 
@@ -423,6 +423,7 @@ model Quote {
   options           QuoteOption[]
   jobsCreatedFromQuote Job[]           @relation("JobCreatedFromQuote")
   parentJob         Job?               @relation("QuoteCreatedForJob", fields: [jobId], references: [id], onDelete: SetNull)
+  invoices          Invoice[]
   scheduledMessages ScheduledMessage[] @relation("QuoteMessages")
 
   @@index([organizationId])
@@ -633,6 +634,7 @@ model Invoice {
   organizationId  String
   customerId      String
   jobId           String?
+  quoteId         String?
   invoiceNumber   String
   status          InvoiceStatus @default(DRAFT)
   subtotal        Decimal
@@ -660,12 +662,14 @@ model Invoice {
   organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   customer          Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
   job               Job?               @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  quote             Quote?             @relation(fields: [quoteId], references: [id], onDelete: SetNull)
   lineItems         InvoiceLineItem[]
   payments          Payment[]
   scheduledMessages ScheduledMessage[] @relation("InvoiceMessages")
 
   @@index([organizationId])
   @@index([customerId])
+  @@index([quoteId])
   @@index([organizationId, status])
   @@index([organizationId, customerId])
   @@index([organizationId, dueDate])

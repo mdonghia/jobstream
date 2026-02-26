@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format, addDays } from "date-fns"
 import {
@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Percent,
   DollarSign,
+  FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +43,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Separator } from "@/components/ui/separator"
 import { cn, formatCurrency } from "@/lib/utils"
 import { createInvoice, sendInvoice } from "@/actions/invoices"
+import { getApprovedQuotesForCustomer } from "@/actions/quotes"
 import { toast } from "sonner"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -77,10 +79,18 @@ interface LineItem {
   taxable: boolean
 }
 
+interface ApprovedQuote {
+  id: string
+  quoteNumber: string
+  total: number
+  createdAt: string | Date
+}
+
 interface InitialData {
   customerId?: string
   jobId?: string
   jobNumber?: string
+  quoteId?: string
   lineItems?: {
     serviceId?: string | null
     name: string
@@ -128,6 +138,11 @@ export function InvoiceBuilder({
   const [customerId, setCustomerId] = useState(initialData?.customerId || "")
   const [customerOpen, setCustomerOpen] = useState(false)
   const [customerSearch, setCustomerSearch] = useState("")
+
+  // Quote linking
+  const [quoteId, setQuoteId] = useState(initialData?.quoteId || "")
+  const [approvedQuotes, setApprovedQuotes] = useState<ApprovedQuote[]>([])
+  const [loadingQuotes, setLoadingQuotes] = useState(false)
 
   // Line Items
   const [lineItems, setLineItems] = useState<LineItem[]>(() => {
@@ -207,6 +222,27 @@ export function InvoiceBuilder({
 
   const selectedCustomer = customers.find((c) => c.id === customerId)
 
+  // Fetch approved quotes when customer changes
+  useEffect(() => {
+    if (!customerId) {
+      setApprovedQuotes([])
+      setQuoteId("")
+      return
+    }
+    let cancelled = false
+    setLoadingQuotes(true)
+    getApprovedQuotesForCustomer(customerId).then((result) => {
+      if (cancelled) return
+      setLoadingQuotes(false)
+      if ("quotes" in result) {
+        setApprovedQuotes(result.quotes as ApprovedQuote[])
+      } else {
+        setApprovedQuotes([])
+      }
+    })
+    return () => { cancelled = true }
+  }, [customerId])
+
   // ─── Line Item Operations ──────────────────────────────────────────────
 
   function updateLineItem(id: string, updates: Partial<LineItem>) {
@@ -255,6 +291,7 @@ export function InvoiceBuilder({
       const result = await createInvoice({
         customerId,
         jobId: initialData?.jobId,
+        quoteId: quoteId || undefined,
         lineItems: validItems.map((li) => ({
           serviceId: li.serviceId,
           name: li.name,
@@ -387,6 +424,33 @@ export function InvoiceBuilder({
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* Link to Quote (optional, only shown when customer has approved quotes) */}
+          {customerId && approvedQuotes.length > 0 && (
+            <div className="bg-white rounded-lg border border-[#E3E8EE] p-5">
+              <Label className="text-sm font-medium text-[#0A2540] mb-3 block">
+                <FileText className="w-4 h-4 inline-block mr-1.5 -mt-0.5" />
+                Link to Quote
+                <span className="text-xs text-[#8898AA] font-normal ml-2">(optional)</span>
+              </Label>
+              <Select value={quoteId || "none"} onValueChange={(v) => setQuoteId(v === "none" ? "" : v)}>
+                <SelectTrigger className="border-[#E3E8EE] text-[#0A2540]">
+                  <SelectValue placeholder="No quote linked" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No quote linked</SelectItem>
+                  {approvedQuotes.map((q) => (
+                    <SelectItem key={q.id} value={q.id}>
+                      {q.quoteNumber} - {formatCurrency(q.total)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-[#8898AA] mt-1.5">
+                Linking sets the quote status to Invoiced automatically.
+              </p>
+            </div>
+          )}
 
           {/* Line Items */}
           <div className="bg-white rounded-lg border border-[#E3E8EE] p-5">

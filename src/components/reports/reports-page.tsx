@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,17 +19,30 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet"
+import { Separator } from "@/components/ui/separator"
 import { Label } from "@/components/ui/label"
 import {
   Download,
   Loader2,
   CalendarClock,
+  List,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import {
   subDays,
   subMonths,
   format,
 } from "date-fns"
+import { ConfirmDialog } from "@/components/shared/confirm-dialog"
+import { toast } from "sonner"
 import {
   getInvoicesReport,
   getPaymentsReport,
@@ -37,7 +50,11 @@ import {
   getTeamReport,
   getTimeTrackingReport,
   scheduleReport,
+  getReportSchedules,
+  deleteReportSchedule,
+  updateReportSchedule,
 } from "@/actions/reports"
+import type { ReportScheduleItem } from "@/actions/reports"
 
 // =============================================================================
 // Types
@@ -157,10 +174,14 @@ function ScheduleReportDialog({
   open,
   onOpenChange,
   currentReportType,
+  editingSchedule,
+  onSaved,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentReportType: ReportType
+  editingSchedule?: ReportScheduleItem | null
+  onSaved?: () => void
 }) {
   const [reportType, setReportType] = useState(currentReportType)
   const [frequency, setFrequency] = useState("weekly")
@@ -171,14 +192,25 @@ function ScheduleReportDialog({
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
 
-  // Update report type when dialog opens with a different selection
+  const isEditing = !!editingSchedule
+
+  // Populate form when dialog opens
   useEffect(() => {
     if (open) {
-      setReportType(currentReportType)
+      if (editingSchedule) {
+        setReportType(editingSchedule.reportType as ReportType)
+        setFrequency(editingSchedule.frequency)
+        setDayOfWeek(editingSchedule.dayOfWeek ?? 1)
+        setDayOfMonth(editingSchedule.dayOfMonth ?? 1)
+        setEmailsInput(editingSchedule.emails.join(", "))
+      } else {
+        setReportType(currentReportType)
+        setEmailsInput("")
+      }
       setError("")
       setSuccess(false)
     }
-  }, [open, currentReportType])
+  }, [open, currentReportType, editingSchedule])
 
   const handleSave = async () => {
     setError("")
@@ -191,13 +223,17 @@ function ScheduleReportDialog({
       return
     }
 
-    const result = await scheduleReport({
+    const input = {
       reportType,
       frequency,
       dayOfWeek: frequency === "weekly" ? dayOfWeek : undefined,
       dayOfMonth: frequency === "monthly" ? dayOfMonth : undefined,
       emails,
-    })
+    }
+
+    const result = isEditing
+      ? await updateReportSchedule(editingSchedule!.id, input)
+      : await scheduleReport(input)
 
     setSaving(false)
 
@@ -209,7 +245,8 @@ function ScheduleReportDialog({
         onOpenChange(false)
         setSuccess(false)
         setEmailsInput("")
-      }, 1500)
+        onSaved?.()
+      }, 1000)
     }
   }
 
@@ -217,9 +254,9 @@ function ScheduleReportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle className="text-[#0A2540]">Schedule Report</DialogTitle>
+          <DialogTitle className="text-[#0A2540]">{isEditing ? "Edit Schedule" : "Schedule Report"}</DialogTitle>
           <DialogDescription className="text-[#8898AA]">
-            Set up automatic report delivery by email.
+            {isEditing ? "Update the report schedule settings." : "Set up automatic report delivery by email."}
           </DialogDescription>
         </DialogHeader>
 
@@ -340,6 +377,8 @@ function ScheduleReportDialog({
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Saving...
               </>
+            ) : isEditing ? (
+              "Update Schedule"
             ) : (
               "Save Schedule"
             )}
@@ -354,6 +393,25 @@ function ScheduleReportDialog({
 // Main Reports Page Component
 // =============================================================================
 
+// =============================================================================
+// Helper: Format schedule frequency for display
+// =============================================================================
+
+function formatFrequency(schedule: ReportScheduleItem): string {
+  if (schedule.frequency === "weekly" && schedule.dayOfWeek !== null) {
+    return `Weekly on ${DAYS_OF_WEEK[schedule.dayOfWeek]}s`
+  }
+  if (schedule.frequency === "monthly" && schedule.dayOfMonth !== null) {
+    const suffix = schedule.dayOfMonth === 1 ? "st" : schedule.dayOfMonth === 2 ? "nd" : schedule.dayOfMonth === 3 ? "rd" : "th"
+    return `Monthly on the ${schedule.dayOfMonth}${suffix}`
+  }
+  return schedule.frequency
+}
+
+// =============================================================================
+// Main Reports Page Component
+// =============================================================================
+
 export function ReportsPage() {
   const [reportType, setReportType] = useState<ReportType>("invoices")
   const [datePreset, setDatePreset] = useState<DatePreset>("last_7_days")
@@ -362,6 +420,42 @@ export function ReportsPage() {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState("")
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+
+  // Scheduled reports state
+  const [schedules, setSchedules] = useState<ReportScheduleItem[]>([])
+  const [schedulesLoaded, setSchedulesLoaded] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [editingSchedule, setEditingSchedule] = useState<ReportScheduleItem | null>(null)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  // Fetch schedules on mount
+  const fetchSchedules = useCallback(async () => {
+    const result = await getReportSchedules()
+    if (Array.isArray(result)) {
+      setSchedules(result)
+    }
+    setSchedulesLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    fetchSchedules()
+  }, [fetchSchedules])
+
+  // Handle schedule deletion
+  async function handleDeleteSchedule() {
+    if (!deleteId) return
+    setDeleting(true)
+    const result = await deleteReportSchedule(deleteId)
+    if ("error" in result) {
+      toast.error(result.error)
+    } else {
+      toast.success("Schedule deleted")
+      fetchSchedules()
+    }
+    setDeleting(false)
+    setDeleteId(null)
+  }
 
   const dateRange = getDateRangeForPreset(datePreset, customDateFrom, customDateTo)
   const parseLocalDate = (s: string) => s.length === 10 ? new Date(s + "T00:00:00") : new Date(s)
@@ -602,20 +696,113 @@ export function ReportsPage() {
             <Button
               variant="outline"
               className="border-[#E3E8EE] text-[#425466]"
-              onClick={() => setScheduleDialogOpen(true)}
+              onClick={() => {
+                setEditingSchedule(null)
+                setScheduleDialogOpen(true)
+              }}
             >
               <CalendarClock className="w-4 h-4 mr-2" />
               Schedule Report
             </Button>
           </div>
+
+          {/* View Scheduled Reports link (only when schedules exist) */}
+          {schedulesLoaded && schedules.length > 0 && (
+            <div className="pt-1">
+              <button
+                type="button"
+                className="text-sm text-[#635BFF] hover:text-[#5851ea] hover:underline inline-flex items-center gap-1.5"
+                onClick={() => setSheetOpen(true)}
+              >
+                <List className="w-3.5 h-3.5" />
+                View Scheduled Reports ({schedules.length})
+              </button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Schedule Report Dialog */}
+      {/* Schedule Report Dialog (create / edit) */}
       <ScheduleReportDialog
         open={scheduleDialogOpen}
         onOpenChange={setScheduleDialogOpen}
         currentReportType={reportType}
+        editingSchedule={editingSchedule}
+        onSaved={fetchSchedules}
+      />
+
+      {/* Scheduled Reports Sheet */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="text-[#0A2540]">Scheduled Reports</SheetTitle>
+            <SheetDescription className="text-[#8898AA]">
+              Manage your recurring report deliveries.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6 space-y-3">
+            {schedules.length === 0 ? (
+              <p className="text-sm text-[#8898AA] py-8 text-center">No scheduled reports yet.</p>
+            ) : (
+              schedules.map((schedule) => (
+                <div
+                  key={schedule.id}
+                  className="rounded-lg border border-[#E3E8EE] p-4"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-[#0A2540]">
+                        {REPORT_TYPE_LABELS[schedule.reportType as ReportType] || schedule.reportType}
+                      </p>
+                      <p className="text-xs text-[#8898AA] mt-0.5">
+                        {formatFrequency(schedule)}
+                      </p>
+                      <p className="text-xs text-[#8898AA] mt-1 truncate" title={schedule.emails.join(", ")}>
+                        {schedule.emails.join(", ")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-[#8898AA] hover:text-[#635BFF]"
+                        onClick={() => {
+                          setEditingSchedule(schedule)
+                          setScheduleDialogOpen(true)
+                        }}
+                        aria-label="Edit schedule"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-[#8898AA] hover:text-red-600"
+                        onClick={() => setDeleteId(schedule.id)}
+                        aria-label="Delete schedule"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(open) => { if (!open) setDeleteId(null) }}
+        title="Delete Schedule"
+        description="Are you sure you want to delete this scheduled report? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDeleteSchedule}
+        loading={deleting}
       />
     </div>
   )

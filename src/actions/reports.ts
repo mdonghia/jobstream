@@ -798,3 +798,68 @@ export async function deleteReportSchedule(scheduleId: string): Promise<{ succes
     return { error: "Failed to delete report schedule" }
   }
 }
+
+// =============================================================================
+// 10. updateReportSchedule
+// =============================================================================
+
+export async function updateReportSchedule(
+  scheduleId: string,
+  input: ScheduleReportInput
+): Promise<{ success: true } | { error: string }> {
+  try {
+    const user = await requireAuth()
+
+    if (!input.reportType || !input.frequency || !input.emails.length) {
+      return { error: "Report type, frequency, and at least one email are required" }
+    }
+
+    const validTypes = ["invoices", "payments", "jobs", "team_activity", "time_tracking"]
+    if (!validTypes.includes(input.reportType)) {
+      return { error: "Invalid report type" }
+    }
+
+    if (!["weekly", "monthly"].includes(input.frequency)) {
+      return { error: "Frequency must be weekly or monthly" }
+    }
+
+    if (input.frequency === "weekly" && (input.dayOfWeek === undefined || input.dayOfWeek < 0 || input.dayOfWeek > 6)) {
+      return { error: "Day of week (0-6) is required for weekly schedules" }
+    }
+
+    if (input.frequency === "monthly" && (input.dayOfMonth === undefined || input.dayOfMonth < 1 || input.dayOfMonth > 31)) {
+      return { error: "Day of month (1-31) is required for monthly schedules" }
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    for (const email of input.emails) {
+      if (!emailRegex.test(email.trim())) {
+        return { error: `Invalid email address: ${email}` }
+      }
+    }
+
+    const result = await prisma.reportSchedule.updateMany({
+      where: {
+        id: scheduleId,
+        organizationId: user.organizationId,
+      },
+      data: {
+        reportType: input.reportType,
+        frequency: input.frequency,
+        dayOfWeek: input.frequency === "weekly" ? input.dayOfWeek! : null,
+        dayOfMonth: input.frequency === "monthly" ? input.dayOfMonth! : null,
+        emails: input.emails.map((e) => e.trim()),
+      },
+    })
+
+    if (result.count === 0) {
+      return { error: "Schedule not found" }
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateReportSchedule error:", error)
+    return { error: "Failed to update report schedule" }
+  }
+}

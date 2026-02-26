@@ -249,7 +249,7 @@ const STATUS_LABELS: Record<string, string> = {
   SENT: "Pending",
   APPROVED: "Approved",
   DECLINED: "Declined",
-  CONVERTED: "Converted",
+  INVOICED: "Invoiced",
   EXPIRED: "Expired",
 }
 

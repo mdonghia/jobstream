@@ -3,7 +3,7 @@ import { requireAuth } from "@/lib/auth-utils"
 import { getQuotes } from "@/actions/quotes"
 import { QuoteList } from "@/components/quotes/quote-list"
 
-const VALID_TABS = ["ALL", "DRAFT", "SENT", "APPROVED", "DECLINED", "EXPIRED"] as const
+const VALID_TABS = ["ALL", "DRAFT", "SENT", "APPROVED", "INVOICED", "DECLINED", "EXPIRED"] as const
 type QuoteTab = (typeof VALID_TABS)[number]
 
 export default async function QuotesPage({

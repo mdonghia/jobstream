@@ -94,8 +94,8 @@ const STATUS_CONFIG: Record<
     color: "bg-red-100 text-red-700",
     icon: <XCircle className="w-4 h-4" />,
   },
-  CONVERTED: {
-    label: "Converted to Job",
+  INVOICED: {
+    label: "Invoiced",
     color: "bg-purple-100 text-purple-700",
     icon: <CheckCircle2 className="w-4 h-4" />,
   },
@@ -367,7 +367,7 @@ export function QuotePortalView({ quote }: { quote: QuoteData }) {
                 const isSelected = selectedOptionId === option.id
                 const wasApprovedOption =
                   quote.selectedOptionId === option.id &&
-                  (quote.status === "APPROVED" || quote.status === "CONVERTED")
+                  (quote.status === "APPROVED" || quote.status === "INVOICED")
 
                 return (
                   <div

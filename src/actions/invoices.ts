@@ -164,6 +164,7 @@ export async function getInvoice(id: string) {
       include: {
         customer: { include: { properties: true } },
         job: { select: { id: true, jobNumber: true, title: true } },
+        quote: { select: { id: true, quoteNumber: true } },
         lineItems: { orderBy: { sortOrder: "asc" } },
         payments: {
           orderBy: { createdAt: "desc" },
@@ -209,6 +210,7 @@ export async function getInvoice(id: string) {
 export async function createInvoice(data: {
   customerId: string
   jobId?: string
+  quoteId?: string
   lineItems: {
     serviceId?: string
     name: string
@@ -285,6 +287,7 @@ export async function createInvoice(data: {
         organizationId: user.organizationId,
         customerId: data.customerId,
         jobId: data.jobId || null,
+        quoteId: data.quoteId || null,
         invoiceNumber,
         status: "DRAFT",
         subtotal: subtotal,
@@ -302,6 +305,18 @@ export async function createInvoice(data: {
       },
       include: { lineItems: true },
     })
+
+    // If linked to a quote, set quote status to INVOICED
+    if (data.quoteId) {
+      await prisma.quote.updateMany({
+        where: {
+          id: data.quoteId,
+          organizationId: user.organizationId,
+          status: "APPROVED",
+        },
+        data: { status: "INVOICED" },
+      })
+    }
 
     return { invoice: { ...invoice, total: Number(invoice.total) } }
   } catch (error: any) {

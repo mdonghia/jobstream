@@ -79,6 +79,11 @@ interface Job {
   title: string
 }
 
+interface QuoteRef {
+  id: string
+  quoteNumber: string
+}
+
 interface Invoice {
   id: string
   invoiceNumber: string
@@ -100,6 +105,7 @@ interface Invoice {
   createdAt: string
   customer: Customer
   job: Job | null
+  quote: QuoteRef | null
   lineItems: LineItem[]
   payments: Payment[]
 }
@@ -489,6 +495,14 @@ export function InvoiceDetail({ invoice }: InvoiceDetailProps) {
                 className="text-sm text-[#635BFF] hover:underline mt-1 inline-block"
               >
                 Job {invoice.job.jobNumber}: {invoice.job.title}
+              </Link>
+            )}
+            {invoice.quote && (
+              <Link
+                href={`/quotes/${invoice.quote.id}`}
+                className="text-sm text-[#635BFF] hover:underline mt-1 inline-block ml-3"
+              >
+                From Quote {invoice.quote.quoteNumber}
               </Link>
             )}
           </div>

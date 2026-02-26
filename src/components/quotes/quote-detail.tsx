@@ -9,7 +9,6 @@ import {
   Send,
   CheckCircle2,
   XCircle,
-  Briefcase,
   Copy,
   Trash2,
   Loader2,
@@ -18,7 +17,6 @@ import {
   MapPin,
   Lock,
   Clock,
-  ExternalLink,
   FileText,
   ChevronDown,
 } from "lucide-react"
@@ -34,7 +32,6 @@ import {
   sendQuote,
   markQuoteApproved,
   markQuoteDeclined,
-  convertQuoteToJob,
   duplicateQuote,
   deleteQuote,
 } from "@/actions/quotes"
@@ -110,8 +107,8 @@ interface Quote {
   declineReason: string | null
   customerMessage: string | null
   internalNote: string | null
-  convertedToJobId: string | null
-  convertedJobNumber: string | null
+  linkedInvoiceId: string | null
+  linkedInvoiceNumber: string | null
   selectedOptionId: string | null
   customer: QuoteCustomer
   property: QuoteProperty | null
@@ -130,8 +127,8 @@ const statusStyles: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-700",
   SENT: "bg-blue-50 text-blue-700",
   APPROVED: "bg-green-50 text-green-700",
+  INVOICED: "bg-purple-50 text-purple-700",
   DECLINED: "bg-red-50 text-red-700",
-  CONVERTED: "bg-green-50 text-green-700",
   EXPIRED: "bg-amber-50 text-amber-700",
 }
 
@@ -157,7 +154,7 @@ const timelineIcons: Record<string, React.ReactNode> = {
   sent: <Send className="w-4 h-4 text-blue-500" />,
   approved: <CheckCircle2 className="w-4 h-4 text-green-500" />,
   declined: <XCircle className="w-4 h-4 text-red-500" />,
-  converted: <Briefcase className="w-4 h-4 text-green-500" />,
+  invoiced: <FileText className="w-4 h-4 text-purple-500" />,
 }
 
 // ── Option Card (collapsible, used for multi-option quotes) ───────────────
@@ -330,18 +327,6 @@ export function QuoteDetail({ quote: initialQuote, timeline }: QuoteDetailProps)
     setLoading(false)
   }
 
-  async function handleConvertToJob() {
-    setLoading(true)
-    const result = await convertQuoteToJob(quote.id)
-    if ("error" in result) {
-      toast.error(result.error as string)
-      setLoading(false)
-    } else {
-      toast.success("Quote converted to job")
-      router.push(`/jobs/${(result as any).jobId}`)
-    }
-  }
-
   async function handleDuplicate() {
     setLoading(true)
     const result = await duplicateQuote(quote.id)
@@ -445,39 +430,21 @@ export function QuoteDetail({ quote: initialQuote, timeline }: QuoteDetailProps)
           </>
         )
       case "APPROVED":
-        // If already converted to a job (e.g. auto-conversion), show link
-        if (quote.convertedToJobId) {
-          return (
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-green-200 text-green-700 hover:bg-green-50"
-              asChild
-            >
-              <Link href={`/jobs/${quote.convertedToJobId}`}>
-                <Briefcase className="w-4 h-4 mr-1.5" />
-                {quote.convertedJobNumber
-                  ? `Job ${quote.convertedJobNumber} was automatically created`
-                  : "View Created Job"}
-              </Link>
-            </Button>
-          )
-        }
-        return (
+        return null
+      case "INVOICED":
+        return quote.linkedInvoiceId ? (
           <Button
+            variant="outline"
             size="sm"
-            className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
-            onClick={handleConvertToJob}
-            disabled={loading}
+            className="border-purple-200 text-purple-700 hover:bg-purple-50"
+            asChild
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-            ) : (
-              <Briefcase className="w-4 h-4 mr-1.5" />
-            )}
-            Convert to Job
+            <Link href={`/invoices/${quote.linkedInvoiceId}`}>
+              <FileText className="w-4 h-4 mr-1.5" />
+              View Invoice {quote.linkedInvoiceNumber}
+            </Link>
           </Button>
-        )
+        ) : null
       case "DECLINED":
         return (
           <Button
@@ -495,20 +462,6 @@ export function QuoteDetail({ quote: initialQuote, timeline }: QuoteDetailProps)
             Duplicate
           </Button>
         )
-      case "CONVERTED":
-        return quote.convertedToJobId ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-[#E3E8EE] text-[#425466]"
-            asChild
-          >
-            <Link href={`/jobs/${quote.convertedToJobId}`}>
-              <ExternalLink className="w-4 h-4 mr-1.5" />
-              View Job
-            </Link>
-          </Button>
-        ) : null
       default:
         return null
     }
@@ -629,7 +582,7 @@ export function QuoteDetail({ quote: initialQuote, timeline }: QuoteDetailProps)
                 {quote.options.map((option) => {
                   const isSelectedOption =
                     quote.selectedOptionId === option.id &&
-                    (quote.status === "APPROVED" || quote.status === "CONVERTED")
+                    (quote.status === "APPROVED" || quote.status === "INVOICED")
 
                   return (
                     <OptionCard

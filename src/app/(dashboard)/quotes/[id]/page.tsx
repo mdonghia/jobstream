@@ -62,11 +62,11 @@ export default async function QuoteDetailPage({
     })
   }
 
-  if (quote.convertedToJobId) {
+  if (quote.status === "INVOICED" && quote.linkedInvoiceNumber) {
     timeline.push({
-      id: "converted",
-      action: "Converted",
-      description: `Converted to Job${quote.convertedJobNumber ? ` #${quote.convertedJobNumber}` : ""}`,
+      id: "invoiced",
+      action: "Invoiced",
+      description: `Linked to Invoice ${quote.linkedInvoiceNumber}`,
       timestamp: quote.approvedAt || quote.createdAt,
     })
   }

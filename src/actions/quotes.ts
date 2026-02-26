@@ -141,14 +141,16 @@ export async function getQuote(id: string) {
       return { error: "Quote not found" }
     }
 
-    // If quote was converted to a job, fetch the job number for display
-    let convertedJobNumber: string | null = null
-    if (quote.convertedToJobId) {
-      const job = await prisma.job.findUnique({
-        where: { id: quote.convertedToJobId },
-        select: { jobNumber: true },
-      })
-      convertedJobNumber = job?.jobNumber || null
+    // If quote is invoiced, fetch the linked invoice number for display
+    let linkedInvoiceId: string | null = null
+    let linkedInvoiceNumber: string | null = null
+    const linkedInvoice = await prisma.invoice.findFirst({
+      where: { quoteId: quote.id },
+      select: { id: true, invoiceNumber: true },
+    })
+    if (linkedInvoice) {
+      linkedInvoiceId = linkedInvoice.id
+      linkedInvoiceNumber = linkedInvoice.invoiceNumber
     }
 
     return {
@@ -157,7 +159,8 @@ export async function getQuote(id: string) {
         total: Number(quote.total),
         subtotal: Number(quote.subtotal),
         taxAmount: Number(quote.taxAmount),
-        convertedJobNumber,
+        linkedInvoiceId,
+        linkedInvoiceNumber,
         lineItems: quote.lineItems.map((li) => ({
           ...li,
           quantity: Number(li.quantity),
@@ -686,59 +689,14 @@ export async function approveQuote(accessToken: string) {
       return { error: "Quote was already processed" }
     }
 
-    // V2: If quote has jobId, create Visit on existing Job instead of new Job
+    // V2: If quote has jobId, create Visit on existing Job
     if (quote.jobId) {
-      // The quote was created from a visit (from the tech's completion menu)
-      // So approval should create a new Visit on the same Job
       try {
         const { createVisitFromApprovedQuote } = await import("@/actions/visits")
         await createVisitFromApprovedQuote(quote.organizationId, quote.id, quote.jobId)
       } catch (e) {
         console.error("Failed to create visit from approved quote:", e)
         // Don't fail the approval
-      }
-    } else {
-      // No jobId = standalone quote. Use existing auto-convert logic
-      // Check org setting for auto-conversion
-      try {
-        const org = await prisma.organization.findUnique({
-          where: { id: quote.organizationId },
-          select: { autoConvertQuoteToJob: true },
-        })
-
-        if (org?.autoConvertQuoteToJob) {
-          const conversionResult = await _internalConvertQuoteToJob(
-            quote.organizationId,
-            quote.id
-          )
-
-          if ("error" in conversionResult) {
-            // Auto-conversion failed -- create a notification for the org owner
-            // so approval still succeeds but they know conversion didn't happen
-            console.error(
-              `Auto-conversion failed for Quote ${quote.quoteNumber}:`,
-              conversionResult.error
-            )
-            const owner = await prisma.user.findFirst({
-              where: { organizationId: quote.organizationId, role: "OWNER" },
-              select: { id: true },
-            })
-            if (owner) {
-              await prisma.notification.create({
-                data: {
-                  organizationId: quote.organizationId,
-                  userId: owner.id,
-                  title: "Auto-conversion failed",
-                  message: `Auto-conversion failed for Quote ${quote.quoteNumber}. You can convert it manually from the quote detail page.`,
-                  linkUrl: `/quotes/${quote.id}`,
-                },
-              })
-            }
-          }
-        }
-      } catch (autoConvertError) {
-        // Approval succeeded; log but don't fail
-        console.error("Auto-conversion error (approval still succeeded):", autoConvertError)
       }
     }
 
@@ -816,149 +774,38 @@ export async function declineQuote(accessToken: string, reason?: string) {
 }
 
 // =============================================================================
-// 8a. _internalConvertQuoteToJob - Internal helper (no auth, used by automation)
+// 8. getApprovedQuotesForCustomer - Get approved quotes for invoice linking
 // =============================================================================
 
-async function _internalConvertQuoteToJob(
-  organizationId: string,
-  quoteId: string
-): Promise<{ jobId: string } | { error: string }> {
-  const quote = await prisma.quote.findFirst({
-    where: { id: quoteId, organizationId },
-    include: {
-      customer: true,
-      property: true,
-      lineItems: { orderBy: { sortOrder: "asc" } },
-    },
-  })
-  if (!quote) return { error: "Quote not found" }
-
-  // Guard: if already converted, return the existing job silently
-  if (quote.convertedToJobId) {
-    return { jobId: quote.convertedToJobId }
-  }
-
-  if (quote.status !== "APPROVED") {
-    return { error: "Only approved quotes can be converted to jobs" }
-  }
-
-  // Get next job number
-  const org = await prisma.organization.update({
-    where: { id: organizationId },
-    data: { nextJobNum: { increment: 1 } },
-    select: { nextJobNum: true, jobPrefix: true },
-  })
-  const jobNumber = `${org.jobPrefix}-${org.nextJobNum - 1}`
-
-  // Determine which line items to copy:
-  // If the quote has a selectedOptionId, only copy line items from that option.
-  // Otherwise (backward compat), copy all line items with quoteOptionId = null.
-  let lineItemsToCopy = quote.lineItems
-  if (quote.selectedOptionId) {
-    lineItemsToCopy = quote.lineItems.filter(
-      (li) => li.quoteOptionId === quote.selectedOptionId
-    )
-  } else {
-    // Backward compatible: only flat line items (no option)
-    lineItemsToCopy = quote.lineItems.filter(
-      (li) => li.quoteOptionId === null
-    )
-  }
-
-  // Create job with line items in a transaction
-  const job = await prisma.$transaction(async (tx) => {
-    const newJob = await tx.job.create({
-      data: {
-        organizationId,
-        customerId: quote.customerId,
-        propertyId: quote.propertyId,
-        quoteId: quote.id,
-        jobNumber,
-        title: `Services for ${quote.customer.firstName} ${quote.customer.lastName}`,
-        description: quote.customerMessage,
-        status: "SCHEDULED",
-        priority: "MEDIUM",
-        // Use far-past placeholder dates to mark the job as "unscheduled".
-        // The isJobUnscheduled() utility detects year <= 2000 and displays
-        // an "Unscheduled" badge. The user will set real dates when scheduling.
-        scheduledStart: new Date("2000-01-01T00:00:00.000Z"),
-        scheduledEnd: new Date("2000-01-01T02:00:00.000Z"),
-      },
-    })
-
-    // Copy line items to job line items
-    if (lineItemsToCopy.length > 0) {
-      await tx.jobLineItem.createMany({
-        data: lineItemsToCopy.map((li) => ({
-          jobId: newJob.id,
-          serviceId: li.serviceId,
-          name: li.name,
-          description: li.description,
-          quantity: li.quantity,
-          unitPrice: li.unitPrice,
-          total: li.total,
-          taxable: li.taxable,
-          sortOrder: li.sortOrder,
-        })),
-      })
-    }
-
-    // V2 dual-write: create Visit for the new job
-    await tx.visit.create({
-      data: {
-        jobId: newJob.id,
-        organizationId,
-        visitNumber: 1,
-        purpose: "SERVICE",
-        status: "UNSCHEDULED", // Quote-converted jobs start unscheduled
-        scheduledStart: new Date("2000-01-01T00:00:00.000Z"),
-        scheduledEnd: new Date("2000-01-01T02:00:00.000Z"),
-      },
-    })
-
-    // Update quote status
-    await tx.quote.update({
-      where: { id: quoteId },
-      data: {
-        status: "CONVERTED",
-        convertedToJobId: newJob.id,
-      },
-    })
-
-    return newJob
-  })
-
-  return { jobId: job.id }
-}
-
-// =============================================================================
-// 8b. convertQuoteToJob - Convert an approved quote to a job (authenticated)
-// =============================================================================
-
-export async function convertQuoteToJob(quoteId: string) {
+export async function getApprovedQuotesForCustomer(customerId: string) {
   try {
     const user = await requireAuth()
 
-    // Verify quote belongs to org
-    const quote = await prisma.quote.findFirst({
-      where: { id: quoteId, organizationId: user.organizationId },
+    const quotes = await prisma.quote.findMany({
+      where: {
+        customerId,
+        organizationId: user.organizationId,
+        status: "APPROVED",
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        quoteNumber: true,
+        total: true,
+        createdAt: true,
+      },
     })
-    if (!quote) return { error: "Quote not found" }
 
-    // Guard: if already converted, return the existing job silently
-    if (quote.convertedToJobId) {
-      return { jobId: quote.convertedToJobId }
+    return {
+      quotes: quotes.map((q) => ({
+        ...q,
+        total: Number(q.total),
+      })),
     }
-
-    if (quote.status !== "APPROVED") {
-      return { error: "Only approved quotes can be converted to jobs" }
-    }
-
-    return await _internalConvertQuoteToJob(user.organizationId, quoteId)
   } catch (error: any) {
     if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
-    console.error("convertQuoteToJob error:", error)
-    return { error: "Failed to convert quote to job" }
+    console.error("getApprovedQuotesForCustomer error:", error)
+    return { error: "Failed to fetch approved quotes" }
   }
 }
 
@@ -1064,40 +911,6 @@ export async function markQuoteApproved(id: string) {
       where: { id },
       data: { status: "APPROVED", approvedAt: new Date() },
     })
-
-    // Check org setting for auto-conversion
-    try {
-      const org = await prisma.organization.findUnique({
-        where: { id: user.organizationId },
-        select: { autoConvertQuoteToJob: true },
-      })
-
-      if (org?.autoConvertQuoteToJob) {
-        const conversionResult = await _internalConvertQuoteToJob(
-          user.organizationId,
-          id
-        )
-
-        if ("error" in conversionResult) {
-          console.error(
-            `Auto-conversion failed for Quote ${quote.quoteNumber}:`,
-            conversionResult.error
-          )
-          await prisma.notification.create({
-            data: {
-              organizationId: user.organizationId,
-              userId: user.id,
-              title: "Auto-conversion failed",
-              message: `Auto-conversion failed for Quote ${quote.quoteNumber}. You can convert it manually from the quote detail page.`,
-              linkUrl: `/quotes/${id}`,
-            },
-          })
-        }
-      }
-    } catch (autoConvertError) {
-      // Approval succeeded; log but don't fail
-      console.error("Auto-conversion error (approval still succeeded):", autoConvertError)
-    }
 
     return { success: true }
   } catch (error: any) {

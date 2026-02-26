@@ -32,7 +32,7 @@ export default async function PortalQuotesPage({
     SENT: "bg-blue-50 text-blue-700",
     APPROVED: "bg-green-50 text-green-700",
     DECLINED: "bg-red-50 text-red-700",
-    CONVERTED: "bg-purple-50 text-purple-700",
+    INVOICED: "bg-purple-50 text-purple-700",
     EXPIRED: "bg-gray-50 text-gray-500",
   }
 

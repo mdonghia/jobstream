@@ -938,7 +938,7 @@ function StatusBadge({ status }: { status: string }) {
     SENT: "bg-blue-50 text-blue-700",
     APPROVED: "bg-green-50 text-green-700",
     DECLINED: "bg-red-50 text-red-700",
-    CONVERTED: "bg-green-50 text-green-700",
+    INVOICED: "bg-purple-50 text-purple-700",
     EXPIRED: "bg-amber-50 text-amber-700",
     SCHEDULED: "bg-gray-100 text-gray-700",
     IN_PROGRESS: "bg-blue-50 text-blue-700",
