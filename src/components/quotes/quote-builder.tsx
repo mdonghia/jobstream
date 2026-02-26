@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import {
@@ -45,6 +45,8 @@ import { cn, formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { createQuote, updateQuote } from "@/actions/quotes"
 import { getCustomers } from "@/actions/customers"
+import { useAutoSave } from "@/hooks/use-auto-save"
+import { AutoSaveIndicator } from "@/components/shared/auto-save-indicator"
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -231,6 +233,89 @@ export function QuoteBuilder({
       setSelectedPropertyId("")
     }
   }, [selectedCustomerId, selectedCustomer])
+
+  // ── Auto-save (edit mode only) ────────────────────────────────────────────
+
+  const isEditing = mode === "edit"
+
+  const autoSaveData = useMemo(
+    () => ({
+      selectedCustomerId,
+      selectedPropertyId,
+      lineItems,
+      customerMessage,
+      internalNote,
+      validDays,
+      useOptions,
+      options,
+    }),
+    [
+      selectedCustomerId, selectedPropertyId, lineItems, customerMessage,
+      internalNote, validDays, useOptions, options,
+    ]
+  )
+
+  const handleAutoSave = useCallback(async () => {
+    if (!selectedCustomerId) return
+    if (!initialData?.id) return
+
+    const validUntil = new Date()
+    validUntil.setDate(validUntil.getDate() + validDays)
+
+    const data: any = {
+      customerId: selectedCustomerId,
+      propertyId: selectedPropertyId || undefined,
+      jobId: linkedJobId,
+      lineItems: useOptions
+        ? []
+        : lineItems
+            .filter((li) => li.name.trim())
+            .map((li) => ({
+              serviceId: li.serviceId,
+              name: li.name,
+              description: li.description || undefined,
+              quantity: li.quantity,
+              unitPrice: li.unitPrice,
+              taxable: li.taxable,
+            })),
+      customerMessage: customerMessage || undefined,
+      internalNote: internalNote || undefined,
+      validUntil: validUntil.toISOString(),
+    }
+
+    if (useOptions && options.length > 0) {
+      data.options = options.map((opt) => ({
+        name: opt.name,
+        description: opt.description || undefined,
+        lineItems: opt.lineItems
+          .filter((li) => li.name.trim())
+          .map((li) => ({
+            serviceId: li.serviceId,
+            name: li.name,
+            description: li.description || undefined,
+            quantity: li.quantity,
+            unitPrice: li.unitPrice,
+            taxable: li.taxable,
+          })),
+      }))
+    }
+
+    const result = await updateQuote(initialData.id, data)
+    if ("error" in result) {
+      throw new Error(result.error as string)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    selectedCustomerId, selectedPropertyId, lineItems, customerMessage,
+    internalNote, validDays, useOptions, options, linkedJobId, initialData?.id,
+  ])
+
+  const { status: autoSaveStatus } = useAutoSave({
+    data: autoSaveData,
+    onSave: handleAutoSave,
+    enabled: isEditing && !!initialData?.id,
+    debounceMs: 1500,
+  })
 
   // ── Line items management ────────────────────────────────────────────────
 
@@ -560,9 +645,12 @@ export function QuoteBuilder({
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-[#0A2540]">
-            {mode === "edit" ? "Edit Quote" : "New Quote"}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold text-[#0A2540]">
+              {mode === "edit" ? "Edit Quote" : "New Quote"}
+            </h1>
+            {isEditing && <AutoSaveIndicator status={autoSaveStatus} />}
+          </div>
           <p className="text-sm text-[#8898AA] mt-0.5">
             {mode === "edit"
               ? "Update the details for this quote"

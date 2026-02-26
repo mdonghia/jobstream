@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,7 +23,12 @@ import { Separator } from "@/components/ui/separator"
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react"
 import { US_STATES } from "@/lib/constants"
 import { formatPhoneNumber } from "@/lib/format-helpers"
+import { AddressAutocomplete, type ParsedAddress } from "@/components/ui/address-autocomplete"
 import { toast } from "sonner"
+import { useAutoSave } from "@/hooks/use-auto-save"
+import { AutoSaveIndicator } from "@/components/shared/auto-save-indicator"
+import { ManageTagsDialog } from "@/components/customers/manage-tags-dialog"
+import { getAllTags } from "@/actions/customers"
 
 interface PropertyFormData {
   addressLine1: string
@@ -90,6 +95,36 @@ export function CustomerForm({
   )
   const [tagInput, setTagInput] = useState("")
   const [propertiesExpanded, setPropertiesExpanded] = useState(true)
+  const [manageTagsOpen, setManageTagsOpen] = useState(false)
+  const [currentAllTags, setCurrentAllTags] = useState<string[]>(allTags)
+
+  // Determine if this is an edit form (not a create form)
+  const isEditing = title !== "Add Customer" && !!initialData
+
+  // Build the auto-save data payload (customer + properties)
+  const autoSaveData = useMemo(
+    () => ({ customer, properties }),
+    [customer, properties]
+  )
+
+  // Auto-save handler: calls onSave with current form data
+  const handleAutoSave = useCallback(
+    async (data: { customer: CustomerFormData; properties: PropertyFormData[] }) => {
+      // Run the same validation as handleSubmit
+      if (!data.customer.firstName.trim() || !data.customer.lastName.trim()) return
+      const nonEmptyProps = data.properties.filter((p) => p.addressLine1.trim())
+      await onSave(data.customer, nonEmptyProps)
+    },
+    [onSave]
+  )
+
+  // Auto-save hook (only active in edit mode)
+  const { status: autoSaveStatus, saveNow } = useAutoSave({
+    data: autoSaveData,
+    onSave: handleAutoSave,
+    enabled: isEditing && open,
+    debounceMs: 1500,
+  })
 
   function resetForm() {
     setCustomer({
@@ -187,7 +222,10 @@ export function CustomerForm({
     <Sheet open={open} onOpenChange={handleClose}>
       <SheetContent className="w-full sm:max-w-[480px] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle className="text-[#0A2540]">{title}</SheetTitle>
+          <div className="flex items-center gap-3">
+            <SheetTitle className="text-[#0A2540]">{title}</SheetTitle>
+            {isEditing && <AutoSaveIndicator status={autoSaveStatus} />}
+          </div>
         </SheetHeader>
 
         <div className="mt-6 space-y-6 px-6">
@@ -278,7 +316,16 @@ export function CustomerForm({
             </h3>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase text-[#8898AA]">Tags</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase text-[#8898AA]">Tags</Label>
+                  <button
+                    type="button"
+                    onClick={() => setManageTagsOpen(true)}
+                    className="text-xs text-[#635BFF] hover:underline"
+                  >
+                    Manage Tags
+                  </button>
+                </div>
                 <div className="relative">
                   <div className="flex gap-2">
                     <Input
@@ -304,7 +351,7 @@ export function CustomerForm({
                     </Button>
                   </div>
                   {tagInput.trim() && (() => {
-                    const suggestions = allTags.filter(
+                    const suggestions = currentAllTags.filter(
                       (t) =>
                         t.toLowerCase().includes(tagInput.trim().toLowerCase()) &&
                         !customer.tags.includes(t)
@@ -423,9 +470,20 @@ export function CustomerForm({
                       <Label className="text-xs font-semibold uppercase text-[#8898AA]">
                         Address *
                       </Label>
-                      <Input
+                      <AddressAutocomplete
                         value={prop.addressLine1}
-                        onChange={(e) => updateProperty(index, "addressLine1", e.target.value)}
+                        onChange={(val) => updateProperty(index, "addressLine1", val)}
+                        onAddressSelect={(addr: ParsedAddress) => {
+                          const updated = [...properties]
+                          updated[index] = {
+                            ...updated[index],
+                            addressLine1: addr.addressLine1,
+                            city: addr.city,
+                            state: addr.state,
+                            zip: addr.zip,
+                          }
+                          setProperties(updated)
+                        }}
                         placeholder="Street address"
                         className="h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
                       />
@@ -527,6 +585,19 @@ export function CustomerForm({
           </Button>
         </SheetFooter>
       </SheetContent>
+
+      {/* Manage Tags Dialog */}
+      <ManageTagsDialog
+        open={manageTagsOpen}
+        onOpenChange={setManageTagsOpen}
+        onTagsChanged={async () => {
+          // Refresh the tag list after a tag is added/renamed/deleted
+          const refreshed = await getAllTags()
+          if (Array.isArray(refreshed)) {
+            setCurrentAllTags(refreshed)
+          }
+        }}
+      />
     </Sheet>
   )
 }

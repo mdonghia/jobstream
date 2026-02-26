@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -70,6 +70,8 @@ import { createVisit, rescheduleVisit, assignVisit, updateVisitStatus, completeV
 import { addJobNote, updateJob, addJobLineItem, updateJobLineItem, deleteJobLineItem } from "@/actions/jobs"
 import { getActivityFeed } from "@/actions/activity"
 import { computeJobFilterTab, type JobFilterTab } from "@/lib/job-filter-tab"
+import { useAutoSave } from "@/hooks/use-auto-save"
+import { AutoSaveIndicator } from "@/components/shared/auto-save-indicator"
 
 // =============================================================================
 // Types
@@ -327,6 +329,34 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
   const [editLIQty, setEditLIQty] = useState("")
   const [editLIPrice, setEditLIPrice] = useState("")
   const [deletingLineItemId, setDeletingLineItemId] = useState<string | null>(null)
+
+  // --- Edit Job auto-save ---
+  const editJobAutoSaveData = useMemo(
+    () => ({ title: editTitle, description: editDescription, isEmergency: editIsEmergency }),
+    [editTitle, editDescription, editIsEmergency]
+  )
+
+  const handleEditJobAutoSave = useCallback(
+    async (data: { title: string; description: string; isEmergency: boolean }) => {
+      if (!data.title.trim()) return
+      const result = await updateJob(job.id, {
+        title: data.title.trim(),
+        description: data.description.trim() || undefined,
+        isEmergency: data.isEmergency,
+      })
+      if ("error" in result) {
+        throw new Error(result.error)
+      }
+    },
+    [job.id]
+  )
+
+  const { status: editJobAutoSaveStatus } = useAutoSave({
+    data: editJobAutoSaveData,
+    onSave: handleEditJobAutoSave,
+    enabled: showEditJobDialog,
+    debounceMs: 1500,
+  })
 
   // --- Activity feed state ---
   const [activityEvents, setActivityEvents] = useState<ActivityEventData[]>([])
@@ -750,7 +780,10 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
       <Dialog open={showEditJobDialog} onOpenChange={setShowEditJobDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Job</DialogTitle>
+            <div className="flex items-center gap-3">
+              <DialogTitle>Edit Job</DialogTitle>
+              <AutoSaveIndicator status={editJobAutoSaveStatus} />
+            </div>
             <DialogDescription>
               Update the job title, description, and emergency status.
             </DialogDescription>
@@ -921,7 +954,7 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="visit-notes">Notes</Label>
+              <Label htmlFor="visit-notes">Visit Notes</Label>
               <Textarea
                 id="visit-notes"
                 value={visitNotes}
@@ -1863,7 +1896,7 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
             <StickyNote className="w-4 h-4 text-[#8898AA]" />
-            Internal Notes ({notes.length})
+            Job Notes ({notes.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1872,7 +1905,7 @@ export function JobDetailV2({ job, currentUserId, teamMembers }: JobDetailV2Prop
             <Textarea
               value={newNoteContent}
               onChange={(e) => setNewNoteContent(e.target.value)}
-              placeholder="Add an internal note..."
+              placeholder="Add a job note..."
               className="min-h-[80px] border-[#E3E8EE] focus-visible:ring-[#635BFF]"
             />
             <div className="flex justify-end">

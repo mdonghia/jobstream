@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -48,6 +48,8 @@ import { toast } from "sonner"
 import { createJob, updateJob } from "@/actions/jobs"
 import { searchCustomersWithProperties } from "@/actions/customers"
 import { format } from "date-fns"
+import { useAutoSave } from "@/hooks/use-auto-save"
+import { AutoSaveIndicator } from "@/components/shared/auto-save-indicator"
 
 // ---- Types ----
 
@@ -498,6 +500,104 @@ export function JobBuilder({
     return JSON.stringify(rule)
   }
 
+  // ---- Auto-save (edit mode only) ----
+
+  // Build a stable data object for auto-save comparison
+  const autoSaveData = useMemo(
+    () => ({
+      customerId: selectedCustomerId,
+      propertyId: selectedPropertyId,
+      title,
+      description,
+      priority,
+      lineItems,
+      startDate: startDate?.toISOString() || "",
+      startTime,
+      duration,
+      arrivalWindow,
+      assignedUserIds,
+      isRecurring,
+      frequency,
+      recurDayOfWeek,
+      recurWeekOfMonth,
+      recurMonth,
+      recurQuarterMonths,
+      recurrenceStartDate: recurrenceStartDate.toISOString(),
+      recurrenceEnd,
+      recurrenceEndDate: recurrenceEndDate?.toISOString() || "",
+      internalNote,
+      attachedChecklists,
+    }),
+    [
+      selectedCustomerId, selectedPropertyId, title, description, priority,
+      lineItems, startDate, startTime, duration, arrivalWindow, assignedUserIds,
+      isRecurring, frequency, recurDayOfWeek, recurWeekOfMonth, recurMonth,
+      recurQuarterMonths, recurrenceStartDate, recurrenceEnd, recurrenceEndDate,
+      internalNote, attachedChecklists,
+    ]
+  )
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const handleAutoSave = useCallback(async () => {
+    // Must have required fields to auto-save
+    if (!selectedCustomerId || !title.trim() || !startDate) return
+
+    const scheduledStart = new Date(startDate)
+    const [hh, mm] = startTime.split(":").map(Number)
+    scheduledStart.setHours(hh, mm, 0, 0)
+
+    const scheduledEnd = getScheduledEnd()
+    if (!scheduledEnd) return
+
+    const jobPayload = {
+      customerId: selectedCustomerId,
+      propertyId: selectedPropertyId || undefined,
+      title: title.trim(),
+      description: description.trim() || undefined,
+      priority,
+      scheduledStart: scheduledStart.toISOString(),
+      scheduledEnd: scheduledEnd.toISOString(),
+      assignedUserIds: assignedUserIds.length > 0 ? assignedUserIds : [],
+      checklistItems: allChecklistLabels,
+      lineItems:
+        lineItems.length > 0
+          ? lineItems.map((li) => ({
+              serviceId: li.serviceId,
+              name: li.name,
+              description: li.description || undefined,
+              quantity: li.quantity,
+              unitPrice: li.unitPrice,
+              taxable: li.taxable,
+            }))
+          : [],
+      internalNote: internalNote.trim() || undefined,
+      isRecurring,
+      recurrenceRule: isRecurring ? buildRecurrenceRule() : undefined,
+      recurrenceEndDate:
+        isRecurring && recurrenceEnd === "date" && recurrenceEndDate
+          ? recurrenceEndDate.toISOString()
+          : undefined,
+      arrivalWindowMinutes: arrivalWindow !== "" ? parseInt(arrivalWindow, 10) : undefined,
+    }
+
+    const result = await updateJob(initialData.id, jobPayload)
+    if ("error" in result) {
+      throw new Error(result.error)
+    }
+  }, [
+    selectedCustomerId, selectedPropertyId, title, description, priority,
+    lineItems, startDate, startTime, duration, assignedUserIds, allChecklistLabels,
+    internalNote, isRecurring, recurrenceEnd, recurrenceEndDate, arrivalWindow,
+    initialData?.id,
+  ])
+
+  const { status: autoSaveStatus, saveNow: autoSaveNow } = useAutoSave({
+    data: autoSaveData,
+    onSave: handleAutoSave,
+    enabled: isEditing && !!initialData?.id,
+    debounceMs: 1500,
+  })
+
   // Submit
   async function handleSubmit() {
     if (!selectedCustomerId) {
@@ -598,9 +698,12 @@ export function JobBuilder({
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold text-[#0A2540]">
-            {isEditing ? "Edit Job" : "New Job"}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold text-[#0A2540]">
+              {isEditing ? "Edit Job" : "New Job"}
+            </h1>
+            {isEditing && <AutoSaveIndicator status={autoSaveStatus} />}
+          </div>
           <p className="text-sm text-[#8898AA]">
             {isEditing
               ? "Update the details for this job"
