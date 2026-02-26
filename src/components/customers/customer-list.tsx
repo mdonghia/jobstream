@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { Users, Search, MoreHorizontal, Archive, Briefcase, Pencil } from "lucide-react"
+import { Users, Search, MoreHorizontal, Archive, Briefcase, Pencil, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -269,13 +269,13 @@ export function CustomerList({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-[#0A2540]">Customers</h1>
-          <p className="text-sm text-[#8898AA] mt-0.5">{total} total</p>
         </div>
         <Button
           onClick={() => setFormOpen(true)}
           className="bg-[#635BFF] hover:bg-[#5851ea] text-white"
         >
-          Add Customer
+          <Plus className="w-4 h-4 mr-1.5" />
+          New Customer
         </Button>
       </div>
 

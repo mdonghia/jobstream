@@ -605,7 +605,21 @@ export function ReportsPage() {
       </div>
 
       <Card className="border-[#E3E8EE] max-w-2xl">
-        <CardContent className="pt-6 space-y-6">
+        <CardContent className="pt-4 space-y-6">
+          {/* View Scheduled Reports link (top right) */}
+          {schedulesLoaded && schedules.length > 0 && (
+            <div className="flex justify-end -mb-2">
+              <button
+                type="button"
+                className="text-sm text-[#635BFF] hover:text-[#5851ea] hover:underline inline-flex items-center gap-1.5"
+                onClick={() => setSheetOpen(true)}
+              >
+                <List className="w-3.5 h-3.5" />
+                View Scheduled Reports
+              </button>
+            </div>
+          )}
+
           {/* Report Type Selector */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-[#425466]">Report Type</Label>
@@ -706,19 +720,6 @@ export function ReportsPage() {
             </Button>
           </div>
 
-          {/* View Scheduled Reports link (only when schedules exist) */}
-          {schedulesLoaded && schedules.length > 0 && (
-            <div className="pt-1">
-              <button
-                type="button"
-                className="text-sm text-[#635BFF] hover:text-[#5851ea] hover:underline inline-flex items-center gap-1.5"
-                onClick={() => setSheetOpen(true)}
-              >
-                <List className="w-3.5 h-3.5" />
-                View Scheduled Reports ({schedules.length})
-              </button>
-            </div>
-          )}
         </CardContent>
       </Card>
 

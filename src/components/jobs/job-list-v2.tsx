@@ -436,7 +436,6 @@ export default function JobListV2() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-[#0A2540]">Jobs</h1>
-          <p className="text-sm text-[#8898AA] mt-0.5">{total} total</p>
         </div>
         <Button asChild className="bg-[#635BFF] hover:bg-[#5851ea] text-white">
           <Link href="/jobs/new">
@@ -446,19 +445,8 @@ export default function JobListV2() {
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8898AA]" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by job number, quote number, customer, service, address..."
-          className="pl-10 h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
-        />
-      </div>
-
       {/* Filter Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-4">
         <TabsList
           variant="line"
           className="flex gap-0 border-b border-[#E3E8EE] overflow-x-auto overflow-y-hidden w-full"
@@ -488,6 +476,17 @@ export default function JobListV2() {
           ))}
         </TabsList>
       </Tabs>
+
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8898AA]" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by job number, quote number, customer, service, address..."
+          className="pl-10 h-10 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+        />
+      </div>
 
       {/* Table */}
       <div className="bg-white rounded-lg border border-[#E3E8EE] overflow-hidden">
