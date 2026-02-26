@@ -44,7 +44,7 @@ import { toast } from "sonner"
 import { createVisit } from "@/actions/visits"
 import { addJobNote } from "@/actions/jobs"
 import { getActivityFeed } from "@/actions/activity"
-import { computeJobFilterTab, type JobFilterTab } from "@/actions/jobs-v2"
+import { computeJobFilterTab, type JobFilterTab } from "@/lib/job-filter-tab"
 
 // =============================================================================
 // Types

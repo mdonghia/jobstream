@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { formatDate, formatCurrency } from "@/lib/utils"
 import { getJobsV2, getJobTabCounts } from "@/actions/jobs-v2"
-import type { JobFilterTab } from "@/actions/jobs-v2"
+import type { JobFilterTab } from "@/lib/job-filter-tab"
 
 // =============================================================================
 // Types
