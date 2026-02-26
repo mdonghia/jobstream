@@ -152,8 +152,9 @@ test.describe("V2 Schedule Page", () => {
     const sidebar = page.locator("h3", { hasText: "Unscheduled" });
     await expect(sidebar).toBeVisible({ timeout: 10000 });
 
-    // The sidebar should also have a collapse button with aria-label
-    const collapseBtn = page.getByRole("button", {
+    // The sidebar should also have a collapse button with aria-label.
+    // Scope to <main> to avoid matching the app sidebar's collapse button.
+    const collapseBtn = page.getByRole("main").getByRole("button", {
       name: "Collapse sidebar",
     });
     await expect(collapseBtn).toBeVisible();
@@ -163,7 +164,7 @@ test.describe("V2 Schedule Page", () => {
     await expect(sidebar).not.toBeVisible({ timeout: 5000 });
 
     // Expand it back using the expand button
-    const expandBtn = page.getByRole("button", {
+    const expandBtn = page.getByRole("main").getByRole("button", {
       name: "Expand sidebar",
     });
     await expect(expandBtn).toBeVisible();
@@ -240,17 +241,17 @@ test.describe("V2 Schedule Page", () => {
       // Click the team filter button to open the popover
       await teamButton.first().click();
 
-      // The popover should show checkboxes for team members
-      const checkboxes = page.locator('[role="checkbox"]');
-      await expect(checkboxes.first()).toBeVisible({ timeout: 5000 });
+      // The popover should show team member rows. Each row is a button
+      // containing a checkbox and the member name.
+      const memberRows = page.locator(".w-56 button.w-full");
+      await expect(memberRows.first()).toBeVisible({ timeout: 5000 });
 
-      // The popover should contain at least one team member name
-      const memberNames = page.locator(".w-56 .text-xs.text-\\[\\#0A2540\\]");
-      const memberCount = await memberNames.count();
+      const memberCount = await memberRows.count();
       expect(memberCount).toBeGreaterThan(0);
 
-      // Click a checkbox to select a member
-      await checkboxes.first().click();
+      // Click the first member row (parent button) to toggle selection.
+      // Don't click the checkbox directly as it's intercepted by the button.
+      await memberRows.first().click();
 
       // A "Clear filters" button should appear since a member is selected
       await expect(

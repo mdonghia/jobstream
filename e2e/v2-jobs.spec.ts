@@ -198,17 +198,21 @@ test.describe("V2 Jobs List", () => {
   // Create job flow -- clicking "New Job" navigates to the form
   // -------------------------------------------------------------------------
   test("clicking New Job navigates to job creation form", async ({ page }) => {
-    await page.getByRole("link", { name: /new job/i }).click();
-
-    // Should navigate to /jobs/new
-    await expect(page).toHaveURL(/\/jobs\/new/, { timeout: 10000 });
+    // The "New Job" button is a Link wrapped in a Button (asChild).
+    // Use Promise.all to wait for navigation after click.
+    const newJobLink = page.getByRole("link", { name: /new job/i });
+    await expect(newJobLink).toBeVisible({ timeout: 5000 });
+    await Promise.all([
+      page.waitForURL(/\/jobs\/new/, { timeout: 15000 }),
+      newJobLink.click(),
+    ]);
 
     // Verify the page heading for the new job form
     await expect(
       page
         .getByRole("main")
         .getByRole("heading", { name: "New Job", level: 1 })
-    ).toBeVisible({ timeout: 10000 });
+    ).toBeVisible({ timeout: 15000 });
   });
 });
 

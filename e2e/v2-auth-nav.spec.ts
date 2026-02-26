@@ -79,7 +79,7 @@ test.describe("V2 Dashboard", () => {
   test("shows Today's Progress section", async ({ page }) => {
     await expect(page.getByText("Progress")).toBeVisible();
     // The progress section shows "X of Y visits complete"
-    await expect(page.getByText(/visits/i)).toBeVisible();
+    await expect(page.getByText(/\d+ of \d+ visits complete/i)).toBeVisible();
   });
 
   test("shows Revenue card", async ({ page }) => {

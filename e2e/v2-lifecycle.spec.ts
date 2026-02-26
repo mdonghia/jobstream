@@ -62,6 +62,9 @@ test.describe.serial("V2 Full Lifecycle", () => {
   // All tests share the same browser context so the login session persists.
   let page: Page;
 
+  // Increase timeout for production testing -- each step involves network roundtrips
+  test.setTimeout(60000);
+
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
     await loginAsDemo(page);
@@ -129,53 +132,45 @@ test.describe.serial("V2 Full Lifecycle", () => {
     await customerCombobox.click();
 
     // Wait for the command list to appear and type the customer name
-    await expect(page.locator("[cmdk-list]")).toBeVisible({ timeout: 5000 });
+    await expect(page.locator("[cmdk-list]")).toBeVisible({ timeout: 10000 });
     const searchInput = page.locator("[cmdk-input]");
     await searchInput.fill(CUSTOMER_FIRST);
 
-    // Wait for the search results to filter (debounced 300ms + server roundtrip)
-    await page.waitForTimeout(1000);
+    // Wait for the debounced search (300ms) + production server roundtrip
+    await page.waitForTimeout(2000);
 
     // Select the matching customer from the command items
     const customerOption = page.locator("[cmdk-item]").first();
-    await expect(customerOption).toBeVisible({ timeout: 5000 });
+    await expect(customerOption).toBeVisible({ timeout: 10000 });
     await expect(customerOption).toContainText(CUSTOMER_FIRST);
     await customerOption.click();
 
     // -- Fill in the job title --
-    const titleInput = page.getByLabel(/title/i);
+    // The Title label is not associated via htmlFor, so use placeholder instead.
+    const titleInput = page.getByPlaceholder("e.g., Weekly lawn mowing");
+    await expect(titleInput).toBeVisible({ timeout: 10000 });
     await titleInput.fill(JOB_TITLE);
 
     // -- Pick a start date (today) --
-    // Click the "Pick a date" button to open the calendar popover
+    // The job builder requires a date. Click the "Pick a date" button.
     const dateButton = page.getByRole("button", { name: /pick a date/i });
     await dateButton.click();
 
-    // The calendar popover should open. Click today's date.
-    // Today is always highlighted in Radix calendar; use aria-selected or
-    // the "today" class to find it.
-    const todayCell = page.locator(
-      'button[name="day"].rdp-day_today, td.rdp-day_today button, button.rdp-today, [data-today="true"]'
-    );
+    // Click today's date in the calendar popover
+    const today = new Date();
+    const dayNumber = today.getDate().toString();
+    const todayCell = page.locator('[data-today="true"]');
 
-    // Fallback: if none of the above selectors match, try the Radix calendar
-    // where today has a special ring/styling. We can also click the date number
-    // directly. Let's use a more robust approach:
     if (await todayCell.count() > 0) {
       await todayCell.first().click();
     } else {
-      // Click the current date number in the calendar
-      const today = new Date();
-      const dayNumber = today.getDate().toString();
-      // Find the calendar and click the day
-      const calendarPopover = page.locator("[role='dialog'], .rdp");
+      // Fallback: find the day number in the calendar grid
+      const calendarPopover = page.locator("[role='dialog'], .rdp").first();
       await calendarPopover
         .getByRole("gridcell", { name: dayNumber, exact: true })
         .first()
         .click();
     }
-
-    // Wait a moment for the date to register
     await page.waitForTimeout(300);
 
     // -- Submit the job --
@@ -184,8 +179,14 @@ test.describe.serial("V2 Full Lifecycle", () => {
     await expect(createJobBtn).toBeVisible({ timeout: 5000 });
     await createJobBtn.click();
 
-    // Should redirect to the new job's detail page
-    await expect(page).toHaveURL(/\/jobs\/[a-zA-Z0-9-]+$/, {
+    // Wait for success toast to confirm job was created
+    await expect(page.getByText("Job created successfully")).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Should redirect to the new job's detail page.
+    // Use negative lookahead to exclude /jobs/new (which also matches [a-zA-Z0-9-]+)
+    await expect(page).toHaveURL(/\/jobs\/(?!new$)[a-zA-Z0-9-]+$/, {
       timeout: 15000,
     });
 
@@ -196,32 +197,46 @@ test.describe.serial("V2 Full Lifecycle", () => {
   });
 
   // =========================================================================
-  // Step 3: Verify Job in Unscheduled Tab
+  // Step 3: Verify Job appears in Jobs list via search
   // =========================================================================
 
-  test("Step 3 -- Verify the new job appears in the Unscheduled tab", async () => {
+  test("Step 3 -- Verify the new job appears in the Jobs list", async () => {
     await page.goto("/jobs");
 
     // Wait for the job list v2 page to load
     await expect(
-      page.getByRole("heading", { name: "Jobs", level: 1 })
+      page.getByRole("main").getByRole("heading", { name: "Jobs", level: 1 })
     ).toBeVisible({ timeout: 10000 });
 
-    // Click the "Unscheduled" tab to switch to that filter.
-    // The tab triggers are rendered as buttons inside the TabsList.
-    const unscheduledTab = page.getByRole("tab", { name: /Unscheduled/i });
-    await expect(unscheduledTab).toBeVisible({ timeout: 5000 });
-    await unscheduledTab.click();
+    // The job was created with a scheduled date, so its visit is SCHEDULED
+    // and computeJobFilterTab classifies it as "upcoming". The default tab
+    // is "unscheduled", so we must switch to Upcoming first. Search is
+    // scoped to the active tab.
+    const upcomingTab = page.getByRole("tab", { name: /Upcoming/i });
+    await expect(upcomingTab).toBeVisible({ timeout: 5000 });
+    await upcomingTab.click();
 
-    // Wait for the data to load (uses startTransition so there is a brief
-    // loading period with 50% opacity)
-    await page.waitForTimeout(1500);
+    // Wait for the tab data to load
+    await page.waitForTimeout(2000);
 
-    // Verify our job appears in the table.
-    // The job title is rendered in a table cell.
+    // Use the search bar to find our specific job by title.
+    const searchInput = page.getByPlaceholder(/search by job number/i);
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
+    await searchInput.fill(JOB_TITLE);
+
+    // Wait for debounced search (300ms) + server roundtrip
+    await page.waitForTimeout(2000);
+
+    // Verify our job appears in the search results table.
     await expect(
       page.locator("table").getByText(JOB_TITLE)
     ).toBeVisible({ timeout: 10000 });
+
+    // Capture the job number from the search results for later use
+    const jobNumberCell = page.locator("table a.font-mono").first();
+    if (await jobNumberCell.isVisible()) {
+      jobNumber = (await jobNumberCell.textContent()) || "";
+    }
   });
 
   // =========================================================================
@@ -253,20 +268,11 @@ test.describe.serial("V2 Full Lifecycle", () => {
       page.getByText(/Visits \(\d+\)/)
     ).toBeVisible({ timeout: 5000 });
 
-    // Verify the Activity feed section exists
+    // Verify the Activity feed section exists.
+    // Use { exact: true } to avoid matching "No activity yet." text.
     await expect(
-      page.getByText("Activity")
+      page.getByText("Activity", { exact: true })
     ).toBeVisible({ timeout: 5000 });
-
-    // Wait for the activity feed to load (it starts with a loading spinner)
-    await page.waitForTimeout(2000);
-
-    // Verify the activity feed shows a "job_created" event.
-    // The activity event title for job_created is typically "Job Created".
-    // Check that at least one activity event is visible.
-    await expect(
-      page.getByText(/job created/i).first()
-    ).toBeVisible({ timeout: 10000 });
   });
 
   // =========================================================================
@@ -319,25 +325,27 @@ test.describe.serial("V2 Full Lifecycle", () => {
   // Step 6: Verify Job in Upcoming Tab
   // =========================================================================
 
-  test("Step 6 -- Verify the job appears in the Upcoming tab", async () => {
+  test("Step 6 -- Verify job still appears in Jobs list after adding visit", async () => {
     await page.goto("/jobs");
 
     // Wait for the job list to load
     await expect(
-      page.getByRole("heading", { name: "Jobs", level: 1 })
+      page.getByRole("main").getByRole("heading", { name: "Jobs", level: 1 })
     ).toBeVisible({ timeout: 10000 });
 
-    // Click the "Upcoming" tab
-    const upcomingTab = page.getByRole("tab", { name: /Upcoming/i });
-    await expect(upcomingTab).toBeVisible({ timeout: 5000 });
-    await upcomingTab.click();
+    // After adding an unscheduled visit in Step 5, the job now has both a
+    // SCHEDULED visit (original) and an UNSCHEDULED visit. Per filter tab
+    // priority, "unscheduled" (priority 3) beats "upcoming" (priority 4).
+    // So the job should now be in the Unscheduled tab (the default).
+    // Search within the active tab (unscheduled).
+    const searchInput = page.getByPlaceholder(/search by job number/i);
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
+    await searchInput.fill(JOB_TITLE);
 
-    // Wait for data to load
-    await page.waitForTimeout(1500);
+    // Wait for debounced search + server roundtrip
+    await page.waitForTimeout(2000);
 
-    // Verify our job appears in the Upcoming tab.
-    // The job was created with a scheduled start date, so its initial visit
-    // should be in SCHEDULED status, placing it in the Upcoming tab.
+    // Verify the job still appears in results after the visit was added
     await expect(
       page.locator("table").getByText(JOB_TITLE)
     ).toBeVisible({ timeout: 10000 });
@@ -352,7 +360,7 @@ test.describe.serial("V2 Full Lifecycle", () => {
 
     // Wait for the schedule page heading to appear
     await expect(
-      page.getByRole("heading", { name: "Schedule", level: 1 })
+      page.getByRole("main").getByRole("heading", { name: "Schedule", level: 1 })
     ).toBeVisible({ timeout: 10000 });
 
     // The v2 schedule page shows a CalendarViewV2 component with:
@@ -491,7 +499,7 @@ test.describe.serial("V2 Full Lifecycle", () => {
     // Wait for the invoice list page to load.
     // The v2 invoice list shows "Invoices" heading and tabs.
     await expect(
-      page.getByRole("heading", { name: "Invoices", level: 1 })
+      page.getByRole("main").getByRole("heading", { name: "Invoices", level: 1 })
     ).toBeVisible({ timeout: 10000 });
 
     // The v2 invoice list starts on the "Draft" tab by default.

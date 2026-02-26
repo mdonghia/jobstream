@@ -82,7 +82,10 @@ test.describe("V2 Invoice List", () => {
         "Cancelled",
       ];
       for (const tabName of tabNames) {
-        const tab = page.getByRole("tab", { name: new RegExp(tabName, "i") });
+        // Use exact: true for "Paid" to avoid matching "Partially Paid"
+        const tab = tabName === "Paid"
+          ? page.getByRole("tab", { name: /^Paid/i })
+          : page.getByRole("tab", { name: new RegExp(tabName, "i") });
         await expect(tab).toBeVisible({ timeout: 10000 });
       }
     } else {
@@ -122,7 +125,10 @@ test.describe("V2 Invoice List", () => {
     ];
 
     for (const tabName of tabNames) {
-      const tab = page.getByRole("tab", { name: new RegExp(tabName, "i") });
+      // Use exact regex for "Paid" to avoid matching "Partially Paid"
+      const tab = tabName === "Paid"
+        ? page.getByRole("tab", { name: /^Paid/i })
+        : page.getByRole("tab", { name: new RegExp(tabName, "i") });
       await tab.click();
 
       // After clicking, wait for the loading to settle. The table may show
