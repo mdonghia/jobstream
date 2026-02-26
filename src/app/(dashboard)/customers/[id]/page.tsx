@@ -80,8 +80,8 @@ export default async function CustomerDetailPage({
 
   const notes = notesResult && "notes" in notesResult ? notesResult.notes : []
   const communications = commsResult && "communications" in commsResult ? commsResult.communications : []
-  const stats = statsResult && !("error" in statsResult)
-    ? statsResult
+  const stats = statsResult && "stats" in statsResult
+    ? statsResult.stats
     : { totalRevenue: 0, totalJobs: 0, totalQuotes: 0, openInvoicesCount: 0, openInvoicesAmount: 0 }
 
   // Fetch the last 5 ActivityEvent records across all of this customer's jobs
