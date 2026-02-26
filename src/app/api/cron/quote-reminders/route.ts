@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
           // --- Send Email Reminder ---
           const emailEnabled = await isNotificationEnabled(
             org.id,
-            "quote_reminder",
+            "v2_quote_reminder",
             "email"
           )
           if (
@@ -195,7 +195,7 @@ export async function GET(request: NextRequest) {
           // --- Send SMS Reminder ---
           const smsEnabled = await isNotificationEnabled(
             org.id,
-            "quote_reminder",
+            "v2_quote_reminder",
             "sms"
           )
           if (smsEnabled && quote.customer.phone) {

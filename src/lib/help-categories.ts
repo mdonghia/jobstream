@@ -65,7 +65,7 @@ export const helpCategories: HelpCategory[] = [
   },
   {
     slug: "communications",
-    name: "Communications",
+    name: "Notifications",
     icon: "MessageSquare",
     description: "SMS, email, and automation",
     articleCount: 5,

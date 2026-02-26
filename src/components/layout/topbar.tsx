@@ -39,7 +39,7 @@ const pageTitles: Record<string, string> = {
   "/settings/team": "Team Members",
   "/settings/services": "Services",
   "/settings/payments": "Payment Settings",
-  "/settings/communications": "Communication Settings",
+  "/settings/communications": "Notification Settings",
   "/settings/booking": "Booking Widget",
   "/settings/reviews": "Review Settings",
   "/settings/marketing": "Marketing Suite",

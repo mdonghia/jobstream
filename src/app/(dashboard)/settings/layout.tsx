@@ -11,7 +11,7 @@ const settingsLinks = [
   { href: "/settings/customer-tags", label: "Customer Tags" },
   { href: "/settings/checklists", label: "Checklists" },
   { href: "/settings/payments", label: "Payments" },
-  { href: "/settings/communications", label: "Communications" },
+  { href: "/settings/communications", label: "Notifications" },
   { href: "/settings/booking", label: "Booking Widget" },
   { href: "/settings/reviews", label: "Reviews" },
   { href: "/settings/marketing", label: "Marketing Suite" },

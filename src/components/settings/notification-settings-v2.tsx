@@ -5,7 +5,10 @@ import { toast } from "sonner"
 import { Loader2, Bell, Users, Wrench } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { updateNotificationSettingV2 } from "@/actions/notification-settings"
+import { updateWorkflowSettings } from "@/actions/settings"
 
 // ============================================================================
 // Types
@@ -19,8 +22,16 @@ interface NotificationPreferenceData {
   inAppEnabled: boolean
 }
 
+interface ReminderSettings {
+  invoiceRemindersEnabled: boolean
+  invoiceReminderDays: string | null
+  quoteRemindersEnabled: boolean
+  quoteReminderDays: string | null
+}
+
 interface NotificationSettingsV2Props {
   preferences: NotificationPreferenceData[]
+  reminderSettings?: ReminderSettings
 }
 
 type Channel = "emailEnabled" | "smsEnabled" | "inAppEnabled"
@@ -45,6 +56,32 @@ type PrefState = Record<
   string,
   { emailEnabled: boolean; smsEnabled: boolean; inAppEnabled: boolean }
 >
+
+// Trigger keys that have configurable reminder schedules
+const REMINDER_TRIGGER_KEYS: Record<
+  string,
+  {
+    enabledField: "invoiceRemindersEnabled" | "quoteRemindersEnabled"
+    daysField: "invoiceReminderDays" | "quoteReminderDays"
+    label: string
+    helpText: string
+  }
+> = {
+  v2_invoice_reminder: {
+    enabledField: "invoiceRemindersEnabled",
+    daysField: "invoiceReminderDays",
+    label: "Send reminders after (days past due)",
+    helpText:
+      "Comma-separated list of days after the invoice due date (e.g. 3,7,14).",
+  },
+  v2_quote_reminder: {
+    enabledField: "quoteRemindersEnabled",
+    daysField: "quoteReminderDays",
+    label: "Send reminders after (days since sent)",
+    helpText:
+      "Comma-separated list of days after the quote was sent (e.g. 3,7,14).",
+  },
+}
 
 // ============================================================================
 // Constants -- Notification types grouped by audience
@@ -75,6 +112,11 @@ const CUSTOMER_NOTIFICATIONS: NotificationTypeConfig[] = [
     triggerKey: "v2_quote_approved_confirmation",
     name: "Quote Approved Confirmation",
     description: "Confirmation sent after the customer approves a quote",
+  },
+  {
+    triggerKey: "v2_quote_reminder",
+    name: "Quote Reminder",
+    description: "Follow-up sent when a quote hasn't been responded to",
   },
   {
     triggerKey: "v2_invoice_sent",
@@ -199,12 +241,21 @@ function buildInitialState(
 
 export function NotificationSettingsV2({
   preferences: initialPreferences,
+  reminderSettings,
 }: NotificationSettingsV2Props) {
   const [prefs, setPrefs] = useState<PrefState>(() =>
     buildInitialState(initialPreferences)
   )
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const saveTimeoutsRef = useRef<Record<string, NodeJS.Timeout>>({})
+
+  // Reminder days state
+  const [invoiceReminderDays, setInvoiceReminderDays] = useState(
+    reminderSettings?.invoiceReminderDays ?? "3,7,14"
+  )
+  const [quoteReminderDays, setQuoteReminderDays] = useState(
+    reminderSettings?.quoteReminderDays ?? "3,7,14"
+  )
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -240,7 +291,18 @@ export function NotificationSettingsV2({
           if ("error" in result) {
             toast.error(result.error)
           }
-          // No success toast -- auto-save should be silent
+
+          // If this is a reminder type, also sync the org-level enabled flag
+          const reminderConfig = REMINDER_TRIGGER_KEYS[triggerKey]
+          if (reminderConfig) {
+            const isNowEnabled =
+              current.emailEnabled ||
+              current.smsEnabled ||
+              current.inAppEnabled
+            await updateWorkflowSettings({
+              [reminderConfig.enabledField]: isNowEnabled,
+            })
+          }
         } catch {
           toast.error("Failed to save notification setting")
         } finally {
@@ -307,6 +369,43 @@ export function NotificationSettingsV2({
     return p.emailEnabled || p.smsEnabled || p.inAppEnabled
   }
 
+  // ----------------------------------------------------------
+  // Reminder days change handler
+  // ----------------------------------------------------------
+
+  async function handleReminderDaysChange(
+    triggerKey: string,
+    value: string
+  ) {
+    const config = REMINDER_TRIGGER_KEYS[triggerKey]
+    if (!config) return
+
+    if (config.daysField === "invoiceReminderDays") {
+      setInvoiceReminderDays(value)
+    } else {
+      setQuoteReminderDays(value)
+    }
+
+    try {
+      const result = await updateWorkflowSettings({
+        [config.daysField]: value,
+      })
+      if ("error" in result) {
+        toast.error(result.error)
+      }
+    } catch {
+      toast.error("Failed to update reminder schedule")
+    }
+  }
+
+  function getReminderDays(triggerKey: string): string {
+    const config = REMINDER_TRIGGER_KEYS[triggerKey]
+    if (!config) return ""
+    return config.daysField === "invoiceReminderDays"
+      ? invoiceReminderDays
+      : quoteReminderDays
+  }
+
   // ============================================================================
   // Render
   // ============================================================================
@@ -357,13 +456,14 @@ export function NotificationSettingsV2({
                 {section.types.map((nt) => {
                   const enabled = isEnabled(nt.triggerKey)
                   const isSaving = savingKey === nt.triggerKey
+                  const reminderConfig = REMINDER_TRIGGER_KEYS[nt.triggerKey]
 
                   return (
                     <tr
                       key={nt.triggerKey}
                       className="border-b border-[#E3E8EE] last:border-b-0"
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" colSpan={1}>
                         <div className="flex items-center gap-2">
                           <div>
                             <p
@@ -383,10 +483,46 @@ export function NotificationSettingsV2({
                             <Loader2 className="h-3 w-3 animate-spin text-[#635BFF] flex-shrink-0" />
                           )}
                         </div>
+
+                        {/* Reminder schedule input (shown inline when enabled) */}
+                        {reminderConfig && reminderSettings && enabled && (
+                          <div className="mt-3 pt-3 border-t border-[#E3E8EE]">
+                            <div className="max-w-xs space-y-1.5">
+                              <Label className="text-xs font-semibold uppercase text-[#8898AA]">
+                                {reminderConfig.label}
+                              </Label>
+                              <Input
+                                value={getReminderDays(nt.triggerKey)}
+                                onChange={(e) => {
+                                  if (
+                                    reminderConfig.daysField ===
+                                    "invoiceReminderDays"
+                                  ) {
+                                    setInvoiceReminderDays(e.target.value)
+                                  } else {
+                                    setQuoteReminderDays(e.target.value)
+                                  }
+                                }}
+                                onBlur={(e) =>
+                                  handleReminderDaysChange(
+                                    nt.triggerKey,
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="3,7,14"
+                                className="h-9 border-[#E3E8EE] focus-visible:ring-[#635BFF]"
+                                aria-label={reminderConfig.label}
+                              />
+                              <p className="text-xs text-[#8898AA]">
+                                {reminderConfig.helpText}
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </td>
 
                       {/* Master toggle */}
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3 text-center align-top">
                         <Switch
                           checked={enabled}
                           onCheckedChange={() =>
@@ -398,7 +534,7 @@ export function NotificationSettingsV2({
 
                       {/* Channel checkboxes */}
                       {section.channels.map((ch) => (
-                        <td key={ch} className="px-4 py-3 text-center">
+                        <td key={ch} className="px-4 py-3 text-center align-top">
                           <div className="flex justify-center">
                             <Checkbox
                               checked={prefs[nt.triggerKey][ch]}

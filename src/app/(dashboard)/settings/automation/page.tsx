@@ -23,10 +23,6 @@ export default async function SettingsAutomationPage() {
     <AutomationSettings
       autoConvertQuoteToJob={org.autoConvertQuoteToJob}
       autoInvoiceOnJobComplete={org.autoInvoiceOnJobComplete}
-      invoiceRemindersEnabled={org.invoiceRemindersEnabled}
-      invoiceReminderDays={org.invoiceReminderDays}
-      quoteRemindersEnabled={org.quoteRemindersEnabled}
-      quoteReminderDays={org.quoteReminderDays}
     />
   )
 }
