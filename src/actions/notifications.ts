@@ -124,9 +124,13 @@ export async function createNotification(data: {
     // Verify the target user belongs to the same organization
     const targetUser = await prisma.user.findFirst({
       where: { id: data.userId, organizationId: user.organizationId },
+      select: { id: true, notificationsEnabled: true },
     })
 
     if (!targetUser) return { error: "User not found" }
+
+    // Skip creation if the target user has disabled in-app notifications
+    if (!targetUser.notificationsEnabled) return { skipped: true }
 
     const notification = await prisma.notification.create({
       data: {

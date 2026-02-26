@@ -56,6 +56,7 @@ interface TopbarProps {
     role: string
     avatar: string | null
     preferredView?: string
+    notificationsEnabled?: boolean
   }
   onMenuClick: () => void
   hideSidebarToggle?: boolean
@@ -125,8 +126,8 @@ export function Topbar({ user, onMenuClick, hideSidebarToggle }: TopbarProps) {
 
       {/* Right side: notifications, user menu */}
       <div className="flex items-center gap-2">
-        {/* Notifications bell */}
-        <NotificationBell />
+        {/* Notifications bell -- hidden when user has disabled notifications */}
+        {user.notificationsEnabled !== false && <NotificationBell />}
 
         {/* User menu */}
         <DropdownMenu>

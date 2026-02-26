@@ -1478,3 +1478,24 @@ export async function updatePreferredView(view: string) {
     return { error: "Failed to update preferred view" }
   }
 }
+
+// =============================================================================
+// updateNotificationsEnabled - Toggle in-app notifications on/off for the user
+// =============================================================================
+
+export async function updateNotificationsEnabled(enabled: boolean) {
+  try {
+    const user = await requireAuth()
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { notificationsEnabled: enabled },
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("updateNotificationsEnabled error:", error)
+    return { error: "Failed to update notification preference" }
+  }
+}

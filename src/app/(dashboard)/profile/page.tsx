@@ -16,6 +16,7 @@ export default async function ProfilePage() {
       avatar: true,
       role: true,
       preferredView: true,
+      notificationsEnabled: true,
     },
   })
 
@@ -46,6 +47,7 @@ export default async function ProfilePage() {
             avatar: dbUser.avatar,
             role: dbUser.role,
             preferredView: dbUser.preferredView ?? "admin",
+            notificationsEnabled: dbUser.notificationsEnabled,
           }}
         />
       </div>

@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { updateProfile, changePassword, updatePreferredView } from "@/actions/settings"
+import { updateProfile, changePassword, updatePreferredView, updateNotificationsEnabled } from "@/actions/settings"
 
 // ============================================================================
 // Types
@@ -22,6 +22,7 @@ interface ProfileData {
   avatar: string | null
   role: string
   preferredView?: string
+  notificationsEnabled?: boolean
 }
 
 interface ProfileFormProps {
@@ -52,6 +53,10 @@ export function ProfileForm({ profile }: ProfileFormProps) {
   const canSwitchView = profile.role === "OWNER" || profile.role === "ADMIN"
   const [preferredView, setPreferredView] = useState(profile.preferredView ?? "admin")
   const [savingView, setSavingView] = useState(false)
+
+  // In-app notifications toggle
+  const [notificationsEnabled, setNotificationsEnabled] = useState(profile.notificationsEnabled ?? true)
+  const [savingNotifications, setSavingNotifications] = useState(false)
 
   // Auto-save state
   const [lastSaved, setLastSaved] = useState(0)
@@ -344,6 +349,95 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           )}
         </section>
       )}
+
+      {/* ----------------------------------------------------------------- */}
+      {/* In-App Notifications */}
+      {/* ----------------------------------------------------------------- */}
+      <section className="border-t border-[#E3E8EE] pt-8">
+        <h2 className="text-lg font-semibold text-[#0A2540]">
+          In-App Notifications
+        </h2>
+        <p className="mt-1 text-sm text-[#425466]">
+          Turn off to hide the notification bell and stop receiving in-app notifications.
+        </p>
+
+        <div className="mt-4 flex gap-3">
+          <button
+            type="button"
+            onClick={async () => {
+              setNotificationsEnabled(true)
+              setSavingNotifications(true)
+              try {
+                const result = await updateNotificationsEnabled(true)
+                if ("error" in result) {
+                  toast.error(result.error)
+                  setNotificationsEnabled(false)
+                } else {
+                  toast.success("In-app notifications enabled")
+                  router.refresh()
+                }
+              } catch {
+                toast.error("Failed to update notification preference")
+                setNotificationsEnabled(false)
+              } finally {
+                setSavingNotifications(false)
+              }
+            }}
+            disabled={savingNotifications}
+            className={`flex-1 rounded-lg border-2 p-4 text-left transition-colors ${
+              notificationsEnabled
+                ? "border-[#635BFF] bg-[#635BFF]/5"
+                : "border-[#E3E8EE] hover:border-gray-300"
+            }`}
+          >
+            <p className="text-sm font-semibold text-[#0A2540]">On</p>
+            <p className="mt-0.5 text-xs text-[#425466]">
+              Show notification bell and receive in-app alerts.
+            </p>
+          </button>
+
+          <button
+            type="button"
+            onClick={async () => {
+              setNotificationsEnabled(false)
+              setSavingNotifications(true)
+              try {
+                const result = await updateNotificationsEnabled(false)
+                if ("error" in result) {
+                  toast.error(result.error)
+                  setNotificationsEnabled(true)
+                } else {
+                  toast.success("In-app notifications disabled")
+                  router.refresh()
+                }
+              } catch {
+                toast.error("Failed to update notification preference")
+                setNotificationsEnabled(true)
+              } finally {
+                setSavingNotifications(false)
+              }
+            }}
+            disabled={savingNotifications}
+            className={`flex-1 rounded-lg border-2 p-4 text-left transition-colors ${
+              !notificationsEnabled
+                ? "border-[#635BFF] bg-[#635BFF]/5"
+                : "border-[#E3E8EE] hover:border-gray-300"
+            }`}
+          >
+            <p className="text-sm font-semibold text-[#0A2540]">Off</p>
+            <p className="mt-0.5 text-xs text-[#425466]">
+              Hide notification bell and stop receiving in-app alerts.
+            </p>
+          </button>
+        </div>
+
+        {savingNotifications && (
+          <p className="mt-2 text-xs text-[#8898AA] flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Saving preference...
+          </p>
+        )}
+      </section>
 
       {/* ----------------------------------------------------------------- */}
       {/* Change Password */}

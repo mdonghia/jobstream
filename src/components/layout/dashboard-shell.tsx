@@ -15,6 +15,7 @@ interface DashboardShellProps {
     role: string
     avatar: string | null
     preferredView?: string
+    notificationsEnabled?: boolean
   }
   orgName: string
   marketingSuiteEnabled?: boolean

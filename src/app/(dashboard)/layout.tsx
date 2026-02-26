@@ -13,7 +13,7 @@ export default async function DashboardLayout({
   // Fetch the user's preferredView from the database for dual-role view switching
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { preferredView: true },
+    select: { preferredView: true, notificationsEnabled: true },
   })
 
   return (
@@ -25,6 +25,7 @@ export default async function DashboardLayout({
         role: user.role,
         avatar: user.avatar,
         preferredView: dbUser?.preferredView ?? "admin",
+        notificationsEnabled: dbUser?.notificationsEnabled ?? true,
       }}
       orgName={org?.name || "JobStream"}
       marketingSuiteEnabled={org?.marketingSuiteEnabled ?? false}

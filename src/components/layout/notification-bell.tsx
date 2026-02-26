@@ -2,14 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Bell, CheckCheck } from "lucide-react"
+import { Bell, CheckCheck, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   getNotifications,
   markNotificationRead,
@@ -69,7 +68,7 @@ export function NotificationBell() {
       if ("error" in result) return
       // Serialize to plain objects (strip Date objects, Decimal, etc.)
       const serialized = JSON.parse(JSON.stringify(result.notifications))
-      setNotifications(serialized.slice(0, 10))
+      setNotifications(serialized)
       setUnreadCount(result.unreadCount)
     } catch {
       // Silently fail on polling -- user does not need to see this
@@ -114,6 +113,26 @@ export function NotificationBell() {
     }
   }
 
+  // Handle dismissing (removing) a single notification
+  async function handleDismiss(e: React.MouseEvent, notification: Notification) {
+    e.stopPropagation()
+    if (!notification.isRead) {
+      const result = await markNotificationRead(notification.id)
+      if (result && "error" in result) {
+        toast.error("Failed to dismiss notification")
+        return
+      }
+    }
+    // Remove from local list so the next one surfaces
+    setNotifications((prev) => prev.filter((n) => n.id !== notification.id))
+    if (!notification.isRead) {
+      setUnreadCount((prev) => Math.max(0, prev - 1))
+    }
+  }
+
+  // Visible notifications: show up to 3
+  const visibleNotifications = notifications.slice(0, 3)
+
   // Handle "Mark All Read"
   async function handleMarkAllRead() {
     setIsLoading(true)
@@ -145,9 +164,7 @@ export function NotificationBell() {
         >
           <Bell className="w-4 h-4" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E25950] px-1 text-[10px] font-bold text-white">
-              {unreadCount > 99 ? "99+" : unreadCount}
-            </span>
+            <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-[#E25950]" />
           )}
         </Button>
       </DropdownMenuTrigger>
@@ -158,16 +175,9 @@ export function NotificationBell() {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#E3E8EE]">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-[#0A2540]">
-              Notifications
-            </h3>
-            {unreadCount > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#635BFF] px-1.5 text-[10px] font-bold text-white">
-                {unreadCount}
-              </span>
-            )}
-          </div>
+          <h3 className="text-sm font-semibold text-[#0A2540]">
+            Notifications
+          </h3>
           {unreadCount > 0 && (
             <button
               onClick={handleMarkAllRead}
@@ -181,55 +191,62 @@ export function NotificationBell() {
         </div>
 
         {/* Notification List */}
-        {notifications.length > 0 ? (
-          <ScrollArea className="max-h-[400px]">
-            <div className="py-1">
-              {notifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-[#F6F8FA] transition-colors border-b border-[#E3E8EE] last:border-b-0 ${
-                    !notification.isRead ? "bg-[#635BFF]/[0.04]" : ""
-                  }`}
-                >
-                  {/* Read/unread indicator */}
-                  <div className="flex-shrink-0 mt-1.5">
-                    {notification.isRead ? (
-                      <div className="w-2 h-2 rounded-full bg-transparent" />
-                    ) : (
-                      <div className="w-2 h-2 rounded-full bg-[#635BFF]" />
-                    )}
-                  </div>
+        {visibleNotifications.length > 0 ? (
+          <div className="py-1">
+            {visibleNotifications.map((notification) => (
+              <button
+                key={notification.id}
+                onClick={() => handleNotificationClick(notification)}
+                className={`w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-[#F6F8FA] transition-colors border-b border-[#E3E8EE] last:border-b-0 ${
+                  !notification.isRead ? "bg-[#635BFF]/[0.04]" : ""
+                }`}
+              >
+                {/* Read/unread indicator */}
+                <div className="flex-shrink-0 mt-1.5">
+                  {notification.isRead ? (
+                    <div className="w-2 h-2 rounded-full bg-transparent" />
+                  ) : (
+                    <div className="w-2 h-2 rounded-full bg-[#635BFF]" />
+                  )}
+                </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p
-                        className={`text-sm leading-snug truncate ${
-                          notification.isRead
-                            ? "font-medium text-[#425466]"
-                            : "font-semibold text-[#0A2540]"
-                        }`}
-                      >
-                        {notification.title}
-                      </p>
-                      <span className="text-[11px] text-[#8898AA] whitespace-nowrap flex-shrink-0">
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p
+                      className={`text-sm leading-snug truncate ${
+                        notification.isRead
+                          ? "font-medium text-[#425466]"
+                          : "font-semibold text-[#0A2540]"
+                      }`}
+                    >
+                      {notification.title}
+                    </p>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <span className="text-[11px] text-[#8898AA] whitespace-nowrap">
                         {timeAgo(notification.createdAt)}
                       </span>
+                      <button
+                        onClick={(e) => handleDismiss(e, notification)}
+                        className="p-0.5 rounded hover:bg-gray-200 text-[#8898AA] hover:text-[#425466] transition-colors"
+                        aria-label="Dismiss notification"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
                     </div>
-                    <p className="text-xs text-[#8898AA] mt-0.5 line-clamp-2 leading-relaxed">
-                      {notification.message}
-                    </p>
-                    {notification.linkUrl && (
-                      <span className="inline-flex items-center gap-0.5 text-[11px] text-[#635BFF] font-medium mt-1">
-                        View details
-                      </span>
-                    )}
                   </div>
-                </button>
-              ))}
-            </div>
-          </ScrollArea>
+                  <p className="text-xs text-[#8898AA] mt-0.5 line-clamp-2 leading-relaxed">
+                    {notification.message}
+                  </p>
+                  {notification.linkUrl && (
+                    <span className="inline-flex items-center gap-0.5 text-[11px] text-[#635BFF] font-medium mt-1">
+                      View details
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-10 px-4">
             <div className="w-10 h-10 rounded-full bg-[#F6F8FA] flex items-center justify-center mb-3">

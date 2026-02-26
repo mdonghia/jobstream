@@ -216,80 +216,90 @@ export function DashboardPageV2({ stats, userName }: DashboardPageV2Props) {
       </h2>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue */}
-        <Card className="border-[#E3E8EE]">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-[#635BFF]" />
-              Revenue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-[#E3E8EE]">
-                <div>
-                  <p className="text-sm text-[#425466]">Past 7 days</p>
+        <Link href="/reports">
+          <Card className="border-[#E3E8EE] hover:border-[#635BFF] hover:shadow-md transition-all cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-[#635BFF]" />
+                Revenue
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-3 border-b border-[#E3E8EE]">
+                  <div>
+                    <p className="text-sm text-[#425466]">Past 7 days</p>
+                  </div>
+                  <p className="text-lg font-semibold text-[#0A2540]">
+                    {formatCurrency(stats.revenuePastWeek)}
+                  </p>
                 </div>
-                <p className="text-lg font-semibold text-[#0A2540]">
-                  {formatCurrency(stats.revenuePastWeek)}
-                </p>
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-[#E3E8EE]">
-                <div>
-                  <p className="text-sm text-[#425466]">Past 30 days</p>
+                <div className="flex items-center justify-between py-3 border-b border-[#E3E8EE]">
+                  <div>
+                    <p className="text-sm text-[#425466]">Past 30 days</p>
+                  </div>
+                  <p className="text-lg font-semibold text-[#0A2540]">
+                    {formatCurrency(stats.revenuePastMonth)}
+                  </p>
                 </div>
-                <p className="text-lg font-semibold text-[#0A2540]">
-                  {formatCurrency(stats.revenuePastMonth)}
-                </p>
-              </div>
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm text-[#425466]">Past 12 months</p>
+                <div className="flex items-center justify-between py-3">
+                  <div>
+                    <p className="text-sm text-[#425466]">Past 12 months</p>
+                  </div>
+                  <p className="text-lg font-semibold text-[#0A2540]">
+                    {formatCurrency(stats.revenuePastYear)}
+                  </p>
                 </div>
-                <p className="text-lg font-semibold text-[#0A2540]">
-                  {formatCurrency(stats.revenuePastYear)}
-                </p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex items-center gap-1 mt-3 text-xs text-[#635BFF] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                View reports <ArrowRight className="w-3 h-3" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* Visits Completed */}
-        <Card className="border-[#E3E8EE]">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[#30D158]" />
-              Visits Completed
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-[#E3E8EE]">
-                <div>
-                  <p className="text-sm text-[#425466]">Past 7 days</p>
+        <Link href="/reports">
+          <Card className="border-[#E3E8EE] hover:border-[#635BFF] hover:shadow-md transition-all cursor-pointer group">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold text-[#0A2540] flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-[#30D158]" />
+                Visits Completed
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-3 border-b border-[#E3E8EE]">
+                  <div>
+                    <p className="text-sm text-[#425466]">Past 7 days</p>
+                  </div>
+                  <p className="text-lg font-semibold text-[#0A2540]">
+                    {stats.visitsCompletedPastWeek}
+                  </p>
                 </div>
-                <p className="text-lg font-semibold text-[#0A2540]">
-                  {stats.visitsCompletedPastWeek}
-                </p>
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-[#E3E8EE]">
-                <div>
-                  <p className="text-sm text-[#425466]">Past 30 days</p>
+                <div className="flex items-center justify-between py-3 border-b border-[#E3E8EE]">
+                  <div>
+                    <p className="text-sm text-[#425466]">Past 30 days</p>
+                  </div>
+                  <p className="text-lg font-semibold text-[#0A2540]">
+                    {stats.visitsCompletedPastMonth}
+                  </p>
                 </div>
-                <p className="text-lg font-semibold text-[#0A2540]">
-                  {stats.visitsCompletedPastMonth}
-                </p>
-              </div>
-              <div className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm text-[#425466]">Past 12 months</p>
+                <div className="flex items-center justify-between py-3">
+                  <div>
+                    <p className="text-sm text-[#425466]">Past 12 months</p>
+                  </div>
+                  <p className="text-lg font-semibold text-[#0A2540]">
+                    {stats.visitsCompletedPastYear}
+                  </p>
                 </div>
-                <p className="text-lg font-semibold text-[#0A2540]">
-                  {stats.visitsCompletedPastYear}
-                </p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="flex items-center gap-1 mt-3 text-xs text-[#635BFF] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                View reports <ArrowRight className="w-3 h-3" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
       </div>
     </div>

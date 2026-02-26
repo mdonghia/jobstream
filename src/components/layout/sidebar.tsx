@@ -24,8 +24,8 @@ import {
 
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/" },
-  { label: "Jobs", icon: Briefcase, href: "/jobs" },
   { label: "Customers", icon: Users, href: "/customers" },
+  { label: "Jobs", icon: Briefcase, href: "/jobs" },
   { label: "Schedule", icon: Calendar, href: "/schedule" },
   { label: "Invoices", icon: Receipt, href: "/invoices" },
   { label: "Reports", icon: BarChart3, href: "/reports" },
