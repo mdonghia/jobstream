@@ -488,6 +488,7 @@ export async function getCalendarVisits(params: {
 
     const where: any = {
       organizationId: user.organizationId,
+      job: { customer: { isArchived: false } },
       status: { not: "CANCELLED" },
       scheduledStart: { gte: rangeStart, lte: rangeEnd },
     }
@@ -539,6 +540,7 @@ export async function getUnscheduledVisits(params?: { userIds?: string[] }) {
 
     const where: any = {
       organizationId: user.organizationId,
+      job: { customer: { isArchived: false } },
       status: { not: "CANCELLED" },
       schedulingType: "UNSCHEDULED",
     }
@@ -949,6 +951,7 @@ export async function getTechVisits(params: { date: string; tomorrow?: boolean }
     const visits = await prisma.visit.findMany({
       where: {
         organizationId: user.organizationId,
+        job: { customer: { isArchived: false } },
         assignments: { some: { userId: user.id } },
         status: { not: "CANCELLED" },
         OR: [

@@ -46,6 +46,7 @@ export async function getJobs(params: GetJobsParams = {}) {
 
     const where: any = {
       organizationId: user.organizationId,
+      customer: { isArchived: false },
     }
 
     if (status === "UNSCHEDULED") {
@@ -112,12 +113,13 @@ export async function getJobs(params: GetJobsParams = {}) {
       }),
       prisma.job.groupBy({
         by: ["status"],
-        where: { organizationId: user.organizationId },
+        where: { organizationId: user.organizationId, customer: { isArchived: false } },
         _count: true,
       }),
       prisma.job.count({
         where: {
           organizationId: user.organizationId,
+          customer: { isArchived: false },
           status: "SCHEDULED",
           scheduledStart: { lte: new Date("2000-01-01") },
         },
@@ -729,6 +731,7 @@ export async function getCalendarJobs(params: {
     // Build a base filter shared by both queries
     const baseWhere: any = {
       organizationId: user.organizationId,
+      customer: { isArchived: false },
       status: { notIn: ["CANCELLED", "COMPLETED"] },
     }
 
@@ -856,6 +859,7 @@ export async function getUnscheduledJobs() {
     const jobs = await prisma.job.findMany({
       where: {
         organizationId: user.organizationId,
+        customer: { isArchived: false },
         status: "SCHEDULED",
         OR: [
           // Legacy: epoch / placeholder dates
@@ -877,6 +881,7 @@ export async function getUnscheduledJobs() {
     const quoteConvertedJobs = await prisma.job.findMany({
       where: {
         organizationId: user.organizationId,
+        customer: { isArchived: false },
         status: "SCHEDULED",
         quoteId: { not: null },
       },

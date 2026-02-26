@@ -33,7 +33,7 @@ export async function getInvoices(params: GetInvoicesParams = {}) {
       perPage = 25,
     } = params
 
-    const where: any = { organizationId: user.organizationId }
+    const where: any = { organizationId: user.organizationId, customer: { isArchived: false } }
 
     if (status === "OUTSTANDING") {
       where.status = { in: ["SENT", "VIEWED", "PARTIALLY_PAID", "OVERDUE"] }
@@ -73,15 +73,16 @@ export async function getInvoices(params: GetInvoicesParams = {}) {
       }),
       prisma.invoice.groupBy({
         by: ["status"],
-        where: { organizationId: user.organizationId },
+        where: { organizationId: user.organizationId, customer: { isArchived: false } },
         _count: true,
       }),
-      // Summary aggregations
+      // Summary aggregations (excluding archived customers)
       Promise.all([
         // Outstanding
         prisma.invoice.aggregate({
           where: {
             organizationId: user.organizationId,
+            customer: { isArchived: false },
             status: { in: ["SENT", "VIEWED", "PARTIALLY_PAID", "OVERDUE"] },
           },
           _sum: { amountDue: true },
@@ -91,6 +92,7 @@ export async function getInvoices(params: GetInvoicesParams = {}) {
         prisma.invoice.aggregate({
           where: {
             organizationId: user.organizationId,
+            customer: { isArchived: false },
             status: "OVERDUE",
           },
           _sum: { amountDue: true },
@@ -100,6 +102,7 @@ export async function getInvoices(params: GetInvoicesParams = {}) {
         prisma.invoice.aggregate({
           where: {
             organizationId: user.organizationId,
+            customer: { isArchived: false },
             status: "PAID",
             paidAt: {
               gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
@@ -1045,6 +1048,7 @@ export async function getInvoicesV2(params: {
     const statuses = TAB_STATUS_MAP[tab]
     const where: any = {
       organizationId: user.organizationId,
+      customer: { isArchived: false },
       status: { in: statuses },
     }
 
@@ -1078,10 +1082,10 @@ export async function getInvoicesV2(params: {
           payments: { orderBy: { createdAt: "desc" } },
         },
       }),
-      // Get counts per status for all tabs
+      // Get counts per status for all tabs (excluding archived customers)
       prisma.invoice.groupBy({
         by: ["status"],
-        where: { organizationId: user.organizationId },
+        where: { organizationId: user.organizationId, customer: { isArchived: false } },
         _count: true,
       }),
     ])

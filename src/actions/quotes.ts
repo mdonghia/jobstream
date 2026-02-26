@@ -35,6 +35,7 @@ export async function getQuotes(params: GetQuotesParams = {}) {
 
     const where: any = {
       organizationId: user.organizationId,
+      customer: { isArchived: false },
     }
 
     if (status && status !== "ALL") {
@@ -74,10 +75,10 @@ export async function getQuotes(params: GetQuotesParams = {}) {
           },
         },
       }),
-      // Get counts per status
+      // Get counts per status (excluding archived customers)
       prisma.quote.groupBy({
         by: ["status"],
-        where: { organizationId: user.organizationId },
+        where: { organizationId: user.organizationId, customer: { isArchived: false } },
         _count: true,
       }),
     ])

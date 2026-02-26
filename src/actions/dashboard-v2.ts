@@ -100,10 +100,11 @@ export async function getDashboardV2Stats(): Promise<
       visitsCompleted30d,
       visitsCompleted365d,
     ] = await Promise.all([
-      // 1. Unscheduled Jobs
+      // 1. Unscheduled Jobs (exclude archived customers)
       prisma.job.count({
         where: {
           organizationId: orgId,
+          customer: { isArchived: false },
           status: { notIn: ["COMPLETED", "CANCELLED"] },
           visits: {
             some: {
@@ -116,10 +117,11 @@ export async function getDashboardV2Stats(): Promise<
 
       // 2. Needs Invoicing -- fetch candidate jobs (all visits completed/cancelled,
       //    at least one completed) and classify with computeJobFilterTab to match
-      //    the Jobs page filter exactly.
+      //    the Jobs page filter exactly. Excludes archived customers.
       prisma.job.findMany({
         where: {
           organizationId: orgId,
+          customer: { isArchived: false },
           visits: {
             every: { status: { in: ["COMPLETED", "CANCELLED"] } },
             some: { status: "COMPLETED" },
@@ -134,93 +136,103 @@ export async function getDashboardV2Stats(): Promise<
         },
       }),
 
-      // 3. Overdue Quotes
+      // 3. Overdue Quotes (exclude archived customers)
       prisma.quote.count({
         where: {
           organizationId: orgId,
+          customer: { isArchived: false },
           status: "SENT",
           validUntil: { lt: now },
         },
       }),
 
-      // 4. Overdue Invoices
+      // 4. Overdue Invoices (exclude archived customers)
       prisma.invoice.count({
         where: {
           organizationId: orgId,
+          customer: { isArchived: false },
           status: "SENT",
           dueDate: { lt: now },
         },
       }),
 
-      // 5. Visits scheduled today (any status, scheduledStart within today)
+      // 5. Visits scheduled today (exclude archived customers)
       prisma.visit.count({
         where: {
           organizationId: orgId,
+          job: { customer: { isArchived: false } },
           scheduledStart: { gte: dayStart, lte: dayEnd },
         },
       }),
 
-      // 6. Visits completed today
+      // 6. Visits completed today (exclude archived customers)
       prisma.visit.count({
         where: {
           organizationId: orgId,
+          job: { customer: { isArchived: false } },
           status: "COMPLETED",
           actualEnd: { gte: dayStart, lte: dayEnd },
         },
       }),
 
-      // 7. Revenue past week
+      // 7. Revenue past week (exclude archived customers)
       prisma.payment.aggregate({
         where: {
           organizationId: orgId,
+          invoice: { customer: { isArchived: false } },
           status: "COMPLETED",
           processedAt: { gte: start7d },
         },
         _sum: { amount: true },
       }),
 
-      // 8. Revenue past month
+      // 8. Revenue past month (exclude archived customers)
       prisma.payment.aggregate({
         where: {
           organizationId: orgId,
+          invoice: { customer: { isArchived: false } },
           status: "COMPLETED",
           processedAt: { gte: start30d },
         },
         _sum: { amount: true },
       }),
 
-      // 9. Revenue past year
+      // 9. Revenue past year (exclude archived customers)
       prisma.payment.aggregate({
         where: {
           organizationId: orgId,
+          invoice: { customer: { isArchived: false } },
           status: "COMPLETED",
           processedAt: { gte: start365d },
         },
         _sum: { amount: true },
       }),
 
-      // 10. Visits completed past week
+      // 10. Visits completed past week (exclude archived customers)
       prisma.visit.count({
         where: {
           organizationId: orgId,
+          job: { customer: { isArchived: false } },
           status: "COMPLETED",
           actualEnd: { gte: start7d },
         },
       }),
 
-      // 11. Visits completed past month
+      // 11. Visits completed past month (exclude archived customers)
       prisma.visit.count({
         where: {
           organizationId: orgId,
+          job: { customer: { isArchived: false } },
           status: "COMPLETED",
           actualEnd: { gte: start30d },
         },
       }),
 
-      // 12. Visits completed past year
+      // 12. Visits completed past year (exclude archived customers)
       prisma.visit.count({
         where: {
           organizationId: orgId,
+          job: { customer: { isArchived: false } },
           status: "COMPLETED",
           actualEnd: { gte: start365d },
         },
