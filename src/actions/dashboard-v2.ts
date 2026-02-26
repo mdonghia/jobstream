@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { requireAuth } from "@/lib/auth-utils"
 import { computeJobFilterTab } from "@/lib/job-filter-tab"
+import { todayBoundsInTz, daysAgoInTz } from "@/lib/timezone"
 
 // =============================================================================
 // Types
@@ -31,29 +32,6 @@ export type DashboardV2Stats = {
 }
 
 // =============================================================================
-// Helper: date ranges
-// =============================================================================
-
-function daysAgo(days: number): Date {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function todayStart(): Date {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function todayEnd(): Date {
-  const d = new Date()
-  d.setHours(23, 59, 59, 999)
-  return d
-}
-
-// =============================================================================
 // getDashboardV2Stats
 // =============================================================================
 
@@ -64,11 +42,18 @@ export async function getDashboardV2Stats(): Promise<
     const user = await requireAuth()
     const orgId = user.organizationId
     const now = new Date()
-    const start7d = daysAgo(7)
-    const start30d = daysAgo(30)
-    const start365d = daysAgo(365)
-    const dayStart = todayStart()
-    const dayEnd = todayEnd()
+
+    // Fetch the org's timezone so "today" matches the user's local time
+    const org = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { timezone: true },
+    })
+    const tz = org?.timezone || "America/New_York"
+
+    const { dayStart, dayEnd } = todayBoundsInTz(tz)
+    const start7d = daysAgoInTz(7, tz)
+    const start30d = daysAgoInTz(30, tz)
+    const start365d = daysAgoInTz(365, tz)
 
     const [
       // 1. Unscheduled Jobs: jobs with at least one visit where
