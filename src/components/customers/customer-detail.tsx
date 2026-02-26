@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -39,6 +40,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Separator } from "@/components/ui/separator"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { formatCurrency, formatDate, formatPhone, formatRelativeTime, isJobUnscheduled } from "@/lib/utils"
 import { formatPhoneNumber } from "@/lib/format-helpers"
 import { toast } from "sonner"
@@ -146,7 +157,28 @@ export function CustomerDetail({
   const [noteInput, setNoteInput] = useState("")
   const [noteSaving, setNoteSaving] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [allTags, setAllTags] = useState<string[]>([])
+
+  // Profile notes (the customer.notes field -- auto-saves on blur)
+  const [profileNotes, setProfileNotes] = useState(customer.notes || "")
+  const [profileNotesSaving, setProfileNotesSaving] = useState(false)
+  const profileNotesOriginal = useRef(customer.notes || "")
+
+  const handleProfileNotesBlur = useCallback(async () => {
+    const trimmed = profileNotes.trim()
+    // Only save if the value actually changed
+    if (trimmed === profileNotesOriginal.current.trim()) return
+    setProfileNotesSaving(true)
+    const result = await updateCustomer(customer.id, { notes: trimmed || "" })
+    if (result && "error" in result) {
+      toast.error(result.error as string)
+    } else {
+      profileNotesOriginal.current = trimmed
+      toast.success("Notes saved")
+    }
+    setProfileNotesSaving(false)
+  }, [profileNotes, customer.id])
 
   // Build a lookup of document numbers -> detail page URLs
   const docLinks = useMemo(() => {
@@ -193,12 +225,10 @@ export function CustomerDetail({
   }
 
   async function handleDelete() {
-    if (!confirm(`Are you sure you want to delete ${customer.firstName} ${customer.lastName}? This cannot be undone.`)) {
-      return
-    }
     const result = await deleteCustomer(customer.id)
     if (result && "error" in result) {
       toast.error(result.error as string)
+      setDeleteDialogOpen(false)
       return
     }
     toast.success("Customer deleted")
@@ -346,7 +376,7 @@ export function CustomerDetail({
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={handleDelete}
+                  onClick={() => setDeleteDialogOpen(true)}
                   className="text-red-600 focus:text-red-600"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
@@ -391,12 +421,12 @@ export function CustomerDetail({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Contact Info */}
             <Card className="border-[#E3E8EE]">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-4">
                 <CardTitle className="text-sm font-semibold uppercase text-[#8898AA]">
                   Contact Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 pt-0 pb-5">
                 {customer.email && (
                   <div className="flex items-center gap-3">
                     <Mail className="w-4 h-4 text-[#8898AA]" />
@@ -456,41 +486,24 @@ export function CustomerDetail({
               </CardContent>
             </Card>
 
-            {/* Stats */}
+            {/* Notes */}
             <Card className="border-[#E3E8EE]">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold uppercase text-[#8898AA]">
-                  Statistics
+              <CardHeader className="pb-4">
+                <CardTitle className="text-sm font-semibold uppercase text-[#8898AA] flex items-center gap-2">
+                  Notes
+                  {profileNotesSaving && (
+                    <span className="text-xs font-normal text-[#8898AA] normal-case">Saving...</span>
+                  )}
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 rounded-lg bg-[#F6F8FA]">
-                    <p className="text-xs text-[#8898AA] mb-1">Lifetime Revenue</p>
-                    <p className="text-lg font-semibold text-[#0A2540]">
-                      {formatCurrency(stats.totalRevenue)}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-[#F6F8FA]">
-                    <p className="text-xs text-[#8898AA] mb-1">Total Jobs</p>
-                    <p className="text-lg font-semibold text-[#0A2540]">{stats.totalJobs}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-[#F6F8FA]">
-                    <p className="text-xs text-[#8898AA] mb-1">Total Quotes</p>
-                    <p className="text-lg font-semibold text-[#0A2540]">{stats.totalQuotes}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-[#F6F8FA]">
-                    <p className="text-xs text-[#8898AA] mb-1">Open Invoices</p>
-                    <p className="text-lg font-semibold text-[#0A2540]">
-                      {stats.openInvoicesCount}
-                    </p>
-                    {stats.openInvoicesAmount > 0 && (
-                      <p className="text-xs text-[#8898AA]">
-                        {formatCurrency(stats.openInvoicesAmount)}
-                      </p>
-                    )}
-                  </div>
-                </div>
+              <CardContent className="pt-0 pb-5">
+                <Textarea
+                  value={profileNotes}
+                  onChange={(e) => setProfileNotes(e.target.value)}
+                  onBlur={handleProfileNotesBlur}
+                  placeholder="Add notes about this customer..."
+                  className="min-h-[120px] border-[#E3E8EE] focus-visible:ring-[#635BFF] text-sm text-[#425466] resize-y"
+                />
               </CardContent>
             </Card>
           </div>
@@ -533,14 +546,6 @@ export function CustomerDetail({
                           </p>
                           {prop.notes && (
                             <p className="text-xs text-[#8898AA] mt-1">{prop.notes}</p>
-                          )}
-                          {prop.isPrimary && (
-                            <Badge
-                              variant="secondary"
-                              className="mt-1 text-xs bg-green-50 text-green-700"
-                            >
-                              Primary
-                            </Badge>
                           )}
                         </div>
                       </div>
@@ -1020,6 +1025,27 @@ export function CustomerDetail({
           })),
         }}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Customer</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this customer? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDelete}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

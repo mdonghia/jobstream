@@ -20,6 +20,64 @@ type GetCustomersParams = {
   perPage?: number
 }
 
+// Helper: resolve the "activity date" sort -- GREATEST(customer.createdAt, most recent job createdAt)
+// Returns sorted customer IDs for a given page using raw SQL.
+async function getCustomerIdsByActivityDate(params: {
+  where: any
+  sortOrder: "asc" | "desc"
+  skip: number
+  take: number
+  organizationId: string
+  search?: string
+  status?: string
+  tags?: string[]
+}): Promise<string[]> {
+  const { organizationId, sortOrder, skip, take } = params
+
+  // Build dynamic WHERE conditions for the raw query
+  const conditions: string[] = [`c."organizationId" = '${organizationId}'`]
+
+  if (params.status === "active") {
+    conditions.push(`c."isArchived" = false`)
+  } else if (params.status === "archived") {
+    conditions.push(`c."isArchived" = true`)
+  }
+
+  if (params.tags && params.tags.length > 0) {
+    // PostgreSQL array contains all: use @> operator
+    const tagsLiteral = `ARRAY[${params.tags.map((t) => `'${t.replace(/'/g, "''")}'`).join(",")}]::text[]`
+    conditions.push(`c."tags" @> ${tagsLiteral}`)
+  }
+
+  if (params.search && params.search.trim()) {
+    const words = params.search.trim().split(/\s+/)
+    for (const word of words) {
+      const escaped = word.replace(/'/g, "''")
+      conditions.push(
+        `(c."firstName" ILIKE '%${escaped}%' OR c."lastName" ILIKE '%${escaped}%' OR c."email" ILIKE '%${escaped}%' OR c."phone" ILIKE '%${escaped}%')`
+      )
+    }
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
+  const direction = sortOrder === "desc" ? "DESC" : "ASC"
+
+  const rows = await prisma.$queryRawUnsafe<{ id: string }[]>(`
+    SELECT c.id
+    FROM "Customer" c
+    LEFT JOIN LATERAL (
+      SELECT MAX(j."createdAt") AS last_job_created
+      FROM "Job" j
+      WHERE j."customerId" = c.id
+    ) job_agg ON true
+    ${whereClause}
+    ORDER BY GREATEST(c."createdAt", COALESCE(job_agg.last_job_created, c."createdAt")) ${direction}
+    LIMIT ${take} OFFSET ${skip}
+  `)
+
+  return rows.map((r) => r.id)
+}
+
 // =============================================================================
 // 1. getCustomers - List customers with search, filter, sort, pagination
 // =============================================================================
@@ -32,8 +90,8 @@ export async function getCustomers(params: GetCustomersParams = {}) {
       status,
       tags,
       source,
-      sortBy = "firstName",
-      sortOrder = "asc",
+      sortBy = "activityDate",
+      sortOrder = "desc",
       page = 1,
       perPage = 25,
     } = params
@@ -79,7 +137,65 @@ export async function getCustomers(params: GetCustomersParams = {}) {
       ]
     }
 
-    // Build the orderBy clause
+    // Calculate pagination
+    const skip = (page - 1) * perPage
+
+    // "activityDate" sort: GREATEST(customer.createdAt, last job createdAt)
+    // This correctly interleaves brand-new customers and customers with recent jobs.
+    // A customer added today with no jobs appears alongside a customer who just had
+    // a job created -- both rank by their most recent activity timestamp.
+    // Also used when sorting by "lastJobDate" since that column is computed.
+    if (sortBy === "activityDate" || sortBy === "lastJobDate") {
+      const [total, sortedIds] = await Promise.all([
+        prisma.customer.count({ where }),
+        getCustomerIdsByActivityDate({
+          where,
+          sortOrder,
+          skip,
+          take: perPage,
+          organizationId: user.organizationId,
+          search,
+          status,
+          tags,
+        }),
+      ])
+
+      // Fetch full records for the page in one query, then restore the sort order
+      const customers = await prisma.customer.findMany({
+        where: { id: { in: sortedIds } },
+        include: {
+          properties: { select: { id: true } },
+          invoices: { where: { status: "PAID" }, select: { total: true } },
+          jobs: {
+            select: { createdAt: true },
+            orderBy: { createdAt: "desc" },
+            take: 1,
+          },
+        },
+      })
+
+      // Re-order to match the SQL sort (findMany with id IN(...) does not preserve order)
+      const customerMap = new Map(customers.map((c) => [c.id, c]))
+      const orderedCustomers = sortedIds
+        .map((id) => customerMap.get(id))
+        .filter(Boolean) as typeof customers
+
+      const customersWithStats = orderedCustomers.map((customer) => {
+        const revenue = customer.invoices.reduce(
+          (sum, inv) => sum + Number(inv.total),
+          0
+        )
+        const lastJobDate = customer.jobs[0]?.createdAt ?? null
+        const propertiesCount = customer.properties.length
+        const { invoices, jobs, properties, ...rest } = customer
+        return { ...rest, propertiesCount, revenue, lastJobDate }
+      })
+
+      const totalPages = Math.ceil(total / perPage)
+      return { customers: customersWithStats, total, page, totalPages }
+    }
+
+    // Build the orderBy clause for non-activityDate sorts
     const allowedSortFields = [
       "firstName",
       "lastName",
@@ -90,9 +206,6 @@ export async function getCustomers(params: GetCustomersParams = {}) {
     ]
     const orderByField = allowedSortFields.includes(sortBy) ? sortBy : "firstName"
     const orderBy = { [orderByField]: sortOrder }
-
-    // Calculate pagination
-    const skip = (page - 1) * perPage
 
     // Run count and query in parallel
     const [total, customers] = await Promise.all([
@@ -111,8 +224,8 @@ export async function getCustomers(params: GetCustomersParams = {}) {
             select: { total: true },
           },
           jobs: {
-            select: { scheduledStart: true },
-            orderBy: { scheduledStart: "desc" },
+            select: { createdAt: true },
+            orderBy: { createdAt: "desc" },
             take: 1,
           },
         },
@@ -125,7 +238,7 @@ export async function getCustomers(params: GetCustomersParams = {}) {
         (sum, inv) => sum + Number(inv.total),
         0
       )
-      const lastJobDate = customer.jobs[0]?.scheduledStart ?? null
+      const lastJobDate = customer.jobs[0]?.createdAt ?? null
       const propertiesCount = customer.properties.length
 
       // Remove the raw included relations from the response
@@ -457,7 +570,7 @@ export async function unarchiveCustomer(id: string) {
 }
 
 // =============================================================================
-// 6. deleteCustomer - Hard delete (only if no related records exist)
+// 6. deleteCustomer - Hard delete (cascades to all associated records)
 // =============================================================================
 
 export async function deleteCustomer(id: string) {
@@ -469,28 +582,16 @@ export async function deleteCustomer(id: string) {
         id,
         organizationId: user.organizationId,
       },
-      include: {
-        quotes: { select: { id: true }, take: 1 },
-        jobs: { select: { id: true }, take: 1 },
-        invoices: { select: { id: true }, take: 1 },
-      },
     })
 
     if (!existing) {
       return { error: "Customer not found" }
     }
 
-    // Prevent deletion if related records exist
-    if (existing.quotes.length > 0) {
-      return { error: "Cannot delete customer with existing quotes. Archive instead." }
-    }
-    if (existing.jobs.length > 0) {
-      return { error: "Cannot delete customer with existing jobs. Archive instead." }
-    }
-    if (existing.invoices.length > 0) {
-      return { error: "Cannot delete customer with existing invoices. Archive instead." }
-    }
-
+    // Hard delete the customer. Cascading deletes are configured in the
+    // Prisma schema (onDelete: Cascade) for properties, customer notes,
+    // portal sessions, portal messages, scheduled messages, quotes,
+    // jobs, and invoices -- so all associated records are removed.
     await prisma.customer.delete({
       where: { id },
     })
