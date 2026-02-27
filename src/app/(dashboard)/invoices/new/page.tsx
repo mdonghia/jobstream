@@ -8,7 +8,7 @@ import { InvoiceBuilder } from "@/components/invoices/invoice-builder"
 export default async function NewInvoicePage({
   searchParams,
 }: {
-  searchParams: Promise<{ jobId?: string; duplicate?: string }>
+  searchParams: Promise<{ jobId?: string; duplicate?: string; customerId?: string }>
 }) {
   const user = await requireAuth()
   const params = await searchParams
@@ -64,6 +64,9 @@ export default async function NewInvoicePage({
         jobNumber: job?.jobNumber || undefined,
       }
     }
+  } else if (params.customerId) {
+    // Pre-fill customer when coming from customer profile
+    initialData = { customerId: params.customerId }
   }
 
   // Serialize for client

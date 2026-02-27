@@ -150,6 +150,37 @@ export async function getJobs(params: GetJobsParams = {}) {
 }
 
 // =============================================================================
+// 1b. getJobsForCustomer - Get jobs for a specific customer (used by invoice form)
+// =============================================================================
+
+export async function getJobsForCustomer(customerId: string) {
+  try {
+    const user = await requireAuth()
+
+    const jobs = await prisma.job.findMany({
+      where: {
+        customerId,
+        organizationId: user.organizationId,
+        status: { not: "CANCELLED" },
+      },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        jobNumber: true,
+        title: true,
+        status: true,
+      },
+    })
+
+    return { jobs }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getJobsForCustomer error:", error)
+    return { error: "Failed to fetch jobs for customer" }
+  }
+}
+
+// =============================================================================
 // 2. getJob - Get single job with all relations
 // =============================================================================
 

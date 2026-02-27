@@ -27,8 +27,6 @@ import { AddressAutocomplete, type ParsedAddress } from "@/components/ui/address
 import { toast } from "sonner"
 import { useAutoSave } from "@/hooks/use-auto-save"
 import { AutoSaveIndicator } from "@/components/shared/auto-save-indicator"
-import { ManageTagsDialog } from "@/components/customers/manage-tags-dialog"
-import { getAllTags } from "@/actions/customers"
 
 interface PropertyFormData {
   addressLine1: string
@@ -95,8 +93,6 @@ export function CustomerForm({
   )
   const [tagInput, setTagInput] = useState("")
   const [propertiesExpanded, setPropertiesExpanded] = useState(true)
-  const [manageTagsOpen, setManageTagsOpen] = useState(false)
-  const [currentAllTags, setCurrentAllTags] = useState<string[]>(allTags)
 
   // Determine if this is an edit form (not a create form)
   const isEditing = title !== "Add Customer" && !!initialData
@@ -316,16 +312,7 @@ export function CustomerForm({
             </h3>
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-semibold uppercase text-[#8898AA]">Tags</Label>
-                  <button
-                    type="button"
-                    onClick={() => setManageTagsOpen(true)}
-                    className="text-xs text-[#635BFF] hover:underline"
-                  >
-                    Manage Tags
-                  </button>
-                </div>
+                <Label className="text-xs font-semibold uppercase text-[#8898AA]">Tags</Label>
                 <div className="relative">
                   <div className="flex gap-2">
                     <Input
@@ -351,7 +338,7 @@ export function CustomerForm({
                     </Button>
                   </div>
                   {tagInput.trim() && (() => {
-                    const suggestions = currentAllTags.filter(
+                    const suggestions = allTags.filter(
                       (t) =>
                         t.toLowerCase().includes(tagInput.trim().toLowerCase()) &&
                         !customer.tags.includes(t)
@@ -585,19 +572,6 @@ export function CustomerForm({
           </Button>
         </SheetFooter>
       </SheetContent>
-
-      {/* Manage Tags Dialog */}
-      <ManageTagsDialog
-        open={manageTagsOpen}
-        onOpenChange={setManageTagsOpen}
-        onTagsChanged={async () => {
-          // Refresh the tag list after a tag is added/renamed/deleted
-          const refreshed = await getAllTags()
-          if (Array.isArray(refreshed)) {
-            setCurrentAllTags(refreshed)
-          }
-        }}
-      />
     </Sheet>
   )
 }

@@ -44,6 +44,7 @@ import { Separator } from "@/components/ui/separator"
 import { cn, formatCurrency } from "@/lib/utils"
 import { createInvoice, sendInvoice } from "@/actions/invoices"
 import { getApprovedQuotesForCustomer } from "@/actions/quotes"
+import { getJobsForCustomer } from "@/actions/jobs"
 import { toast } from "sonner"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -77,6 +78,13 @@ interface LineItem {
   quantity: number
   unitPrice: number
   taxable: boolean
+}
+
+interface CustomerJob {
+  id: string
+  jobNumber: string
+  title: string
+  status: string
 }
 
 interface ApprovedQuote {
@@ -138,6 +146,13 @@ export function InvoiceBuilder({
   const [customerId, setCustomerId] = useState(initialData?.customerId || "")
   const [customerOpen, setCustomerOpen] = useState(false)
   const [customerSearch, setCustomerSearch] = useState("")
+
+  // Job linking (required)
+  const [jobId, setJobId] = useState(initialData?.jobId || "")
+  const [customerJobs, setCustomerJobs] = useState<CustomerJob[]>([])
+  const [loadingJobs, setLoadingJobs] = useState(false)
+  const [jobOpen, setJobOpen] = useState(false)
+  const [jobSearch, setJobSearch] = useState("")
 
   // Quote linking
   const [quoteId, setQuoteId] = useState(initialData?.quoteId || "")
@@ -222,6 +237,39 @@ export function InvoiceBuilder({
 
   const selectedCustomer = customers.find((c) => c.id === customerId)
 
+  const filteredJobs = useMemo(() => {
+    if (!jobSearch.trim()) return customerJobs
+    const q = jobSearch.toLowerCase()
+    return customerJobs.filter(
+      (j) =>
+        j.title.toLowerCase().includes(q) ||
+        j.jobNumber.toLowerCase().includes(q)
+    )
+  }, [customerJobs, jobSearch])
+
+  const selectedJob = customerJobs.find((j) => j.id === jobId)
+
+  // Fetch jobs when customer changes
+  useEffect(() => {
+    if (!customerId) {
+      setCustomerJobs([])
+      setJobId(initialData?.jobId || "")
+      return
+    }
+    let cancelled = false
+    setLoadingJobs(true)
+    getJobsForCustomer(customerId).then((result) => {
+      if (cancelled) return
+      setLoadingJobs(false)
+      if ("jobs" in result) {
+        setCustomerJobs(result.jobs as CustomerJob[])
+      } else {
+        setCustomerJobs([])
+      }
+    })
+    return () => { cancelled = true }
+  }, [customerId, initialData?.jobId])
+
   // Fetch approved quotes when customer changes
   useEffect(() => {
     if (!customerId) {
@@ -278,6 +326,10 @@ export function InvoiceBuilder({
       toast.error("Please select a customer")
       return
     }
+    if (!jobId) {
+      toast.error("Please select a job")
+      return
+    }
     const validItems = lineItems.filter((li) => li.name.trim() && li.unitPrice > 0)
     if (validItems.length === 0) {
       toast.error("Please add at least one line item")
@@ -290,7 +342,7 @@ export function InvoiceBuilder({
     try {
       const result = await createInvoice({
         customerId,
-        jobId: initialData?.jobId,
+        jobId,
         quoteId: quoteId || undefined,
         lineItems: validItems.map((li) => ({
           serviceId: li.serviceId,
@@ -424,6 +476,76 @@ export function InvoiceBuilder({
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* Job Selector (required, appears after customer selection) */}
+          {customerId && (
+            <div className="bg-white rounded-lg border border-[#E3E8EE] p-5">
+              <Label className="text-sm font-medium text-[#0A2540] mb-3 block">
+                Job <span className="text-red-500">*</span>
+              </Label>
+              {loadingJobs ? (
+                <div className="text-sm text-[#8898AA] py-2">Loading jobs...</div>
+              ) : customerJobs.length === 0 ? (
+                <p className="text-sm text-[#8898AA]">
+                  No jobs found for this customer. Create a job first.
+                </p>
+              ) : (
+                <Popover open={jobOpen} onOpenChange={setJobOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={jobOpen}
+                      className="w-full justify-between border-[#E3E8EE] text-left font-normal"
+                    >
+                      {selectedJob
+                        ? `${selectedJob.jobNumber} - ${selectedJob.title}`
+                        : "Select job..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search jobs..."
+                        value={jobSearch}
+                        onValueChange={setJobSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No job found.</CommandEmpty>
+                        <CommandGroup>
+                          {filteredJobs.map((j) => (
+                            <CommandItem
+                              key={j.id}
+                              value={j.id}
+                              onSelect={(val) => {
+                                setJobId(val === jobId ? "" : val)
+                                setJobOpen(false)
+                                setJobSearch("")
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  jobId === j.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div>
+                                <span className="font-medium font-mono text-xs text-[#635BFF] mr-2">
+                                  {j.jobNumber}
+                                </span>
+                                <span>{j.title}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+          )}
 
           {/* Link to Quote (optional, only shown when customer has approved quotes) */}
           {customerId && approvedQuotes.length > 0 && (

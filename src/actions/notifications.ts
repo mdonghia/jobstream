@@ -11,23 +11,16 @@ export async function getNotifications() {
   try {
     const user = await requireAuth()
 
-    const [notifications, unreadCount] = await Promise.all([
-      prisma.notification.findMany({
-        where: {
-          organizationId: user.organizationId,
-          userId: user.id,
-        },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-      }),
-      prisma.notification.count({
-        where: {
-          organizationId: user.organizationId,
-          userId: user.id,
-          isRead: false,
-        },
-      }),
-    ])
+    const notifications = await prisma.notification.findMany({
+      where: {
+        organizationId: user.organizationId,
+        userId: user.id,
+        isRead: false,
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    })
+    const unreadCount = notifications.length
 
     return {
       notifications,

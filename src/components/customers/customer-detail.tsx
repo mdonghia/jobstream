@@ -55,7 +55,6 @@ import {
   getAllTags,
 } from "@/actions/customers"
 import { CustomerForm } from "@/components/customers/customer-form"
-import { ManageTagsDialog } from "@/components/customers/manage-tags-dialog"
 
 interface Property {
   id: string
@@ -100,7 +99,6 @@ export function CustomerDetail({
   const [editOpen, setEditOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [allTags, setAllTags] = useState<string[]>([])
-  const [manageTagsOpen, setManageTagsOpen] = useState(false)
 
   // Profile notes (the customer.notes field -- auto-saves on blur)
   const [profileNotes, setProfileNotes] = useState(customer.notes || "")
@@ -370,13 +368,6 @@ export function CustomerDetail({
                     ) : (
                       <span className="text-xs text-[#8898AA]">No tags</span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setManageTagsOpen(true)}
-                      className="text-xs text-[#635BFF] hover:underline ml-1"
-                    >
-                      Manage Tags
-                    </button>
                   </div>
                 </div>
               </CardContent>
@@ -665,18 +656,6 @@ export function CustomerDetail({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Manage Tags Dialog */}
-      <ManageTagsDialog
-        open={manageTagsOpen}
-        onOpenChange={setManageTagsOpen}
-        onTagsChanged={async () => {
-          // Refresh allTags after a change so the edit form gets updated suggestions
-          const refreshed = await getAllTags()
-          if (Array.isArray(refreshed)) setAllTags(refreshed)
-          // Also refresh the page to reflect renamed/deleted tags on this customer
-          router.refresh()
-        }}
-      />
     </div>
   )
 }
