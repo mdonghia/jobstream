@@ -31,14 +31,12 @@ import {
   Clock,
   AlertCircle,
   User,
-  GripVertical,
   CalendarDays,
   CalendarRange,
   ArrowUpDown,
   ArrowLeftRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   Popover,
   PopoverContent,
@@ -230,6 +228,7 @@ export function CalendarViewV2({
   const [datePickerOpen, setDatePickerOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null)
+  const [dragOverPosition, setDragOverPosition] = useState<{ colKey: string; topPx: number } | null>(null)
   // Item #25: Move confirmation dialog state
   const [pendingMove, setPendingMove] = useState<MoveConfirmation | null>(null)
 
@@ -305,12 +304,10 @@ export function CalendarViewV2({
     fetchVisits(currentDate, selectedMemberIds)
   }, [currentDate, selectedMemberIds, fetchVisits, timeMode])
 
-  // Scroll to business start hour on mount
+  // Scroll the page to bring the calendar grid into view on mount
   useEffect(() => {
     if (scrollRef.current) {
-      const scrollToHour = Math.max(dayStartHour, dayStartHour)
-      const offset = (scrollToHour - dayStartHour) * HOUR_HEIGHT
-      scrollRef.current.scrollTop = Math.max(offset - 20, 0)
+      scrollRef.current.scrollIntoView({ behavior: "instant", block: "start" })
     }
   }, [dayStartHour])
 
@@ -393,14 +390,27 @@ export function CalendarViewV2({
     e.dataTransfer.effectAllowed = "move"
   }
 
-  function handleDragOver(e: React.DragEvent, slotKey: string) {
+  function handleDragOver(e: React.DragEvent, hour: number, colKey: string) {
     e.preventDefault()
     e.dataTransfer.dropEffect = "move"
-    setDragOverSlot(slotKey)
+
+    // Calculate snapped position for 30-min visual overlay
+    const rect = e.currentTarget.getBoundingClientRect()
+    const yInCell = e.clientY - rect.top
+    const cellTopInGrid = (hour - dayStartHour) * HOUR_HEIGHT
+    const absoluteY = cellTopInGrid + yInCell
+    const snapPx = HOUR_HEIGHT / 2 // 32px for 30-min increments
+    const snappedTop = Math.floor(absoluteY / snapPx) * snapPx
+    setDragOverPosition({ colKey, topPx: snappedTop })
+
+    // Keep dragOverSlot for horizontal orientation
+    const dateKey = format(currentDate, "yyyy-MM-dd")
+    setDragOverSlot(`${dateKey}-${colKey}-${hour}`)
   }
 
   function handleDragLeave() {
     setDragOverSlot(null)
+    setDragOverPosition(null)
   }
 
   // Item #2: Fixed drop handler -- now also reassigns to target team member
@@ -408,6 +418,7 @@ export function CalendarViewV2({
   async function handleDrop(e: React.DragEvent, hour: number, memberId?: string) {
     e.preventDefault()
     setDragOverSlot(null)
+    setDragOverPosition(null)
 
     const visitId = e.dataTransfer.getData(DRAG_DATA_TYPE)
     if (!visitId) return
@@ -643,11 +654,12 @@ export function CalendarViewV2({
 
   const columns = useMemo(() => {
     if (!useMultiColumn) {
+      const member = displayMembers[0]
       return [
         {
           key: "all",
-          label: format(currentDate, "EEEE, MMMM d"),
-          color: "#635BFF",
+          label: member ? `${member.firstName} ${member.lastName}` : format(currentDate, "EEEE, MMMM d"),
+          color: member?.color || "#635BFF",
           visits: visitsByMember["all"] || [],
         },
       ]
@@ -699,7 +711,7 @@ export function CalendarViewV2({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         {/* Left: Navigation */}
@@ -877,7 +889,7 @@ export function CalendarViewV2({
       </div>
 
       {/* Main content area */}
-      <div className="flex flex-1 min-h-0 gap-0">
+      <div className="flex gap-0">
         <div
           className={cn(
             "flex-1 min-w-0",
@@ -898,6 +910,7 @@ export function CalendarViewV2({
               anytimeVisits={anytimeVisits}
               anytimeByMember={anytimeByMember}
               dragOverSlot={dragOverSlot}
+              dragOverPosition={dragOverPosition}
               dayStartHour={dayStartHour}
               dayEndHour={dayEndHour}
               businessHours={businessHours}
@@ -956,13 +969,14 @@ interface DayTimeGridProps {
   anytimeVisits: CalendarVisit[]
   anytimeByMember: Record<string, CalendarVisit[]>
   dragOverSlot: string | null
+  dragOverPosition: { colKey: string; topPx: number } | null
   dayStartHour: number
   dayEndHour: number
   businessHours: BusinessHours
   orientation: OrientationMode
   onVisitClick: (visit: CalendarVisit) => void
   onDragStart: (e: React.DragEvent, visitId: string) => void
-  onDragOver: (e: React.DragEvent, slotKey: string) => void
+  onDragOver: (e: React.DragEvent, hour: number, colKey: string) => void
   onDragLeave: () => void
   onDrop: (e: React.DragEvent, hour: number, memberId?: string) => void
 }
@@ -980,6 +994,7 @@ function DayTimeGrid({
   anytimeVisits,
   anytimeByMember,
   dragOverSlot,
+  dragOverPosition,
   dayStartHour,
   dayEndHour,
   businessHours,
@@ -1090,12 +1105,10 @@ function DayTimeGrid({
               key={col.key}
               className="flex items-center gap-2 px-3 py-3 border-r border-[#E3E8EE] last:border-r-0"
             >
-              {useMultiColumn && (
-                <span
-                  className="w-2.5 h-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: col.color }}
-                />
-              )}
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: col.color }}
+              />
               <span className="text-sm font-medium text-[#0A2540] truncate">
                 {col.label}
               </span>
@@ -1106,12 +1119,8 @@ function DayTimeGrid({
           ))}
         </div>
 
-        {/* Time grid -- Item #1: scrollbar-gutter: stable prevents misalignment */}
-        <div
-          ref={scrollRef}
-          className="overflow-y-auto"
-          style={{ maxHeight: "calc(100vh - 340px)", scrollbarGutter: "stable" }}
-        >
+        {/* Time grid */}
+        <div ref={scrollRef}>
           <div
             className="relative grid"
             style={{ gridTemplateColumns: `64px repeat(${colCount}, 1fr)` }}
@@ -1148,21 +1157,17 @@ function DayTimeGrid({
                 >
                   {/* Hour cells (droppable) */}
                   {hours.map((hour) => {
-                    const slotKey = `${dateKey}-${col.key}-${hour}`
-                    const isOver = dragOverSlot === slotKey
-                    // Item #29: Off-hours shading
                     const isOffHours = hour < bizStartHour || hour >= bizEndHour
 
                     return (
                       <div
                         key={hour}
                         className={cn(
-                          "border-b border-[#E3E8EE] transition-colors",
-                          isOver && "bg-[#635BFF]/10",
-                          isOffHours && !isOver && "bg-[#F6F8FA]/60"
+                          "border-b border-[#E3E8EE]",
+                          isOffHours && "bg-[#F6F8FA]/60"
                         )}
                         style={{ height: HOUR_HEIGHT }}
-                        onDragOver={(e) => onDragOver(e, slotKey)}
+                        onDragOver={(e) => onDragOver(e, hour, col.key)}
                         onDragLeave={onDragLeave}
                         onDrop={(e) =>
                           onDrop(e, hour, useMultiColumn ? col.key : undefined)
@@ -1170,6 +1175,17 @@ function DayTimeGrid({
                       />
                     )
                   })}
+
+                  {/* 30-min snap drag overlay */}
+                  {dragOverPosition?.colKey === col.key && (
+                    <div
+                      className="absolute left-1 right-1 rounded-md bg-[#635BFF]/10 pointer-events-none z-10 transition-[top] duration-75"
+                      style={{
+                        top: dragOverPosition.topPx,
+                        height: HOUR_HEIGHT,
+                      }}
+                    />
+                  )}
 
                   {/* Current time indicator */}
                   {todayFlag && currentTimeTop !== null && (
@@ -1235,20 +1251,8 @@ function DayTimeGrid({
                           )}
                           {height >= 62 && (
                             <p className="text-[11px] text-[#8898AA] truncate leading-tight mt-0.5">
-                              {getPurposeLabel(visit.purpose)} -- {visit.job.title}
+                              {getPurposeLabel(visit.purpose)} - {visit.job.title}
                             </p>
-                          )}
-                          {height >= 80 && visit.assignments.length > 0 && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <span
-                                className="w-1.5 h-1.5 rounded-full"
-                                style={{ backgroundColor: color }}
-                              />
-                              <span className="text-[10px] text-[#8898AA] truncate">
-                                {visit.assignments[0].user.firstName}{" "}
-                                {visit.assignments[0].user.lastName}
-                              </span>
-                            </div>
                           )}
                         </button>
                       </div>
@@ -1336,8 +1340,7 @@ function DayTimeGrid({
       {/* Team member rows */}
       <div
         ref={scrollRef}
-        className="overflow-x-auto overflow-y-auto"
-        style={{ maxHeight: "calc(100vh - 340px)", scrollbarGutter: "stable" }}
+        className="overflow-x-auto"
       >
         {columns.map((col) => (
           <div
@@ -1347,9 +1350,7 @@ function DayTimeGrid({
           >
             {/* Member label */}
             <div className="flex items-center gap-2 px-3 py-2 border-r border-b border-[#E3E8EE] bg-[#F6F8FA]">
-              {useMultiColumn && (
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
-              )}
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: col.color }} />
               <span className="text-sm font-medium text-[#0A2540] truncate">{col.label}</span>
               <span className="text-[10px] text-[#8898AA]">({col.visits.length})</span>
             </div>
@@ -1375,7 +1376,7 @@ function DayTimeGrid({
                     isOver && "bg-[#635BFF]/10",
                     isOffHours && !isOver && "bg-[#F6F8FA]/60"
                   )}
-                  onDragOver={(e) => onDragOver(e, slotKey)}
+                  onDragOver={(e) => onDragOver(e, hour, col.key)}
                   onDragLeave={onDragLeave}
                   onDrop={(e) => onDrop(e, hour, useMultiColumn ? col.key : undefined)}
                 >
@@ -1480,6 +1481,12 @@ function UnscheduledSidebarV2({
                     ? `${differenceInMinutes(parseISO(visit.scheduledEnd), parseISO(visit.scheduledStart))} min`
                     : "1 hr (est.)"
 
+                const assignee = visit.assignments[0]?.user
+                const initials = assignee
+                  ? `${assignee.firstName.charAt(0)}${assignee.lastName.charAt(0)}`
+                  : null
+                const assigneeColor = assignee?.color || "#8898AA"
+
                 return (
                   <div
                     key={visit.id}
@@ -1488,41 +1495,33 @@ function UnscheduledSidebarV2({
                     onClick={() => onVisitClick(visit)}
                     className="w-full text-left rounded-lg border border-[#E3E8EE] p-3 hover:border-[#635BFF]/40 hover:shadow-sm transition-all group cursor-grab active:cursor-grabbing"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-1.5 min-w-0">
-                        <GripVertical className="w-3.5 h-3.5 text-[#8898AA] mt-0.5 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity" />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1">
-                            {isEmergency && (
-                              <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
-                            )}
-                            <p className="text-sm font-medium text-[#0A2540] group-hover:text-[#635BFF] truncate leading-tight">
-                              {visit.job.customer.firstName}{" "}
-                              {visit.job.customer.lastName}
-                            </p>
-                          </div>
-                          <p className="text-xs text-[#425466] mt-0.5 truncate">
-                            {getPurposeLabel(visit.purpose)} --{" "}
-                            {visit.job.title}
-                          </p>
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-1">
                       {isEmergency && (
-                        <Badge
-                          variant="outline"
-                          className="text-[10px] px-1.5 py-0 shrink-0 bg-red-50 text-red-600 border-red-200"
-                        >
-                          Emergency
-                        </Badge>
+                        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
                       )}
+                      <p className="text-sm font-medium text-[#0A2540] group-hover:text-[#635BFF] truncate leading-tight">
+                        {visit.job.customer.firstName}{" "}
+                        {visit.job.customer.lastName}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-3 mt-1.5 pl-5">
-                      <span className="text-[10px] text-[#8898AA]">
-                        {visit.job.jobNumber}
-                      </span>
+                    <p className="text-xs text-[#425466] mt-0.5 truncate">
+                      {getPurposeLabel(visit.purpose)} - {visit.job.title}
+                    </p>
+                    <div className="flex items-center justify-between mt-1.5">
                       <span className="text-[10px] text-[#8898AA]">
                         {durationStr}
                       </span>
+                      {initials && (
+                        <div className="flex items-center gap-1">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ backgroundColor: assigneeColor }}
+                          />
+                          <span className="text-[10px] font-medium text-[#8898AA]">
+                            {initials}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )

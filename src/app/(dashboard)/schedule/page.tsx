@@ -52,28 +52,24 @@ export default async function SchedulePage() {
       : DEFAULT_BUSINESS_HOURS
 
   return (
-    <div className="flex h-[calc(100vh-64px)]">
-      <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-semibold text-[#0A2540]">
-              Schedule
-            </h1>
-            <p className="text-sm text-[#8898AA] mt-0.5">
-              Dispatch board -- manage visits and crew assignments.
-            </p>
-          </div>
-        </div>
-        <div className="flex-1 min-h-0">
-          <CalendarViewV2
-            initialVisits={initialVisits}
-            unscheduledVisits={unscheduledVisits}
-            anytimeVisits={anytimeVisits}
-            teamMembers={teamMembers}
-            businessHours={businessHours}
-          />
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-[#0A2540]">
+            Schedule
+          </h1>
+          <p className="text-sm text-[#8898AA] mt-0.5">
+            Dispatch board -- manage visits and crew assignments.
+          </p>
         </div>
       </div>
+      <CalendarViewV2
+        initialVisits={initialVisits}
+        unscheduledVisits={unscheduledVisits}
+        anytimeVisits={anytimeVisits}
+        teamMembers={teamMembers}
+        businessHours={businessHours}
+      />
     </div>
   )
 }
