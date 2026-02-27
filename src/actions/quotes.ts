@@ -810,6 +810,55 @@ export async function getApprovedQuotesForCustomer(customerId: string) {
 }
 
 // =============================================================================
+// 8b. getQuoteLineItems - Get line items for a specific quote (used by invoice builder)
+// =============================================================================
+
+export async function getQuoteLineItems(quoteId: string) {
+  try {
+    const user = await requireAuth()
+
+    const quote = await prisma.quote.findFirst({
+      where: {
+        id: quoteId,
+        organizationId: user.organizationId,
+      },
+      select: {
+        id: true,
+        lineItems: {
+          where: { quoteOptionId: null },
+          orderBy: { sortOrder: "asc" },
+          select: {
+            serviceId: true,
+            name: true,
+            description: true,
+            quantity: true,
+            unitPrice: true,
+            taxable: true,
+          },
+        },
+      },
+    })
+
+    if (!quote) return { error: "Quote not found" }
+
+    return {
+      lineItems: quote.lineItems.map((li) => ({
+        serviceId: li.serviceId,
+        name: li.name,
+        description: li.description || "",
+        quantity: Number(li.quantity),
+        unitPrice: Number(li.unitPrice),
+        taxable: li.taxable,
+      })),
+    }
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) throw error
+    console.error("getQuoteLineItems error:", error)
+    return { error: "Failed to fetch quote line items" }
+  }
+}
+
+// =============================================================================
 // 9. duplicateQuote - Create a copy of an existing quote as a new draft
 // =============================================================================
 

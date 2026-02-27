@@ -43,7 +43,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Separator } from "@/components/ui/separator"
 import { cn, formatCurrency } from "@/lib/utils"
 import { createInvoice, sendInvoice } from "@/actions/invoices"
-import { getApprovedQuotesForCustomer } from "@/actions/quotes"
+import { getApprovedQuotesForCustomer, getQuoteLineItems } from "@/actions/quotes"
 import { getJobsForCustomer } from "@/actions/jobs"
 import { toast } from "sonner"
 
@@ -290,6 +290,30 @@ export function InvoiceBuilder({
     })
     return () => { cancelled = true }
   }, [customerId])
+
+  // ─── Quote Selection (populates line items) ──────────────────────────
+
+  async function handleQuoteSelect(selectedQuoteId: string) {
+    const newQuoteId = selectedQuoteId === "none" ? "" : selectedQuoteId
+    setQuoteId(newQuoteId)
+
+    if (!newQuoteId) return
+
+    const result = await getQuoteLineItems(newQuoteId)
+    if ("lineItems" in result && result.lineItems && result.lineItems.length > 0) {
+      setLineItems(
+        result.lineItems!.map((li) => ({
+          id: `item-${nextItemId++}`,
+          serviceId: li.serviceId || undefined,
+          name: li.name,
+          description: li.description,
+          quantity: li.quantity,
+          unitPrice: li.unitPrice,
+          taxable: li.taxable,
+        }))
+      )
+    }
+  }
 
   // ─── Line Item Operations ──────────────────────────────────────────────
 
@@ -555,7 +579,7 @@ export function InvoiceBuilder({
                 Link to Quote
                 <span className="text-xs text-[#8898AA] font-normal ml-2">(optional)</span>
               </Label>
-              <Select value={quoteId || "none"} onValueChange={(v) => setQuoteId(v === "none" ? "" : v)}>
+              <Select value={quoteId || "none"} onValueChange={handleQuoteSelect}>
                 <SelectTrigger className="border-[#E3E8EE] text-[#0A2540]">
                   <SelectValue placeholder="No quote linked" />
                 </SelectTrigger>
